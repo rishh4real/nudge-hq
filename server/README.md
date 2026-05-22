@@ -1,0 +1,86 @@
+# NudgeHQ Backend Server
+
+This is the Express.js and PostgreSQL/Supabase backend server for **NudgeHQ** workforce tracking platform.
+
+## Features
+
+- **JWT Authentication**: Secure login/signup with custom role authorization (`admin` & `employee`).
+- **Workforce Task Management**: Assignments, status transitions, and automated blocker logging.
+- **Analytics Engine**: Metrics computation, completion indicators, and check-in rates.
+- **Groq AI Integration**: Daily summaries, delay assessments, and activity nudges.
+- **MVC Architecture**: Scalable file structure dividing controllers, routes, configurations, and middleware.
+
+## Directory Layout
+
+```
+server/
+├── src/
+│   ├── config/          # Clients (Supabase, Groq)
+│   ├── db/              # SQL setup schemas
+│   ├── middleware/      # Auth validation
+│   ├── controllers/     # Business logic
+│   ├── routes/          # REST endpoints
+│   └── index.js         # Server entrypoint
+├── .env.example
+└── package.json
+```
+
+## Getting Started
+
+### 1. Database Setup
+Copy the statements in `src/db/schema.sql` and run them in your Supabase SQL editor to instantiate the tables and indexes.
+
+### 2. Environment Setup
+Create a `.env` file in the `server` root:
+```bash
+cp .env.example .env
+```
+Fill in the credentials for Supabase, Groq API, and JWT Secret.
+
+### 3. Installation
+Install the Node.js packages:
+```bash
+npm install
+```
+
+### 4. Running Locally
+Run the server in development mode:
+```bash
+npm run dev
+```
+The API is exposed locally at: `http://localhost:5000`
+
+## API Reference
+
+### Auth Endpoint `/api/auth`
+- `POST /signup` - Register a new employee/admin.
+- `POST /login` - Sign in and receive token.
+- `GET /me` - Get current profile info (Protected).
+
+### Employees Endpoint `/api/employees`
+- `POST /updates` - Log daily update check-in (Protected).
+- `GET /updates` - Fetch user progress update history (Protected).
+- `GET /dashboard` - Get employee task stats (Protected).
+
+### Tasks Endpoint `/api/tasks`
+- `GET /` - Fetch tasks (Protected).
+- `POST /` - Create a task (Admin only).
+- `PUT /:id` - Edit task details (Admin only).
+- `PUT /:id/status` - Transition task state. If status is `blocked`, requires `blocker_text` (Protected).
+- `DELETE /:id` - Remove a task (Admin only).
+
+### Admin Endpoint `/api/admin`
+- `GET /updates` - Review all employee progress updates (Admin only).
+- `GET /departments` - List departments (Protected).
+- `POST /departments` - Create department (Admin only).
+- `PUT /departments/:id` - Edit department (Admin only).
+- `DELETE /departments/:id` - Delete department (Admin only).
+- `GET /reports/export` - Export task and blocker metrics as JSON ready for Excel/CSV formatting (Admin only).
+
+### Analytics Endpoint `/api/analytics`
+- `GET /dashboard` - Get high-level team completion rates and blocker summary stats (Admin only).
+
+### AI Endpoint `/api/ai`
+- `GET /summary/daily` - Retrieve daily LLM-generated operational brief (Admin only).
+- `GET /delays` - Highlight overdue tasks and risk assessments (Admin only).
+- `GET /inactivity` - Identify employees with no progress updates for 3 days and generate nudge draft templates (Admin only).
