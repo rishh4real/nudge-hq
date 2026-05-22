@@ -77,19 +77,19 @@ const pricing = [
     name: 'Free',
     price: 'Rs.0',
     description: 'For small teams piloting progress visibility.',
-    features: ['Up to 10 employees', 'Basic check-ins', 'Team progress board'],
+    features: ['Free trial for 40 employees', 'Basic check-ins', 'Team progress board'],
   },
   {
     name: 'Starter',
     price: 'Rs.2000',
     description: 'For growing teams replacing manual follow-ups.',
-    features: ['Up to 50 employees', 'Automated nudges', 'Weekly reports'],
+    features: ['Up to 10 employees', 'Automated nudges', 'Weekly reports'],
   },
   {
     name: 'Growth',
     price: 'Rs.6000',
     description: 'For companies that need cross-team clarity.',
-    features: ['Up to 200 employees', 'Admin analytics', 'Exports and roles'],
+    features: ['Up to 40 employees', 'Admin analytics', 'Exports and roles'],
     highlighted: true,
   },
   {
