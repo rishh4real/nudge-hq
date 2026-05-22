@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { motion } from 'framer-motion'
 import {
+  Activity,
   ArrowRight,
   BellRing,
   Building2,
@@ -13,6 +15,7 @@ import {
   LayoutDashboard,
   LineChart,
   LockKeyhole,
+  Mail,
   MessageSquareText,
   ShieldCheck,
   Smartphone,
@@ -21,6 +24,13 @@ import {
   UsersRound,
   Workflow,
 } from 'lucide-react'
+
+const cardMotion = {
+  initial: { opacity: 0, y: 18 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, amount: 0.25 },
+  transition: { duration: 0.45, ease: 'easeOut' },
+}
 
 const painPoints = [
   {
@@ -52,6 +62,21 @@ const adminFeatures = [
   ['Department progress trends', LineChart],
   ['Attendance and task visibility', UserCheck],
   ['Export-ready HR summaries', ClipboardCheck],
+]
+
+const trustSignals = [
+  ['Beta access open', Sparkles],
+  ['Early teams onboarding', UsersRound],
+  ['HR-friendly workflows', ClipboardCheck],
+  ['AI-powered summaries', Activity],
+]
+
+const sampleTeams = ['Northstar Ops', 'Tech Team', 'OpsFlow', 'PeopleDesk', 'FieldPilot']
+
+const aiSummaryItems = [
+  ['12 tasks completed today', 'Completed', '#1D9E75'],
+  ['2 blockers detected', 'Needs review', '#7F77DD'],
+  ['3 delayed check-ins', 'Follow up', '#D97706'],
 ]
 
 const steps = [
@@ -156,7 +181,7 @@ function App() {
             onClick={openTrial}
             className="inline-flex items-center gap-2 rounded-md bg-[#7F77DD] px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-[#7F77DD]/20 transition hover:bg-[#3C3489]"
           >
-            Start Free Trial
+            Get Early Access
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </button>
         </nav>
@@ -166,7 +191,11 @@ function App() {
         <div className="dot-grid absolute inset-0 -z-10 opacity-50" />
         <div className="absolute left-1/2 top-14 -z-10 h-72 w-[42rem] -translate-x-1/2 rounded-full bg-[#F4F3FF]" />
         <div className="mx-auto grid max-w-7xl items-center gap-14 px-5 pb-24 pt-16 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8 lg:pb-28 lg:pt-20">
-          <div>
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+          >
             <div className="inline-flex items-center gap-2 rounded-full border border-[#EEEDFE] bg-white px-4 py-2 text-sm font-semibold text-[#3C3489] shadow-sm">
               <Sparkles className="h-4 w-4 text-[#1D9E75]" aria-hidden="true" />
               Real-time workforce progress tracking
@@ -183,7 +212,7 @@ function App() {
                 onClick={openTrial}
                 className="inline-flex items-center justify-center gap-2 rounded-md bg-[#7F77DD] px-6 py-4 text-base font-semibold text-white shadow-lg shadow-[#7F77DD]/25 transition hover:-translate-y-0.5 hover:bg-[#3C3489]"
               >
-                Start Free Trial
+                Get Early Access
                 <ArrowRight className="h-5 w-5" aria-hidden="true" />
               </button>
               <a
@@ -193,9 +222,14 @@ function App() {
                 Explore features
               </a>
             </div>
-          </div>
+          </motion.div>
 
-          <div className="relative">
+          <motion.div
+            className="relative dashboard-float"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.1, ease: 'easeOut' }}
+          >
             <div className="soft-grid rounded-lg border border-[#DAD7FB] bg-white p-4 shadow-xl shadow-[#3C3489]/10">
               <div className="rounded-md border border-[#EEEDFE] bg-white">
                 <div className="flex items-center justify-between border-b border-[#EEEDFE] px-5 py-4">
@@ -256,6 +290,40 @@ function App() {
                 </div>
               </div>
             </div>
+          </motion.div>
+        </div>
+      </section>
+
+      <section className="border-y border-[#EEEDFE] bg-white px-5 py-14 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
+            <motion.div {...cardMotion}>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#1D9E75]">Trust signals</p>
+              <h2 className="mt-3 text-2xl font-bold text-[#2C2C2A] sm:text-3xl">Built for modern Indian teams.</h2>
+              <p className="mt-4 leading-7 text-[#5F5E5A]">
+                Designed for fast-moving HR, operations, and field teams that need clear progress without extra reporting work.
+              </p>
+            </motion.div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {trustSignals.map(([signal, Icon], index) => (
+                <motion.div
+                  key={signal}
+                  {...cardMotion}
+                  transition={{ duration: 0.45, delay: index * 0.05, ease: 'easeOut' }}
+                  className="rounded-lg border border-[#EEEDFE] bg-[#FCFCFF] p-5 shadow-sm transition hover:-translate-y-1 hover:border-[#DAD7FB] hover:shadow-md"
+                >
+                  <Icon className="h-5 w-5 text-[#7F77DD]" aria-hidden="true" />
+                  <p className="mt-4 font-semibold text-[#2C2C2A]">{signal}</p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-3 border-t border-[#EEEDFE] pt-8">
+            {sampleTeams.map((team) => (
+              <span key={team} className="rounded-md border border-[#EEEDFE] bg-white px-4 py-2 text-sm font-semibold text-[#5F5E5A]">
+                {team}
+              </span>
+            ))}
           </div>
         </div>
       </section>
@@ -268,14 +336,19 @@ function App() {
             copy="NudgeHQ gives companies a calmer operating rhythm by making workforce progress visible before it becomes a meeting."
           />
           <div className="mt-12 grid gap-5 md:grid-cols-3">
-            {painPoints.map(({ icon: Icon, title, copy }) => (
-              <article key={title} className="rounded-lg border border-[#EEEDFE] bg-white p-6 shadow-sm">
+            {painPoints.map(({ icon: Icon, title, copy }, index) => (
+              <motion.article
+                key={title}
+                {...cardMotion}
+                transition={{ duration: 0.45, delay: index * 0.06, ease: 'easeOut' }}
+                className="rounded-lg border border-[#EEEDFE] bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+              >
                 <div className="flex h-11 w-11 items-center justify-center rounded-md bg-[#EEEDFE] text-[#3C3489]">
                   <Icon className="h-5 w-5" aria-hidden="true" />
                 </div>
                 <h3 className="mt-5 text-xl font-bold text-[#2C2C2A]">{title}</h3>
                 <p className="mt-3 leading-7 text-[#5F5E5A]">{copy}</p>
-              </article>
+              </motion.article>
             ))}
           </div>
         </div>
@@ -289,7 +362,7 @@ function App() {
             copy="The employee side stays lightweight. The admin side turns every update into a clear operational signal."
           />
           <div className="mt-14 grid gap-6 lg:grid-cols-2">
-            <div className="rounded-lg border border-[#EEEDFE] bg-white p-7 shadow-sm">
+            <motion.div {...cardMotion} className="rounded-lg border border-[#EEEDFE] bg-white p-7 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-md bg-[#EEEDFE] text-[#3C3489]">
                   <UsersRound className="h-5 w-5" aria-hidden="true" />
@@ -307,9 +380,9 @@ function App() {
                   </div>
                 ))}
               </div>
-            </div>
+            </motion.div>
 
-            <div className="rounded-lg border border-[#EEEDFE] bg-white p-7 shadow-sm">
+            <motion.div {...cardMotion} transition={{ duration: 0.45, delay: 0.08, ease: 'easeOut' }} className="rounded-lg border border-[#EEEDFE] bg-white p-7 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-md bg-[#E8F7F1] text-[#1D9E75]">
                   <Building2 className="h-5 w-5" aria-hidden="true" />
@@ -327,8 +400,69 @@ function App() {
                   </div>
                 ))}
               </div>
-            </div>
+            </motion.div>
           </div>
+        </div>
+      </section>
+
+      <section className="relative overflow-hidden bg-[#FCFCFF] px-5 py-24 sm:px-6 lg:px-8">
+        <div className="dot-grid absolute inset-0 opacity-40" />
+        <div className="relative mx-auto grid max-w-7xl gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+          <motion.div {...cardMotion}>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#1D9E75]">Killer feature</p>
+            <h2 className="mt-4 text-3xl font-bold text-[#2C2C2A] sm:text-4xl">AI Team Summaries that turn updates into decisions.</h2>
+            <p className="mt-5 text-lg leading-8 text-[#5F5E5A]">
+              NudgeHQ can roll daily check-ins, blockers, and delayed updates into a manager-ready summary, so leaders see what changed without reading every message.
+            </p>
+            <button
+              type="button"
+              onClick={openTrial}
+              className="mt-8 inline-flex items-center gap-2 rounded-md bg-[#3C3489] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#7F77DD]"
+            >
+              Join Beta
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </motion.div>
+          <motion.div
+            {...cardMotion}
+            className="rounded-lg border border-[#DAD7FB] bg-white p-4 shadow-xl shadow-[#3C3489]/10"
+          >
+            <div className="rounded-md border border-[#EEEDFE] bg-[#FCFCFF] p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-[#3C3489]">AI Team Summary</p>
+                  <p className="mt-1 text-xs text-[#5F5E5A]">Generated from today&apos;s workforce updates</p>
+                </div>
+                <span className="summary-pulse rounded-full bg-[#E8F7F1] px-3 py-1 text-xs font-semibold text-[#1D9E75]">
+                  Live draft
+                </span>
+              </div>
+              <div className="mt-6 space-y-3">
+                {aiSummaryItems.map(([item, label, color], index) => (
+                  <motion.div
+                    key={item}
+                    initial={{ opacity: 0, x: 16 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true, amount: 0.4 }}
+                    transition={{ duration: 0.4, delay: index * 0.08, ease: 'easeOut' }}
+                    className="flex items-center justify-between gap-4 rounded-md border border-[#EEEDFE] bg-white p-4"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
+                      <p className="font-semibold text-[#2C2C2A]">{item}</p>
+                    </div>
+                    <span className="rounded-full bg-[#EEEDFE] px-3 py-1 text-xs font-semibold text-[#3C3489]">{label}</span>
+                  </motion.div>
+                ))}
+              </div>
+              <div className="mt-5 rounded-md bg-[#3C3489] p-5 text-white">
+                <p className="text-sm font-semibold text-white/70">Manager note</p>
+                <p className="mt-2 leading-7">
+                  Support is on track, but Field team needs attention on delayed check-ins and two unresolved blockers.
+                </p>
+              </div>
+            </div>
+          </motion.div>
         </div>
       </section>
 
@@ -339,15 +473,37 @@ function App() {
             title="Three steps from chasing updates to seeing progress."
           />
           <div className="mt-14 grid gap-6 md:grid-cols-3">
-            {steps.map(({ step, title, copy }) => (
-              <article key={step} className="rounded-lg border border-white/70 bg-white p-7">
+            {steps.map(({ step, title, copy }, index) => (
+              <motion.article
+                key={step}
+                {...cardMotion}
+                transition={{ duration: 0.45, delay: index * 0.06, ease: 'easeOut' }}
+                className="rounded-lg border border-white/70 bg-white p-7 transition hover:-translate-y-1 hover:shadow-md"
+              >
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-bold text-[#7F77DD]">{step}</span>
                   <Workflow className="h-5 w-5 text-[#1D9E75]" aria-hidden="true" />
                 </div>
                 <h3 className="mt-8 text-xl font-bold text-[#2C2C2A]">{title}</h3>
                 <p className="mt-3 leading-7 text-[#5F5E5A]">{copy}</p>
-              </article>
+              </motion.article>
+            ))}
+          </div>
+          <div className="mx-auto mt-10 grid max-w-3xl gap-3 rounded-lg border border-white/70 bg-white/70 p-4 sm:grid-cols-[1fr_auto_1fr_auto_1fr] sm:items-center">
+            {['Employee update', 'AI summary', 'Manager dashboard'].map((item, index) => (
+              <motion.div
+                key={item}
+                initial={{ opacity: 0.65 }}
+                animate={{ opacity: [0.65, 1, 0.65] }}
+                transition={{ duration: 2.4, delay: index * 0.35, repeat: Infinity, ease: 'easeInOut' }}
+                className="rounded-md bg-white px-4 py-3 text-center text-sm font-semibold text-[#3C3489]"
+              >
+                {item}
+              </motion.div>
+            )).flatMap((node, index, array) => (
+              index === array.length - 1
+                ? [node]
+                : [node, <ArrowRight key={`arrow-${index}`} className="mx-auto hidden h-5 w-5 text-[#1D9E75] sm:block" aria-hidden="true" />]
             ))}
           </div>
         </div>
@@ -361,9 +517,11 @@ function App() {
             copy="Choose a plan that matches your current team size and progress tracking needs."
           />
           <div className="mt-14 grid gap-5 lg:grid-cols-4">
-            {pricing.map(({ name, price, description, features, highlighted }) => (
-              <article
+            {pricing.map(({ name, price, description, features, highlighted }, index) => (
+              <motion.article
                 key={name}
+                {...cardMotion}
+                transition={{ duration: 0.45, delay: index * 0.05, ease: 'easeOut' }}
                 className={`rounded-lg border p-6 ${
                   highlighted
                     ? 'border-[#7F77DD] bg-[#3C3489] text-white shadow-xl shadow-[#3C3489]/20'
@@ -399,9 +557,9 @@ function App() {
                       : 'bg-[#EEEDFE] text-[#3C3489] hover:bg-[#7F77DD] hover:text-white'
                   }`}
                 >
-                  Start Free Trial
+                  Get Early Access
                 </button>
-              </article>
+              </motion.article>
             ))}
           </div>
         </div>
@@ -417,8 +575,13 @@ function App() {
             </p>
           </div>
           <div className="grid gap-5 sm:grid-cols-2">
-            {badges.map(({ title, copy, icon: Icon }) => (
-              <div key={title} className="flex items-center gap-4 rounded-lg border border-[#EEEDFE] bg-white p-5 shadow-sm">
+            {badges.map(({ title, copy, icon: Icon }, index) => (
+              <motion.div
+                key={title}
+                {...cardMotion}
+                transition={{ duration: 0.45, delay: index * 0.05, ease: 'easeOut' }}
+                className="flex items-center gap-4 rounded-lg border border-[#EEEDFE] bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+              >
                 <div className="flex h-12 w-12 items-center justify-center rounded-md bg-[#E8F7F1] text-[#1D9E75]">
                   <Icon className="h-6 w-6" aria-hidden="true" />
                 </div>
@@ -426,23 +589,49 @@ function App() {
                   <p className="font-bold text-[#2C2C2A]">{title}</p>
                   <p className="mt-1 text-sm leading-6 text-[#5F5E5A]">{copy}</p>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      <footer className="px-5 py-10 sm:px-6 lg:px-8">
-        <div className="mx-auto flex max-w-7xl flex-col gap-6 border-t border-[#EEEDFE] pt-8 sm:flex-row sm:items-center sm:justify-between">
-          <a href="#top" className="flex items-center gap-3">
-            <img src="/brand/nudgehq-icon.svg" alt="" className="h-9 w-9 rounded-lg" />
-            <span className="font-bold text-[#3C3489]">NudgeHQ</span>
-          </a>
-          <div className="flex flex-wrap gap-5 text-sm font-medium text-[#5F5E5A]">
-            <a className="hover:text-[#3C3489]" href="#features">Features</a>
-            <a className="hover:text-[#3C3489]" href="#pricing">Pricing</a>
-            <a className="hover:text-[#3C3489]" href="#security">Security</a>
+      <footer className="px-5 py-12 sm:px-6 lg:px-8">
+        <div className="mx-auto grid max-w-7xl gap-10 border-t border-[#EEEDFE] pt-10 md:grid-cols-[1.2fr_0.8fr_0.8fr]">
+          <div>
+            <a href="#top" className="flex items-center gap-3">
+              <img src="/brand/nudgehq-icon.svg" alt="" className="h-9 w-9 rounded-lg" />
+              <span className="font-bold text-[#3C3489]">NudgeHQ</span>
+            </a>
+            <p className="mt-4 max-w-sm leading-7 text-[#5F5E5A]">
+              Real-time workforce progress tracking for teams that want clarity without constant follow-ups.
+            </p>
+            <a className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#3C3489] hover:text-[#7F77DD]" href="mailto:support@nudgehq.app">
+              <Mail className="h-4 w-4" aria-hidden="true" />
+              support@nudgehq.app
+            </a>
           </div>
+          <div>
+            <p className="font-semibold text-[#2C2C2A]">Product</p>
+            <div className="mt-4 grid gap-3 text-sm font-medium text-[#5F5E5A]">
+              <a className="hover:text-[#3C3489]" href="#features">Features</a>
+              <a className="hover:text-[#3C3489]" href="#pricing">Pricing</a>
+              <a className="hover:text-[#3C3489]" href="#security">Security</a>
+              <button type="button" onClick={openTrial} className="w-fit text-left font-medium hover:text-[#3C3489]">
+                Get Early Access
+              </button>
+            </div>
+          </div>
+          <div>
+            <p className="font-semibold text-[#2C2C2A]">Company</p>
+            <div className="mt-4 grid gap-3 text-sm font-medium text-[#5F5E5A]">
+              <a className="hover:text-[#3C3489]" href="mailto:support@nudgehq.app">Contact</a>
+              <a className="hover:text-[#3C3489]" href="https://www.linkedin.com/" target="_blank" rel="noreferrer">LinkedIn</a>
+              <a className="hover:text-[#3C3489]" href="#top">Privacy Policy</a>
+              <a className="hover:text-[#3C3489]" href="#top">Terms</a>
+            </div>
+          </div>
+        </div>
+        <div className="mx-auto mt-10 max-w-7xl border-t border-[#EEEDFE] pt-6">
           <p className="text-sm text-[#5F5E5A]">(c) 2026 NudgeHQ. All rights reserved.</p>
         </div>
       </footer>
@@ -452,8 +641,8 @@ function App() {
           <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-2xl shadow-[#1A1035]/25">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#1D9E75]">Trial access</p>
-                <h2 className="mt-2 text-2xl font-bold text-[#2C2C2A]">We&apos;re setting up trials manually right now.</h2>
+                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#1D9E75]">Early access</p>
+                <h2 className="mt-2 text-2xl font-bold text-[#2C2C2A]">Join the NudgeHQ beta list.</h2>
               </div>
               <button
                 type="button"
@@ -465,14 +654,14 @@ function App() {
               </button>
             </div>
             <p className="mt-4 leading-7 text-[#5F5E5A]">
-              Backend signup is not connected yet. For now, request access and we&apos;ll wire this button to onboarding once the app flow is ready.
+              We&apos;re onboarding early teams manually while the product flow is being built. Send a quick request and we&apos;ll follow up with beta access details.
             </p>
             <div className="mt-6 grid gap-3">
               <a
-                href="mailto:hello@nudgehq.com?subject=NudgeHQ%20trial%20request"
+                href="mailto:support@nudgehq.app?subject=NudgeHQ%20early%20access%20request"
                 className="inline-flex items-center justify-center gap-2 rounded-md bg-[#7F77DD] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#3C3489]"
               >
-                Request access by email
+                Request early access
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
               <button

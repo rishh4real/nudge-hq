@@ -52,6 +52,14 @@ a {
   animation: brand-shimmer 4.5s ease-in-out infinite;
 }
 
+.dashboard-float {
+  animation: dashboard-float 7s ease-in-out infinite;
+}
+
+.summary-pulse {
+  animation: summary-pulse 2.4s ease-in-out infinite;
+}
+
 @keyframes brand-shimmer {
   0%,
   100% {
@@ -60,5 +68,38 @@ a {
 
   50% {
     background-position: 100% 50%;
+  }
+}
+
+@keyframes dashboard-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes summary-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(29, 158, 117, 0.16);
+  }
+
+  50% {
+    box-shadow: 0 0 0 8px rgba(29, 158, 117, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
   }
 }
