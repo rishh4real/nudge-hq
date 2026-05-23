@@ -243,13 +243,6 @@ function App() {
   const [passwordInput, setPasswordInput] = useState('nudgehq123')
   const [loginError, setLoginError] = useState(null)
   const [loginLoading, setLoginLoading] = useState(false)
-  const [showCompanySignup, setShowCompanySignup] = useState(false)
-  const [companyName, setCompanyName] = useState('')
-  const [companyAdminName, setCompanyAdminName] = useState('')
-  const [companyEmail, setCompanyEmail] = useState('')
-  const [companyPassword, setCompanyPassword] = useState('')
-  const [companySignupLoading, setCompanySignupLoading] = useState(false)
-  const [companySignupError, setCompanySignupError] = useState(null)
 
   // --- DASHBOARD DATA STATES ---
   // Employee Workspace
@@ -482,34 +475,6 @@ function App() {
         : message);
     } finally {
       setLoginLoading(false);
-    }
-  };
-
-  const handleCompanySignup = async (e) => {
-    e.preventDefault();
-    setCompanySignupError(null);
-    setCompanySignupLoading(true);
-
-    try {
-      const { data } = await fetchApi('/auth/company-signup', {
-        method: 'POST',
-        body: JSON.stringify({
-          company_name: companyName,
-          admin_name: companyAdminName,
-          email: companyEmail,
-          password: companyPassword,
-        })
-      });
-
-      setUser(data.user);
-      setToken(data.token);
-      setAuthRole(data.user.role);
-      setCurrentView('dashboard');
-      showToast(`Workspace created for ${companyName}. Welcome, ${data.user.name}.`, 'success');
-    } catch (err) {
-      setCompanySignupError(err.message || 'Failed to create company workspace.');
-    } finally {
-      setCompanySignupLoading(false);
     }
   };
 
@@ -1363,68 +1328,6 @@ function App() {
                 Sign in to Console
               </button>
             </form>
-
-            <div className="mt-6 rounded-lg border border-[#EEEDFE] bg-[#FCFCFF] p-4">
-              <button
-                type="button"
-                onClick={() => setShowCompanySignup(!showCompanySignup)}
-                className="flex w-full items-center justify-between text-left"
-              >
-                <span>
-                  <span className="block text-sm font-bold text-[#2C2C2A]">Create a company workspace</span>
-                  <span className="mt-1 block text-xs text-[#5F5E5A]">Real Supabase signup for a new admin and organization.</span>
-                </span>
-                <ArrowRight className={`h-4 w-4 text-[#7F77DD] transition ${showCompanySignup ? 'rotate-90' : ''}`} />
-              </button>
-
-              {showCompanySignup ? (
-                <form onSubmit={handleCompanySignup} className="mt-4 grid gap-3 border-t border-[#EEEDFE] pt-4">
-                  <input
-                    type="text"
-                    placeholder="Company name"
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    className="block w-full rounded-md border border-[#DAD7FB] px-3.5 py-2.5 text-sm outline-none focus:border-[#7F77DD]"
-                    required
-                  />
-                  <input
-                    type="text"
-                    placeholder="Admin name"
-                    value={companyAdminName}
-                    onChange={(e) => setCompanyAdminName(e.target.value)}
-                    className="block w-full rounded-md border border-[#DAD7FB] px-3.5 py-2.5 text-sm outline-none focus:border-[#7F77DD]"
-                    required
-                  />
-                  <input
-                    type="email"
-                    placeholder="Admin email"
-                    value={companyEmail}
-                    onChange={(e) => setCompanyEmail(e.target.value)}
-                    className="block w-full rounded-md border border-[#DAD7FB] px-3.5 py-2.5 text-sm outline-none focus:border-[#7F77DD]"
-                    required
-                  />
-                  <input
-                    type="password"
-                    placeholder="Password"
-                    value={companyPassword}
-                    onChange={(e) => setCompanyPassword(e.target.value)}
-                    className="block w-full rounded-md border border-[#DAD7FB] px-3.5 py-2.5 text-sm outline-none focus:border-[#7F77DD]"
-                    required
-                  />
-                  {companySignupError ? (
-                    <p className="rounded-md border border-rose-100 bg-rose-50 p-3 text-xs font-medium text-rose-600">{companySignupError}</p>
-                  ) : null}
-                  <button
-                    type="submit"
-                    disabled={companySignupLoading}
-                    className="inline-flex items-center justify-center gap-2 rounded-md bg-[#3C3489] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#7F77DD] disabled:opacity-50"
-                  >
-                    {companySignupLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Building2 className="h-4 w-4" />}
-                    Create Workspace
-                  </button>
-                </form>
-              ) : null}
-            </div>
 
             <div className="mt-6 text-center">
               <button
