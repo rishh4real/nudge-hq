@@ -6,6 +6,8 @@ NudgeHQ is a B2B SaaS web app for real-time workforce progress tracking. It help
 
 - Modern SaaS landing page with trust signals, pricing, security, and early-access CTAs
 - Developer demo console for switching between employee and admin/HR roles
+- Company onboarding endpoint for creating a workspace and admin account
+- Employee invite flow for creating employee logins from the admin dashboard
 - Employee workspace for progress check-ins, task status updates, blockers, and proof links
 - Admin/HR workspace for analytics, departments, task assignment, progress review, and reporting
 - Groq-powered AI summary endpoints for daily summaries, delay analysis, and inactivity nudges
@@ -85,6 +87,8 @@ In Supabase SQL editor:
 
 1. Run `server/src/db/schema.sql`
 2. Run `server/src/db/seed.sql`
+
+Run the latest schema again after pulling changes. It uses safe `IF NOT EXISTS` statements for organizations and employee invitations.
 
 The seed file creates demo accounts:
 

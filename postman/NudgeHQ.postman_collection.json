@@ -88,6 +88,37 @@
           }
         },
         {
+          "name": "Company Signup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) pm.environment.set('adminToken', json.token);",
+                  "if (json.user?.id) pm.environment.set('adminId', json.user.id);",
+                  "if (json.default_department?.id) pm.environment.set('departmentId', json.default_department.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_name\": \"Acme Workforce\",\n  \"admin_name\": \"Ops Admin\",\n  \"email\": \"ops.admin@example.com\",\n  \"password\": \"nudgehq123\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/company-signup"
+          }
+        },
+        {
           "name": "Get My Profile",
           "request": {
             "method": "GET",
@@ -361,6 +392,45 @@
               "raw": "{\n  \"name\": \"Postman QA Team\",\n  \"description\": \"Temporary department created from Postman.\"\n}"
             },
             "url": "{{baseUrl}}/api/admin/departments"
+          }
+        },
+        {
+          "name": "Invite Employee",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.employee?.id) pm.environment.set('employeeId', json.employee.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Employee\",\n  \"email\": \"new.employee@example.com\",\n  \"department_id\": \"{{departmentId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/employees/invite"
           }
         },
         {

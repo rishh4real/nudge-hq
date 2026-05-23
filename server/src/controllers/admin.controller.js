@@ -1,4 +1,13 @@
+import bcrypt from 'bcryptjs';
 import { supabase } from '../config/supabase.js';
+
+const TEMP_PASSWORD = 'nudgehq123';
+
+const isMissingSchema = (error) => (
+  error?.code === '42P01' ||
+  error?.code === '42703' ||
+  /does not exist|schema cache|column/i.test(error?.message || '')
+);
 
 /**
  * Get all employee progress updates with filters
@@ -186,6 +195,81 @@ export const deleteDepartment = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to delete department.',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Invite an employee by email.
+ * POST /admin/employees/invite
+ */
+export const inviteEmployee = async (req, res) => {
+  try {
+    const { name, email, department_id } = req.body;
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const { data: existingUser, error: checkError } = await supabase
+      .from('users')
+      .select('id, name, email, role')
+      .eq('email', normalizedEmail)
+      .maybeSingle();
+
+    if (checkError) throw checkError;
+
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: 'An employee with this email already exists.',
+        user: existingUser
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(TEMP_PASSWORD, 10);
+
+    const { data: employee, error: insertError } = await supabase
+      .from('users')
+      .insert([
+        {
+          name,
+          email: normalizedEmail,
+          password_hash: passwordHash,
+          role: 'employee',
+          department_id: department_id || null
+        }
+      ])
+      .select('id, name, email, role, department_id, created_at')
+      .single();
+
+    if (insertError) throw insertError;
+
+    const { error: inviteLogError } = await supabase
+      .from('employee_invitations')
+      .insert([
+        {
+          email: normalizedEmail,
+          invited_by: req.user.id,
+          user_id: employee.id,
+          status: 'accepted'
+        }
+      ]);
+
+    if (inviteLogError && !isMissingSchema(inviteLogError)) {
+      throw inviteLogError;
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: 'Employee invited and demo login created successfully.',
+      employee,
+      temporary_password: TEMP_PASSWORD,
+      invitation_logged: !inviteLogError
+    });
+  } catch (error) {
+    console.error('Invite employee error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to invite employee.',
       error: error.message
     });
   }

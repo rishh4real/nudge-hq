@@ -62,6 +62,7 @@ The frontend probes both `5000` and `5001`.
 
 ### Auth Endpoint `/api/auth`
 - `POST /signup` - Register a new employee/admin.
+- `POST /company-signup` - Create a company workspace, default department, and admin account.
 - `POST /login` - Sign in and receive token.
 - `GET /me` - Get current profile info (Protected).
 
@@ -83,6 +84,7 @@ The frontend probes both `5000` and `5001`.
 - `POST /departments` - Create department (Admin only).
 - `PUT /departments/:id` - Edit department (Admin only).
 - `DELETE /departments/:id` - Delete department (Admin only).
+- `POST /employees/invite` - Invite an employee and create their login (Admin only).
 - `GET /reports/export` - Export task and blocker metrics as JSON ready for Excel/CSV formatting (Admin only).
 
 ### Analytics Endpoint `/api/analytics`

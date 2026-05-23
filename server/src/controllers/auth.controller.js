@@ -13,6 +13,36 @@ const isSupabaseConnectionError = (error) => (
   error?.name === 'TypeError'
 );
 
+const isMissingOrgSchema = (error) => (
+  error?.code === '42P01' ||
+  error?.code === '42703' ||
+  /organizations|organization_id|schema cache|does not exist/i.test(error?.message || '')
+);
+
+const insertWithOptionalOrganization = async (table, payload) => {
+  const { data, error } = await supabase
+    .from(table)
+    .insert([payload])
+    .select()
+    .single();
+
+  if (!error) return { data };
+
+  if (!isMissingOrgSchema(error) || payload.organization_id === undefined) {
+    throw error;
+  }
+
+  const { organization_id, ...fallbackPayload } = payload;
+  const fallback = await supabase
+    .from(table)
+    .insert([fallbackPayload])
+    .select()
+    .single();
+
+  if (fallback.error) throw fallback.error;
+  return { data: fallback.data };
+};
+
 /**
  * Signup Controller: Registers a new user (admin or employee)
  */
@@ -96,6 +126,104 @@ export const signup = async (req, res) => {
       message: isSupabaseConnectionError(error)
         ? 'Supabase is not reachable. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in server/.env.'
         : 'Failed to register user.',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Company onboarding: creates an organization, default department, and admin user.
+ * POST /auth/company-signup
+ */
+export const companySignup = async (req, res) => {
+  try {
+    const { company_name, admin_name, email, password } = req.body;
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const { data: existingUser, error: checkError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', normalizedEmail)
+      .maybeSingle();
+
+    if (checkError) throw checkError;
+
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: 'Email is already registered.'
+      });
+    }
+
+    let organization = null;
+    let organizationSchemaReady = true;
+
+    const { data: orgData, error: orgError } = await supabase
+      .from('organizations')
+      .insert([{ name: company_name }])
+      .select('id, name, created_at')
+      .single();
+
+    if (orgError) {
+      if (!isMissingOrgSchema(orgError)) throw orgError;
+      organizationSchemaReady = false;
+    } else {
+      organization = orgData;
+    }
+
+    const { data: department } = await insertWithOptionalOrganization('departments', {
+      name: `${company_name} Operations`,
+      description: 'Default workspace created during company onboarding.',
+      organization_id: organization?.id
+    });
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const { data: adminUser } = await insertWithOptionalOrganization('users', {
+      name: admin_name,
+      email: normalizedEmail,
+      password_hash: passwordHash,
+      role: 'admin',
+      department_id: null,
+      organization_id: organization?.id
+    });
+
+    const token = jwt.sign(
+      {
+        id: adminUser.id,
+        name: adminUser.name,
+        email: adminUser.email,
+        role: adminUser.role,
+        department_id: adminUser.department_id || null,
+        organization_id: organization?.id || null
+      },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: organizationSchemaReady
+        ? 'Company workspace created successfully.'
+        : 'Admin account created. Run the latest schema.sql to enable organization records.',
+      token,
+      organization,
+      default_department: department,
+      user: {
+        id: adminUser.id,
+        name: adminUser.name,
+        email: adminUser.email,
+        role: adminUser.role,
+        department_id: adminUser.department_id || null
+      },
+      organization_schema_ready: organizationSchemaReady
+    });
+  } catch (error) {
+    console.error('Company signup error:', error);
+    return res.status(500).json({
+      success: false,
+      message: isSupabaseConnectionError(error)
+        ? 'Supabase is not reachable. Check backend environment variables.'
+        : 'Failed to create company workspace.',
       error: error.message
     });
   }

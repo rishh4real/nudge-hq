@@ -1,14 +1,26 @@
 -- Seed database records for NudgeHQ
 -- Run these statements in Supabase SQL editor to set up the Demo Accounts
 
--- 1. Insert Departments and capture IDs
+-- 1. Insert demo organization
+INSERT INTO organizations (id, name)
+VALUES ('99999999-9999-9999-9999-999999999999', 'NudgeHQ Demo Company')
+ON CONFLICT (name) DO NOTHING;
+
+-- 2. Insert Departments and capture IDs
 INSERT INTO departments (id, name, description)
 VALUES 
   ('a1111111-1111-1111-1111-111111111111', 'Sales Operations', 'Responsible for commercial updates and field support tracking.'),
   ('b2222222-2222-2222-2222-222222222222', 'Engineering', 'Builds backend components and infrastructure integrations.')
 ON CONFLICT (name) DO NOTHING;
 
--- 2. Insert Users
+UPDATE departments
+SET organization_id = '99999999-9999-9999-9999-999999999999'
+WHERE id IN (
+  'a1111111-1111-1111-1111-111111111111',
+  'b2222222-2222-2222-2222-222222222222'
+);
+
+-- 3. Insert Users
 -- Password for both accounts: nudgehq123 (hashed: $2a$10$iNcWZbbWXE9NpcvR9dX6KO6.3B7Wwo6E8NRtrRdnhl6juBfx/iMDi)
 INSERT INTO users (id, name, email, password_hash, role, department_id)
 VALUES
@@ -30,7 +42,14 @@ VALUES
   )
 ON CONFLICT (email) DO NOTHING;
 
--- 3. Insert Starter Tasks
+UPDATE users
+SET organization_id = '99999999-9999-9999-9999-999999999999'
+WHERE id IN (
+  'c3333333-3333-3333-3333-333333333333',
+  'd4444444-4444-4444-4444-444444444444'
+);
+
+-- 4. Insert Starter Tasks
 INSERT INTO tasks (id, title, description, status, assignee_id, due_date)
 VALUES
   (
@@ -59,7 +78,7 @@ VALUES
   )
 ON CONFLICT (id) DO NOTHING;
 
--- 4. Insert Active Blocker Log for the blocked task
+-- 5. Insert Active Blocker Log for the blocked task
 INSERT INTO blocker_logs (id, task_id, reporter_id, blocker_text, resolved)
 VALUES
   (
@@ -71,7 +90,7 @@ VALUES
   )
 ON CONFLICT (id) DO NOTHING;
 
--- 5. Insert sample progress updates
+-- 6. Insert sample progress updates
 INSERT INTO progress_updates (id, user_id, task_id, progress_text, proof_link)
 VALUES
   (

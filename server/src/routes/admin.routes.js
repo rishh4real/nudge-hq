@@ -5,6 +5,7 @@ import {
   createDepartment,
   updateDepartment,
   deleteDepartment,
+  inviteEmployee,
   exportReportData,
 } from '../controllers/admin.controller.js';
 import { authenticate, authorize } from '../middleware/auth.js';
@@ -20,6 +21,9 @@ router.get('/departments', getDepartments);
 router.post('/departments', authorize('admin'), validateBody(['name']), createDepartment);
 router.put('/departments/:id', authorize('admin'), updateDepartment);
 router.delete('/departments/:id', authorize('admin'), deleteDepartment);
+
+// Employee onboarding
+router.post('/employees/invite', authorize('admin'), validateBody(['name', 'email']), inviteEmployee);
 
 // Admin queries and logs (Admin only)
 router.get('/updates', authorize('admin'), getAllEmployeeUpdates);

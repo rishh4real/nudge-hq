@@ -153,6 +153,17 @@ const trustSignals = [
 
 const sampleTeams = ['Northstar Ops', 'Tech Team', 'OpsFlow', 'PeopleDesk', 'FieldPilot']
 
+const formatDisplayDate = (value) => {
+  if (!value) return 'Not available';
+  return new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(new Date(value));
+}
+
 const cardMotion = {
   initial: { opacity: 0, y: 24 },
   whileInView: { opacity: 1, y: 0 },
@@ -232,6 +243,13 @@ function App() {
   const [passwordInput, setPasswordInput] = useState('nudgehq123')
   const [loginError, setLoginError] = useState(null)
   const [loginLoading, setLoginLoading] = useState(false)
+  const [showCompanySignup, setShowCompanySignup] = useState(false)
+  const [companyName, setCompanyName] = useState('')
+  const [companyAdminName, setCompanyAdminName] = useState('')
+  const [companyEmail, setCompanyEmail] = useState('')
+  const [companyPassword, setCompanyPassword] = useState('')
+  const [companySignupLoading, setCompanySignupLoading] = useState(false)
+  const [companySignupError, setCompanySignupError] = useState(null)
 
   // --- DASHBOARD DATA STATES ---
   // Employee Workspace
@@ -257,6 +275,11 @@ function App() {
   const [newTaskDesc, setNewTaskDesc] = useState('')
   const [newTaskAssignee, setNewTaskAssignee] = useState('')
   const [adminUsers, setAdminUsers] = useState([]) // List of employees for task assignment
+  const [inviteName, setInviteName] = useState('')
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteDepartmentId, setInviteDepartmentId] = useState('')
+  const [inviteLoading, setInviteLoading] = useState(false)
+  const [inviteResult, setInviteResult] = useState(null)
 
   // AI Summary Results
   const [aiReportType, setAiReportType] = useState(null) // 'summary' | 'delays' | 'inactivity'
@@ -462,6 +485,34 @@ function App() {
     }
   };
 
+  const handleCompanySignup = async (e) => {
+    e.preventDefault();
+    setCompanySignupError(null);
+    setCompanySignupLoading(true);
+
+    try {
+      const { data } = await fetchApi('/auth/company-signup', {
+        method: 'POST',
+        body: JSON.stringify({
+          company_name: companyName,
+          admin_name: companyAdminName,
+          email: companyEmail,
+          password: companyPassword,
+        })
+      });
+
+      setUser(data.user);
+      setToken(data.token);
+      setAuthRole(data.user.role);
+      setCurrentView('dashboard');
+      showToast(`Workspace created for ${companyName}. Welcome, ${data.user.name}.`, 'success');
+    } catch (err) {
+      setCompanySignupError(err.message || 'Failed to create company workspace.');
+    } finally {
+      setCompanySignupLoading(false);
+    }
+  };
+
   const handleLogout = () => {
     setUser(null);
     setToken(null);
@@ -609,6 +660,52 @@ function App() {
       refreshDashboardData();
     } catch (err) {
       showToast(err.message, 'error');
+    }
+  };
+
+  const handleInviteEmployee = async (e) => {
+    e.preventDefault();
+    if (!inviteName.trim() || !inviteEmail.trim()) return;
+    setInviteLoading(true);
+    setInviteResult(null);
+
+    if (isSandbox) {
+      const invited = {
+        id: `emp-${Date.now()}`,
+        name: inviteName,
+        email: inviteEmail,
+        department_id: inviteDepartmentId || null
+      };
+      setAdminUsers([...adminUsers, invited]);
+      setInviteResult({ email: inviteEmail, temporary_password: 'nudgehq123', sandbox: true });
+      setInviteName('');
+      setInviteEmail('');
+      setInviteDepartmentId('');
+      setInviteLoading(false);
+      showToast('Sandbox employee invite created.', 'success');
+      return;
+    }
+
+    try {
+      const { data } = await fetchApi('/admin/employees/invite', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: inviteName,
+          email: inviteEmail,
+          department_id: inviteDepartmentId || null
+        })
+      }, token);
+
+      setAdminUsers([...adminUsers, data.employee]);
+      setInviteResult({ email: data.employee.email, temporary_password: data.temporary_password, sandbox: false });
+      setInviteName('');
+      setInviteEmail('');
+      setInviteDepartmentId('');
+      showToast('Employee invite created successfully.', 'success');
+    } catch (err) {
+      showToast(err.message || 'Failed to invite employee.', 'error');
+    } finally {
+      setInviteLoading(false);
     }
   };
 
@@ -1180,7 +1277,7 @@ function App() {
 
       {/* VIEW 2: DEMO LOGIN CONSOLE */}
       {currentView === 'demo_console' && (
-        <section className="mx-auto max-w-md px-5 py-24">
+        <section className="mx-auto max-w-lg px-5 py-24">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -1266,6 +1363,68 @@ function App() {
                 Sign in to Console
               </button>
             </form>
+
+            <div className="mt-6 rounded-lg border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+              <button
+                type="button"
+                onClick={() => setShowCompanySignup(!showCompanySignup)}
+                className="flex w-full items-center justify-between text-left"
+              >
+                <span>
+                  <span className="block text-sm font-bold text-[#2C2C2A]">Create a company workspace</span>
+                  <span className="mt-1 block text-xs text-[#5F5E5A]">Real Supabase signup for a new admin and organization.</span>
+                </span>
+                <ArrowRight className={`h-4 w-4 text-[#7F77DD] transition ${showCompanySignup ? 'rotate-90' : ''}`} />
+              </button>
+
+              {showCompanySignup ? (
+                <form onSubmit={handleCompanySignup} className="mt-4 grid gap-3 border-t border-[#EEEDFE] pt-4">
+                  <input
+                    type="text"
+                    placeholder="Company name"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    className="block w-full rounded-md border border-[#DAD7FB] px-3.5 py-2.5 text-sm outline-none focus:border-[#7F77DD]"
+                    required
+                  />
+                  <input
+                    type="text"
+                    placeholder="Admin name"
+                    value={companyAdminName}
+                    onChange={(e) => setCompanyAdminName(e.target.value)}
+                    className="block w-full rounded-md border border-[#DAD7FB] px-3.5 py-2.5 text-sm outline-none focus:border-[#7F77DD]"
+                    required
+                  />
+                  <input
+                    type="email"
+                    placeholder="Admin email"
+                    value={companyEmail}
+                    onChange={(e) => setCompanyEmail(e.target.value)}
+                    className="block w-full rounded-md border border-[#DAD7FB] px-3.5 py-2.5 text-sm outline-none focus:border-[#7F77DD]"
+                    required
+                  />
+                  <input
+                    type="password"
+                    placeholder="Password"
+                    value={companyPassword}
+                    onChange={(e) => setCompanyPassword(e.target.value)}
+                    className="block w-full rounded-md border border-[#DAD7FB] px-3.5 py-2.5 text-sm outline-none focus:border-[#7F77DD]"
+                    required
+                  />
+                  {companySignupError ? (
+                    <p className="rounded-md border border-rose-100 bg-rose-50 p-3 text-xs font-medium text-rose-600">{companySignupError}</p>
+                  ) : null}
+                  <button
+                    type="submit"
+                    disabled={companySignupLoading}
+                    className="inline-flex items-center justify-center gap-2 rounded-md bg-[#3C3489] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#7F77DD] disabled:opacity-50"
+                  >
+                    {companySignupLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Building2 className="h-4 w-4" />}
+                    Create Workspace
+                  </button>
+                </form>
+              ) : null}
+            </div>
 
             <div className="mt-6 text-center">
               <button
@@ -1427,7 +1586,7 @@ function App() {
                         <div key={h.id} className="py-4 first:pt-0 last:pb-0">
                           <div className="flex justify-between text-xs text-[#5F5E5A]">
                             <span>{h.tasks ? `Task: ${h.tasks.title}` : 'General Update'}</span>
-                            <span>{new Date(h.created_at).toLocaleDateString()}</span>
+                            <span>{formatDisplayDate(h.created_at)}</span>
                           </div>
                           <p className="mt-2 text-sm text-[#2C2C2A] font-medium leading-relaxed">{h.progress_text}</p>
                           {h.proof_link && (
@@ -1556,13 +1715,13 @@ function App() {
                   </div>
                 )}
 
-                {/* Groq AI Control Panel */}
+                {/* NudgeAI Control Panel */}
                 <div className="rounded-lg border border-[#EEEDFE] bg-white p-6 shadow-sm">
                   <div className="flex items-center gap-2">
                     <Zap className="h-5 w-5 text-[#F59E0B]" />
-                    <h3 className="text-lg font-bold text-[#2C2C2A]">Groq AI Operations Desk</h3>
+                    <h3 className="text-lg font-bold text-[#2C2C2A]">NudgeAI Operations Desk</h3>
                   </div>
-                  <p className="mt-1 text-xs text-[#5F5E5A]">Integrates active workforce data points with Llama 3 via Groq cloud services.</p>
+                  <p className="mt-1 text-xs text-[#5F5E5A]">Turns active workforce data into summaries, delay signals, and suggested nudges.</p>
                   
                   <div className="mt-5 grid grid-cols-3 gap-3">
                     <button
@@ -1570,7 +1729,7 @@ function App() {
                       className="rounded-md border border-[#DAD7FB] bg-[#F4F3FF] p-3 text-center transition hover:border-[#7F77DD]"
                     >
                       <Sparkles className="mx-auto h-5 w-5 text-[#7F77DD]" />
-                      <span className="mt-2 block text-xs font-bold text-[#3C3489]">AI Daily Summary</span>
+                      <span className="mt-2 block text-xs font-bold text-[#3C3489]">NudgeAI Daily Summary</span>
                     </button>
                     <button
                       onClick={() => triggerAiReport('delays')}
@@ -1600,7 +1759,7 @@ function App() {
                         {aiLoading ? (
                           <div className="flex flex-col items-center justify-center py-6 text-[#5F5E5A] gap-3">
                             <RefreshCw className="h-6 w-6 animate-spin text-[#3C3489]" />
-                            <span className="text-xs font-semibold">Querying Groq Cloud intelligence engine...</span>
+                            <span className="text-xs font-semibold">Querying NudgeAI intelligence engine...</span>
                           </div>
                         ) : (
                           <div>
@@ -1691,7 +1850,7 @@ function App() {
                         <div key={u.id} className="py-4 first:pt-0 last:pb-0">
                           <div className="flex justify-between text-xs text-[#5F5E5A]">
                             <span className="font-bold text-[#3C3489]">{u.user?.name} ({u.user?.departments?.name || 'Unassigned'})</span>
-                            <span>{new Date(u.created_at).toLocaleDateString()}</span>
+                            <span>{formatDisplayDate(u.created_at)}</span>
                           </div>
                           <p className="mt-2 text-sm text-[#2C2C2A] leading-relaxed">{u.progress_text}</p>
                           <div className="mt-2 flex items-center justify-between text-[11px] text-[#5F5E5A]">
@@ -1736,6 +1895,56 @@ function App() {
                   </a>
                 </div>
 
+                {/* Invite Employees */}
+                <div className="rounded-lg border border-[#EEEDFE] bg-white p-6 shadow-sm">
+                  <h3 className="text-sm font-bold text-[#2C2C2A]">Invite Employee</h3>
+                  <p className="mt-1 text-xs text-[#5F5E5A]">Create an employee login and assign them to a department.</p>
+
+                  <form onSubmit={handleInviteEmployee} className="mt-4 space-y-3">
+                    <input
+                      type="text"
+                      placeholder="Employee name *"
+                      value={inviteName}
+                      onChange={(e) => setInviteName(e.target.value)}
+                      className="block w-full rounded-md border border-[#DAD7FB] px-3 py-2 text-xs outline-none focus:border-[#7F77DD]"
+                      required
+                    />
+                    <input
+                      type="email"
+                      placeholder="Employee email *"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      className="block w-full rounded-md border border-[#DAD7FB] px-3 py-2 text-xs outline-none focus:border-[#7F77DD]"
+                      required
+                    />
+                    <select
+                      value={inviteDepartmentId}
+                      onChange={(e) => setInviteDepartmentId(e.target.value)}
+                      className="block w-full rounded-md border border-[#DAD7FB] bg-white px-2 py-2 text-xs outline-none focus:border-[#7F77DD]"
+                    >
+                      <option value="">No department</option>
+                      {departments.map(dept => (
+                        <option key={dept.id} value={dept.id}>{dept.name}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="submit"
+                      disabled={inviteLoading}
+                      className="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-[#7F77DD] py-2.5 text-xs font-semibold text-white hover:bg-[#3C3489] transition disabled:opacity-50"
+                    >
+                      {inviteLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <UserCheck className="h-3.5 w-3.5" />}
+                      Invite Employee
+                    </button>
+                  </form>
+
+                  {inviteResult ? (
+                    <div className="mt-4 rounded-md border border-[#E8F7F1] bg-[#E8F7F1] p-3 text-xs text-[#1D9E75]">
+                      <p className="font-bold">Invite ready for {inviteResult.email}</p>
+                      <p className="mt-1">Temporary password: <span className="font-mono font-bold">{inviteResult.temporary_password}</span></p>
+                    </div>
+                  ) : null}
+                </div>
+
                 {/* Create & Assign Tasks */}
                 <div className="rounded-lg border border-[#EEEDFE] bg-white p-6 shadow-sm">
                   <h3 className="text-sm font-bold text-[#2C2C2A]">Create & Assign Tasks</h3>
@@ -1773,7 +1982,7 @@ function App() {
                     </div>
                     <button
                       type="submit"
-                      className="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-[#1D9E75] py-2.5 text-xs font-semibold text-white hover:bg-[#157A5A] transition"
+                      className="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-[#7F77DD] py-2.5 text-xs font-semibold text-white hover:bg-[#3C3489] transition"
                     >
                       <Plus className="h-3.5 w-3.5" />
                       Create Task
