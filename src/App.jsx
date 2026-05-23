@@ -14,6 +14,7 @@ import {
   X,
   FileCheck2,
   Fingerprint,
+  Globe2,
   LayoutDashboard,
   LineChart,
   LockKeyhole,
@@ -34,6 +35,7 @@ import {
   User,
   ListTodo,
   Shield,
+  Search,
   Zap,
   ExternalLink
 } from 'lucide-react'
@@ -147,13 +149,22 @@ const aiSummaryItems = [
 ]
 
 const trustSignals = [
-  ['Beta access open', Sparkles],
-  ['Early teams onboarding', UsersRound],
+  ['Workspace signup ready', Sparkles],
+  ['Team onboarding flows', UsersRound],
   ['HR-friendly workflows', ClipboardCheck],
   ['AI-powered summaries', Activity],
 ]
 
 const sampleTeams = ['Field teams', 'HR teams', 'Ops teams', 'Support teams', 'Sales teams']
+
+const whyNudgePoints = [
+  'Replaces manual follow-ups with one shared progress system.',
+  'Helps HR and managers spot blockers before they become missed deadlines.',
+  'Gives employees a simple way to share work without long meetings.',
+  'Turns daily updates into admin dashboards, reports, and NudgeAI summaries.',
+  'Keeps company communication structured across teams, departments, and roles.',
+  'Creates a cleaner operating rhythm for founders, HR teams, and managers.',
+]
 
 const productScenarios = [
   {
@@ -274,8 +285,7 @@ const fetchApi = async (endpoint, options = {}, token = null) => {
 
 // --- MAIN APPLICATION ---
 function App() {
-  const [isTrialOpen, setIsTrialOpen] = useState(false)
-  const [currentView, setCurrentView] = useState('landing') // 'landing' | 'demo_console' | 'dashboard'
+  const [currentView, setCurrentView] = useState('landing') // 'landing' | 'signin' | 'signup' | 'demo_console' | 'dashboard'
   const [authRole, setAuthRole] = useState(null) // 'admin' | 'employee'
   const [user, setUser] = useState(null)
   const [token, setToken] = useState(null)
@@ -290,6 +300,13 @@ function App() {
   const [passwordInput, setPasswordInput] = useState('nudgehq123')
   const [loginError, setLoginError] = useState(null)
   const [loginLoading, setLoginLoading] = useState(false)
+  const [signupCompany, setSignupCompany] = useState('')
+  const [signupName, setSignupName] = useState('')
+  const [signupEmail, setSignupEmail] = useState('')
+  const [signupPassword, setSignupPassword] = useState('')
+  const [signupConfirm, setSignupConfirm] = useState('')
+  const [signupError, setSignupError] = useState(null)
+  const [signupLoading, setSignupLoading] = useState(false)
 
   // --- DASHBOARD DATA STATES ---
   // Employee Workspace
@@ -536,6 +553,53 @@ function App() {
     }
   };
 
+  const handleSignupSubmit = async (e) => {
+    e.preventDefault();
+    setSignupError(null);
+
+    if (signupPassword.length < 6) {
+      setSignupError('Password should be at least 6 characters.');
+      return;
+    }
+
+    if (signupPassword !== signupConfirm) {
+      setSignupError('Passwords do not match.');
+      return;
+    }
+
+    setSignupLoading(true);
+
+    try {
+      const { data } = await fetchApi('/auth/company-signup', {
+        method: 'POST',
+        body: JSON.stringify({
+          company_name: signupCompany,
+          admin_name: signupName,
+          email: signupEmail,
+          password: signupPassword,
+        })
+      });
+
+      setUser(data.user);
+      setToken(data.token);
+      setAuthRole(data.user.role);
+      setCurrentView('dashboard');
+      showToast(`Workspace created for ${signupCompany}. Welcome, ${data.user.name}.`, 'success');
+      setSignupCompany('');
+      setSignupName('');
+      setSignupEmail('');
+      setSignupPassword('');
+      setSignupConfirm('');
+    } catch (err) {
+      const message = err.message || 'Could not create workspace.';
+      setSignupError(isBackendConnectionError(message)
+        ? `${message} Make sure the backend and Supabase are connected.`
+        : message);
+    } finally {
+      setSignupLoading(false);
+    }
+  };
+
   const handleLogout = () => {
     setUser(null);
     setToken(null);
@@ -776,9 +840,14 @@ function App() {
     }
   };
 
-  // Open trial modal helper
-  const openTrial = () => setIsTrialOpen(true)
-  const closeTrial = () => setIsTrialOpen(false)
+  const openSignup = () => {
+    setSignupError(null);
+    setCurrentView('signup');
+  }
+  const openSignin = () => {
+    setLoginError(null);
+    setCurrentView('signin');
+  }
   const showPreviousStory = () => setActiveStory((story) => (story === 0 ? productScenarios.length - 1 : story - 1))
   const showNextStory = () => setActiveStory((story) => (story + 1) % productScenarios.length)
 
@@ -828,32 +897,46 @@ function App() {
             <span className="text-lg font-bold text-[#3C3489]">NudgeHQ</span>
           </a>
 
-          {currentView === 'landing' ? (
+          {currentView === 'landing' || currentView === 'signin' || currentView === 'signup' ? (
             <>
               <div className="hidden items-center gap-8 text-sm font-medium text-[#5F5E5A] md:flex">
-                <a className="transition hover:text-[#3C3489]" href="#features">Features</a>
-                <a className="transition hover:text-[#3C3489]" href="#pricing">Pricing</a>
-                <a className="transition hover:text-[#3C3489]" href="#security">Security</a>
+                <a onClick={() => setCurrentView('landing')} className="transition hover:text-[#3C3489]" href="#features">Features</a>
+                <a onClick={() => setCurrentView('landing')} className="transition hover:text-[#3C3489]" href="#pricing">Pricing</a>
+                <a onClick={() => setCurrentView('landing')} className="transition hover:text-[#3C3489]" href="#security">Security</a>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <button
                   type="button"
-                  onClick={() => {
-                    setLoginError(null);
-                    setCurrentView('demo_console');
-                  }}
-                  className="inline-flex items-center gap-2 rounded-md border border-[#DAD7FB] bg-white px-4 py-2.5 text-sm font-semibold text-[#3C3489] transition hover:bg-[#EEEDFE]"
+                  onClick={() => showToast('Search is coming soon with docs, features, and help articles.', 'info')}
+                  className="hidden h-10 w-10 items-center justify-center rounded-md text-[#2C2C2A] transition hover:bg-[#EEEDFE] hover:text-[#3C3489] sm:inline-flex"
+                  aria-label="Search NudgeHQ"
                 >
-                  <Zap className="h-4 w-4 text-[#F59E0B]" />
-                  Demo Console
+                  <Search className="h-5 w-5" aria-hidden="true" />
                 </button>
                 <button
                   type="button"
-                  onClick={openTrial}
-                  className="inline-flex items-center gap-2 rounded-md bg-[#7F77DD] px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-[#7F77DD]/20 transition hover:bg-[#3C3489]"
+                  onClick={() => showToast('English is active. More languages will be added later.', 'info')}
+                  className="hidden items-center gap-2 rounded-md px-3 py-2.5 text-sm font-semibold text-[#2C2C2A] transition hover:bg-[#EEEDFE] hover:text-[#3C3489] lg:inline-flex"
+                  aria-label="Language selector"
                 >
-                  Get Early Access
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  <Globe2 className="h-4 w-4" aria-hidden="true" />
+                  English
+                </button>
+                <button
+                  type="button"
+                  onClick={openSignin}
+                  className={`inline-flex items-center rounded-md px-3 py-2.5 text-sm font-semibold transition hover:bg-[#EEEDFE] ${
+                    currentView === 'signin' ? 'text-[#7F77DD]' : 'text-[#3C3489]'
+                  }`}
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={openSignup}
+                  className="inline-flex items-center rounded-md border border-[#7F77DD] bg-white px-3.5 py-2.5 text-sm font-semibold text-[#3C3489] transition hover:bg-[#7F77DD] hover:text-white sm:px-4"
+                >
+                  Sign Up
                 </button>
               </div>
             </>
@@ -1066,7 +1149,7 @@ function App() {
                         </div>
                         <button
                           type="button"
-                          onClick={openTrial}
+                          onClick={openSignup}
                           className="mt-8 inline-flex w-fit items-center gap-2 rounded-full border border-[#DAD7FB] px-5 py-3 text-sm font-bold text-[#3C3489] transition hover:bg-[#EEEDFE]"
                         >
                           {currentStory.cta}
@@ -1139,6 +1222,55 @@ function App() {
                   />
                 ))}
               </div>
+            </div>
+          </section>
+
+          <section className="relative overflow-hidden border-y border-[#EEEDFE] bg-[#FCFCFF] px-5 py-24 sm:px-6 lg:px-8">
+            <div className="dot-grid absolute inset-0 opacity-35" />
+            <div className="relative mx-auto grid max-w-7xl gap-12 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+              <motion.div {...cardMotion}>
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#1D9E75]">Why NudgeHQ matters</p>
+                <h2 className="mt-4 max-w-2xl text-3xl font-bold text-[#2C2C2A] sm:text-4xl">
+                  Companies need one calm place to interact, update, and understand progress.
+                </h2>
+                <p className="mt-5 max-w-2xl text-lg leading-8 text-[#5F5E5A]">
+                  NudgeHQ is important because it reduces the daily noise between employees, HR, managers, and founders. Everyone gets a lightweight way to communicate status, while leaders get clear signals instead of scattered messages.
+                </p>
+
+                <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                  {whyNudgePoints.map((point) => (
+                    <div key={point} className="flex gap-3 rounded-lg border border-[#EEEDFE] bg-white p-4 shadow-sm">
+                      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#E8F7F1] text-[#1D9E75]">
+                        <Check className="h-4 w-4" aria-hidden="true" />
+                      </span>
+                      <p className="text-sm font-semibold leading-6 text-[#2C2C2A]">{point}</p>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+
+              <motion.div {...cardMotion} className="relative mx-auto w-full max-w-lg">
+                <NudgeMascot />
+                <div className="mt-6 rounded-lg border border-[#DAD7FB] bg-white p-5 shadow-xl shadow-[#3C3489]/10">
+                  <div className="flex items-center justify-between border-b border-[#EEEDFE] pb-4">
+                    <div>
+                      <p className="text-sm font-bold text-[#3C3489]">NudgeHQ interaction loop</p>
+                      <p className="mt-1 text-xs text-[#5F5E5A]">Simple updates become company clarity</p>
+                    </div>
+                    <span className="rounded-full bg-[#E8F7F1] px-3 py-1 text-xs font-bold text-[#1D9E75]">Live flow</span>
+                  </div>
+                  <div className="mt-5 grid gap-3">
+                    {['Employee shares update', 'NudgeAI catches blockers', 'Admin sees next action'].map((item, index) => (
+                      <div key={item} className="flex items-center gap-3 rounded-md bg-[#FCFCFF] p-3">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[#EEEDFE] text-sm font-bold text-[#3C3489]">
+                          {index + 1}
+                        </span>
+                        <span className="text-sm font-semibold text-[#2C2C2A]">{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
             </div>
           </section>
 
@@ -1341,14 +1473,14 @@ function App() {
                     </ul>
                     <button
                       type="button"
-                      onClick={openTrial}
+                      onClick={openSignup}
                       className={`mt-8 inline-flex w-full items-center justify-center rounded-md px-4 py-3 text-sm font-semibold transition ${
                         highlighted
                           ? 'bg-white text-[#3C3489] hover:bg-[#EEEDFE]'
                           : 'bg-[#EEEDFE] text-[#3C3489] hover:bg-[#7F77DD] hover:text-white'
                       }`}
                     >
-                      Get Early Access
+                      Create workspace
                     </button>
                   </motion.article>
                 ))}
@@ -1408,8 +1540,8 @@ function App() {
                   <a className="hover:text-[#3C3489]" href="#features">Features</a>
                   <a className="hover:text-[#3C3489]" href="#pricing">Pricing</a>
                   <a className="hover:text-[#3C3489]" href="#security">Security</a>
-                  <button type="button" onClick={openTrial} className="w-fit text-left font-medium hover:text-[#3C3489]">
-                    Get Early Access
+                  <button type="button" onClick={openSignup} className="w-fit text-left font-medium hover:text-[#3C3489]">
+                    Sign Up
                   </button>
                 </div>
               </div>
@@ -1433,7 +1565,212 @@ function App() {
         </>
       )}
 
-      {/* VIEW 2: DEMO LOGIN CONSOLE */}
+      {/* VIEW 2: SIGN IN */}
+      {currentView === 'signin' && (
+        <section className="relative overflow-hidden px-5 py-20 sm:px-6 lg:px-8">
+          <div className="dot-grid absolute inset-0 -z-10 opacity-40" />
+          <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+            <motion.div {...cardMotion}>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#1D9E75]">Welcome back</p>
+              <h1 className="mt-4 max-w-xl text-4xl font-extrabold leading-tight text-[#2C2C2A] sm:text-5xl">
+                Sign in to your NudgeHQ workspace.
+              </h1>
+              <p className="mt-5 max-w-xl text-lg leading-8 text-[#5F5E5A]">
+                Use your company email and password to access employee updates, admin reports, tasks, blockers, and NudgeAI insights.
+              </p>
+              <div className="mt-8 rounded-lg border border-[#EEEDFE] bg-white p-5 shadow-sm">
+                <p className="text-sm font-bold text-[#3C3489]">Testing locally?</p>
+                <p className="mt-2 text-sm leading-6 text-[#5F5E5A]">
+                  You can still launch the demo console for role switching while real company auth is being finalized.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setCurrentView('demo_console')}
+                  className="mt-4 inline-flex items-center gap-2 rounded-md bg-[#3C3489] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#7F77DD]"
+                >
+                  <Zap className="h-4 w-4 text-[#F59E0B]" aria-hidden="true" />
+                  Launch Demo Console
+                </button>
+              </div>
+            </motion.div>
+
+            <motion.div {...cardMotion} className="rounded-lg border border-[#DAD7FB] bg-white p-7 shadow-xl shadow-[#3C3489]/10">
+              <div className="flex items-center gap-3">
+                <img src="/brand/nudgehq-icon.svg" alt="" className="h-11 w-11 rounded-lg" />
+                <div>
+                  <h2 className="text-2xl font-bold text-[#2C2C2A]">Sign In</h2>
+                  <p className="text-sm text-[#5F5E5A]">Continue to your workspace</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleLoginSubmit} className="mt-7 grid gap-4">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-[0.14em] text-[#5F5E5A]">Email address</label>
+                  <input
+                    type="email"
+                    value={emailInput}
+                    onChange={(e) => setEmailInput(e.target.value)}
+                    className="mt-2 block w-full rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none transition focus:border-[#7F77DD]"
+                    placeholder="you@company.com"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-[0.14em] text-[#5F5E5A]">Password</label>
+                  <input
+                    type="password"
+                    value={passwordInput}
+                    onChange={(e) => setPasswordInput(e.target.value)}
+                    className="mt-2 block w-full rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none transition focus:border-[#7F77DD]"
+                    placeholder="Enter password"
+                    required
+                  />
+                </div>
+
+                {loginError ? (
+                  <p className="rounded-md border border-rose-100 bg-rose-50 p-3 text-sm font-medium text-rose-600">{loginError}</p>
+                ) : null}
+
+                <button
+                  type="submit"
+                  disabled={loginLoading}
+                  className="inline-flex items-center justify-center gap-2 rounded-md bg-[#7F77DD] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#3C3489] disabled:opacity-50"
+                >
+                  {loginLoading ? <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="h-4 w-4" aria-hidden="true" />}
+                  Sign In
+                </button>
+              </form>
+
+              <p className="mt-6 text-center text-sm text-[#5F5E5A]">
+                New company?{' '}
+                <button type="button" onClick={openSignup} className="font-bold text-[#3C3489] hover:text-[#7F77DD]">
+                  Create a workspace
+                </button>
+              </p>
+            </motion.div>
+          </div>
+        </section>
+      )}
+
+      {/* VIEW 3: SIGN UP */}
+      {currentView === 'signup' && (
+        <section className="relative overflow-hidden px-5 py-20 sm:px-6 lg:px-8">
+          <div className="dot-grid absolute inset-0 -z-10 opacity-40" />
+          <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+            <motion.div {...cardMotion}>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#1D9E75]">Create workspace</p>
+              <h1 className="mt-4 max-w-xl text-4xl font-extrabold leading-tight text-[#2C2C2A] sm:text-5xl">
+                Start tracking company progress from day one.
+              </h1>
+              <p className="mt-5 max-w-xl text-lg leading-8 text-[#5F5E5A]">
+                Add your company, create the first admin account, then invite employees and assign tasks from the admin dashboard.
+              </p>
+              <div className="mt-8 grid gap-3">
+                {['Create your organization', 'Set up admin access', 'Invite employees by email', 'Track updates and blockers'].map((item) => (
+                  <div key={item} className="flex items-center gap-3 rounded-md border border-[#EEEDFE] bg-white p-4 shadow-sm">
+                    <Check className="h-5 w-5 text-[#1D9E75]" aria-hidden="true" />
+                    <span className="font-semibold text-[#2C2C2A]">{item}</span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+
+            <motion.div {...cardMotion} className="rounded-lg border border-[#DAD7FB] bg-white p-7 shadow-xl shadow-[#3C3489]/10">
+              <div className="flex items-center gap-3">
+                <img src="/brand/nudgehq-icon.svg" alt="" className="h-11 w-11 rounded-lg" />
+                <div>
+                  <h2 className="text-2xl font-bold text-[#2C2C2A]">Sign Up</h2>
+                  <p className="text-sm text-[#5F5E5A]">Create your company workspace</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleSignupSubmit} className="mt-7 grid gap-4">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-[0.14em] text-[#5F5E5A]">Company name</label>
+                  <input
+                    type="text"
+                    value={signupCompany}
+                    onChange={(e) => setSignupCompany(e.target.value)}
+                    className="mt-2 block w-full rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none transition focus:border-[#7F77DD]"
+                    placeholder="Acme Operations"
+                    required
+                  />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-[0.14em] text-[#5F5E5A]">Your name</label>
+                    <input
+                      type="text"
+                      value={signupName}
+                      onChange={(e) => setSignupName(e.target.value)}
+                      className="mt-2 block w-full rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none transition focus:border-[#7F77DD]"
+                      placeholder="Kunal Sharma"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-[0.14em] text-[#5F5E5A]">Work email</label>
+                    <input
+                      type="email"
+                      value={signupEmail}
+                      onChange={(e) => setSignupEmail(e.target.value)}
+                      className="mt-2 block w-full rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none transition focus:border-[#7F77DD]"
+                      placeholder="you@company.com"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-[0.14em] text-[#5F5E5A]">Password</label>
+                    <input
+                      type="password"
+                      value={signupPassword}
+                      onChange={(e) => setSignupPassword(e.target.value)}
+                      className="mt-2 block w-full rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none transition focus:border-[#7F77DD]"
+                      placeholder="Choose password"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-[0.14em] text-[#5F5E5A]">Confirm password</label>
+                    <input
+                      type="password"
+                      value={signupConfirm}
+                      onChange={(e) => setSignupConfirm(e.target.value)}
+                      className="mt-2 block w-full rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none transition focus:border-[#7F77DD]"
+                      placeholder="Repeat password"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {signupError ? (
+                  <p className="rounded-md border border-rose-100 bg-rose-50 p-3 text-sm font-medium text-rose-600">{signupError}</p>
+                ) : null}
+
+                <button
+                  type="submit"
+                  disabled={signupLoading}
+                  className="inline-flex items-center justify-center gap-2 rounded-md bg-[#7F77DD] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#3C3489] disabled:opacity-50"
+                >
+                  {signupLoading ? <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Building2 className="h-4 w-4" aria-hidden="true" />}
+                  Create workspace
+                </button>
+              </form>
+
+              <p className="mt-6 text-center text-sm text-[#5F5E5A]">
+                Already have an account?{' '}
+                <button type="button" onClick={openSignin} className="font-bold text-[#3C3489] hover:text-[#7F77DD]">
+                  Sign in
+                </button>
+              </p>
+            </motion.div>
+          </div>
+        </section>
+      )}
+
+      {/* VIEW 4: DEMO LOGIN CONSOLE */}
       {currentView === 'demo_console' && (
         <section className="mx-auto max-w-lg px-5 py-24">
           <motion.div
@@ -2138,57 +2475,29 @@ function App() {
 
         </section>
       )}
-
-      {/* --- EARLY ACCESS EMAIL FALLBACK MODAL --- */}
-      {isTrialOpen ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#1A1035]/45 px-5 py-8">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-2xl shadow-[#1A1035]/25">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#1D9E75]">Early access</p>
-                <h2 className="mt-2 text-2xl font-bold text-[#2C2C2A]">Join the NudgeHQ beta list.</h2>
-              </div>
-              <button
-                type="button"
-                onClick={closeTrial}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[#EEEDFE] text-[#5F5E5A] transition hover:bg-[#EEEDFE] hover:text-[#3C3489]"
-                aria-label="Close trial request"
-              >
-                <X className="h-5 w-5" aria-hidden="true" />
-              </button>
-            </div>
-            <p className="mt-4 leading-7 text-[#5F5E5A]">
-              We&apos;re onboarding early teams manually while the product flow is being built. Send a quick request and we&apos;ll follow up with beta access details.
-            </p>
-            
-            <div className="mt-6 border-t border-[#EEEDFE] pt-4">
-              <p className="text-xs text-[#5F5E5A] font-semibold mb-2">💡 Want to test the platform live?</p>
-              <button
-                type="button"
-                onClick={() => {
-                  closeTrial();
-                  setCurrentView('demo_console');
-                }}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-[#3C3489] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#7F77DD]"
-              >
-                <Zap className="h-4 w-4 text-[#F59E0B]" />
-                Launch Demo Console
-              </button>
-            </div>
-
-            <div className="mt-3 grid gap-3">
-              <a
-                href="mailto:hello.nudgehq@gmail.com?subject=NudgeHQ%20early%20access%20request"
-                className="inline-flex items-center justify-center gap-2 rounded-md border border-[#DAD7FB] bg-white px-5 py-3 text-sm font-semibold text-[#3C3489] transition hover:bg-[#EEEDFE]"
-              >
-                Request access by email
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </a>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </main>
+  )
+}
+
+function NudgeMascot() {
+  return (
+    <div className="relative mx-auto flex aspect-square max-w-sm items-center justify-center rounded-[2rem] border border-[#DAD7FB] bg-white shadow-2xl shadow-[#3C3489]/10">
+      <div className="absolute inset-6 rounded-[1.5rem] bg-[#EEEDFE]" />
+      <svg className="dashboard-float relative z-10 h-72 w-72" viewBox="0 0 280 280" role="img" aria-label="NudgeHQ mascot character">
+        <rect x="64" y="56" width="152" height="156" rx="38" fill="#3C3489" />
+        <rect x="82" y="74" width="116" height="116" rx="28" fill="#7F77DD" />
+        <path d="M112 156V100h15l30 36v-36h18v56h-15l-30-36v36h-18Z" fill="#FFFFFF" />
+        <circle cx="116" cy="130" r="8" fill="#FFFFFF" />
+        <circle cx="166" cy="130" r="8" fill="#FFFFFF" />
+        <path d="M122 162c12 12 29 12 41 0" stroke="#FFFFFF" strokeWidth="8" strokeLinecap="round" fill="none" />
+        <path d="M65 128H35c-12 0-20 8-20 20s8 20 20 20h30" stroke="#1D9E75" strokeWidth="12" strokeLinecap="round" fill="none" />
+        <path d="M215 128h30c12 0 20 8 20 20s-8 20-20 20h-30" stroke="#1D9E75" strokeWidth="12" strokeLinecap="round" fill="none" />
+        <path d="M92 213l-16 30" stroke="#3C3489" strokeWidth="12" strokeLinecap="round" />
+        <path d="M188 213l16 30" stroke="#3C3489" strokeWidth="12" strokeLinecap="round" />
+        <circle cx="218" cy="66" r="26" fill="#E8F7F1" />
+        <path d="m207 66 8 8 15-18" stroke="#1D9E75" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      </svg>
+    </div>
   )
 }
 
