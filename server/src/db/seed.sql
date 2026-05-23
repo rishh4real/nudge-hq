@@ -22,7 +22,7 @@ VALUES
   ),
   (
     'd4444444-4444-4444-4444-444444444444', 
-    'Jane Doe', 
+    'Kunal', 
     'employee@nudgehq.com', 
     '$2a$10$iNcWZbbWXE9NpcvR9dX6KO6.3B7Wwo6E8NRtrRdnhl6juBfx/iMDi', 
     'employee', 

@@ -308,7 +308,7 @@ function App() {
       { id: '2', name: 'Engineering', description: 'Product development and integration.' }
     ]);
     setAdminUsers([
-      { id: 'emp-1', name: 'Jane Doe', email: 'employee@nudgehq.com', department_id: '1' }
+      { id: 'emp-1', name: 'Kunal', email: 'employee@nudgehq.com', department_id: '1' }
     ]);
     setEmpTasks([
       { id: 't-1', title: 'Verify customer email lists for marketing campaign', description: 'Review bounce projections.', status: 'completed' },
@@ -336,10 +336,10 @@ function App() {
       },
       statusDistribution: { todo: 0, in_progress: 1, completed: 1, blocked: 1 },
       departmentStats: [{ name: 'Sales Operations', total: 3, completed: 1, percentage: 33 }],
-      activeBlockers: [{ id: 'b-1', task: { title: 'Resolve database replication delays' }, reporter: { name: 'Jane Doe' }, blocker_text: 'Waiting for AWS DevOps staging keys.', created_at: new Date().toISOString() }]
+      activeBlockers: [{ id: 'b-1', task: { title: 'Resolve database replication delays' }, reporter: { name: 'Kunal' }, blocker_text: 'Waiting for AWS DevOps staging keys.', created_at: new Date().toISOString() }]
     });
     setAllUpdates([
-      { id: 'u-1', progress_text: 'Finished cleaning bounce parameters for lead campaign.', user: { name: 'Jane Doe', departments: { name: 'Sales Operations' } }, tasks: { title: 'Verify customer email lists' }, created_at: new Date().toISOString() }
+      { id: 'u-1', progress_text: 'Finished cleaning bounce parameters for lead campaign.', user: { name: 'Kunal', departments: { name: 'Sales Operations' } }, tasks: { title: 'Verify customer email lists' }, created_at: new Date().toISOString() }
     ]);
   };
 
@@ -396,7 +396,7 @@ function App() {
   const enterSandboxDashboard = () => {
     const simulatedUser = emailInput === 'hr@nudgehq.com'
       ? { name: 'HR Operations', role: 'admin', email: 'hr@nudgehq.com' }
-      : { name: 'Jane Doe', role: 'employee', email: 'employee@nudgehq.com' };
+      : { name: 'Kunal', role: 'employee', email: 'employee@nudgehq.com' };
 
     setIsSandbox(true);
     setServerPort(null);
@@ -430,7 +430,7 @@ function App() {
       // Sandbox Authentication Bypass
       const simulatedUser = emailInput === 'hr@nudgehq.com'
         ? { name: 'HR Operations', role: 'admin', email: 'hr@nudgehq.com' }
-        : { name: 'Jane Doe', role: 'employee', email: 'employee@nudgehq.com' };
+        : { name: 'Kunal', role: 'employee', email: 'employee@nudgehq.com' };
 
       setUser(simulatedUser);
       setToken('sandbox-token-jwt');
