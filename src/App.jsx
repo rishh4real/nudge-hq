@@ -342,6 +342,10 @@ function App() {
   const [aiReportType, setAiReportType] = useState(null) // 'summary' | 'delays' | 'inactivity'
   const [aiReportContent, setAiReportContent] = useState(null)
   const [aiLoading, setAiLoading] = useState(false)
+  const [nudgeAiData, setNudgeAiData] = useState({})
+  const [nudgeAiLoading, setNudgeAiLoading] = useState({})
+  const [qualityTip, setQualityTip] = useState(null)
+  const [notifications, setNotifications] = useState([])
   const [activeStory, setActiveStory] = useState(0)
 
   // --- EFFECTS ---
@@ -407,7 +411,7 @@ function App() {
       { id: 't-3', title: 'Resolve database replication delays in staging', description: 'Investigate sync latency peaks.', status: 'blocked' }
     ]);
     setEmpHistory([
-      { id: 'h-1', progress_text: 'Scrubbed duplicate email records and checked lists.', created_at: new Date().toISOString(), tasks: { title: 'Verify customer email lists' } }
+      { id: 'h-1', progress_text: 'Scrubbed duplicate email records and checked lists.', quality_score: 8, created_at: new Date().toISOString(), tasks: { title: 'Verify customer email lists' } }
     ]);
     setEmpStats({
       totalTasks: 3,
@@ -430,8 +434,24 @@ function App() {
       activeBlockers: [{ id: 'b-1', task: { title: 'Resolve database replication delays' }, reporter: { name: 'Kunal' }, blocker_text: 'Waiting for AWS DevOps staging keys.', created_at: new Date().toISOString() }]
     });
     setAllUpdates([
-      { id: 'u-1', progress_text: 'Finished cleaning bounce parameters for lead campaign.', user: { name: 'Kunal', departments: { name: 'Sales Operations' } }, tasks: { title: 'Verify customer email lists' }, created_at: new Date().toISOString() }
+      { id: 'u-1', progress_text: 'Finished cleaning bounce parameters for lead campaign.', quality_score: 8, user: { name: 'Kunal', departments: { name: 'Sales Operations' } }, tasks: { title: 'Verify customer email lists' }, created_at: new Date().toISOString() }
     ]);
+    setNotifications([
+      { id: 'n-1', type: 'recognition', message: 'Nice work, Kunal. Your steady check-ins helped the team stay clear and moving.', created_at: new Date().toISOString() }
+    ]);
+    setNudgeAiData({
+      standup: {
+        brief: 'What got done: Sales Operations shared progress on list cleanup. What is in progress: weekly forecasting remains active. What is blocked: staging replication needs attention. What needs manager attention today: review the blocker and confirm next owner.',
+        generated_at: new Date().toISOString(),
+        powered_by: 'NudgeAI'
+      },
+      forecast: {
+        forecast_percent: 72,
+        tasks_at_risk: [{ title: 'Resolve database replication delays in staging', reason: 'Blocked by missing AWS staging keys.' }],
+        recommended_actions: ['Review blocked engineering work first.', 'Confirm owner for staging credentials.', 'Ask teams for specific end-of-day updates.'],
+        powered_by: 'NudgeAI'
+      }
+    });
   };
 
   // --- REFRESH DATA API CALLS ---
@@ -450,6 +470,9 @@ function App() {
         // Fetch employee stats
         const { data: statRes } = await fetchApi('/employees/dashboard', { method: 'GET' }, token);
         setEmpStats(statRes.stats || null);
+
+        const { data: notifRes } = await fetchApi('/employees/notifications', { method: 'GET' }, token);
+        setNotifications(notifRes.notifications || []);
       } else if (authRole === 'admin') {
         // Fetch Admin Analytics
         const { data: analyticRes } = await fetchApi('/analytics/dashboard', { method: 'GET' }, token);
@@ -472,6 +495,8 @@ function App() {
           }
         });
         setAdminUsers(uniqueUsers);
+
+        runNudgeAiFeature('standup', false);
       }
     } catch (err) {
       showToast('Error syncing live dashboard values: ' + err.message, 'error');
@@ -617,13 +642,17 @@ function App() {
     setIsSubmittingUpdate(true);
 
     if (isSandbox) {
+      const mockScore = Math.min(10, Math.max(1, Math.round(progressText.trim().split(/\s+/).length / 3)));
       const newMockUpdate = {
         id: Math.random().toString(),
         progress_text: progressText,
+        quality_score: mockScore,
+        quality_tip: mockScore < 7 ? 'Try adding the exact task, outcome, and next step.' : '',
         created_at: new Date().toISOString(),
         tasks: selectedTaskId ? { title: empTasks.find(t => t.id === selectedTaskId)?.title || 'Assigned task' } : null
       };
       setEmpHistory([newMockUpdate, ...empHistory]);
+      setQualityTip(mockScore < 7 ? newMockUpdate.quality_tip : null);
       setProgressText('');
       setProofLink('');
       setSelectedTaskId('');
@@ -633,7 +662,7 @@ function App() {
     }
 
     try {
-      await fetchApi('/employees/updates', {
+      const { data } = await fetchApi('/employees/updates', {
         method: 'POST',
         body: JSON.stringify({
           task_id: selectedTaskId || null,
@@ -642,6 +671,8 @@ function App() {
         })
       }, token);
 
+      const quality = data.nudgeai_quality || data.update;
+      setQualityTip(quality?.score < 7 ? (quality.tip || data.update?.quality_tip) : null);
       setProgressText('');
       setProofLink('');
       setSelectedTaskId('');
@@ -837,6 +868,92 @@ function App() {
       showToast('AI request failed: ' + err.message, 'error');
     } finally {
       setAiLoading(false);
+    }
+  };
+
+  const runNudgeAiFeature = async (type, refresh = true) => {
+    const endpointMap = {
+      burnout: '/ai/burnout-check',
+      forecast: '/ai/sprint-forecast',
+      standup: '/ai/standup-brief',
+      anomaly: '/ai/anomaly-check',
+      appreciation: '/ai/appreciation',
+    };
+
+    if (!endpointMap[type]) return;
+
+    if (isSandbox) {
+      setNudgeAiLoading((current) => ({ ...current, [type]: true }));
+      setTimeout(() => {
+        const mockData = {
+          burnout: {
+            burnout_risks: [
+              { employee_id: 'emp-1', employee_name: 'Kunal', risk_level: 'LOW', color: 'green', reason: 'Check-ins and blocker patterns look steady.' }
+            ],
+            powered_by: 'NudgeAI',
+            generated_at: new Date().toISOString()
+          },
+          forecast: {
+            forecast_percent: 72,
+            tasks_at_risk: [{ title: 'Resolve database replication delays in staging', reason: 'Blocked by missing AWS staging keys.' }],
+            recommended_actions: ['Resolve staging access first.', 'Keep daily updates specific.', 'Confirm task owners by noon.'],
+            powered_by: 'NudgeAI',
+            generated_at: new Date().toISOString()
+          },
+          standup: {
+            brief: 'What got done: Sales Operations shared progress on list cleanup. What is in progress: weekly forecasting remains active. What is blocked: staging replication needs attention. What needs manager attention today: review the blocker and confirm next owner.',
+            powered_by: 'NudgeAI',
+            generated_at: new Date().toISOString()
+          },
+          anomaly: {
+            alerts: [{ employee_name: 'Kunal', anomaly_type: 'late_checkin', suggested_admin_action: 'Kunal usually checks in by 10am. No update yet at 2pm. Consider checking in.' }],
+            powered_by: 'NudgeAI',
+            generated_at: new Date().toISOString()
+          },
+          appreciation: {
+            suggestions: [{ employee_id: 'emp-1', employee_name: 'Kunal', achievement: 'steady check-ins', message: 'Nice work, Kunal. Your steady check-ins helped the team stay clear and moving.' }],
+            powered_by: 'NudgeAI',
+            generated_at: new Date().toISOString()
+          }
+        };
+        setNudgeAiData((current) => ({ ...current, [type]: mockData[type] }));
+        setNudgeAiLoading((current) => ({ ...current, [type]: false }));
+      }, 800);
+      return;
+    }
+
+    setNudgeAiLoading((current) => ({ ...current, [type]: true }));
+    try {
+      const { data } = await fetchApi(endpointMap[type], {
+        method: 'POST',
+        body: JSON.stringify({ refresh })
+      }, token);
+      setNudgeAiData((current) => ({ ...current, [type]: data.data || data }));
+    } catch {
+      showToast('NudgeAI unavailable, try again later', 'error');
+    } finally {
+      setNudgeAiLoading((current) => ({ ...current, [type]: false }));
+    }
+  };
+
+  const sendAppreciation = async (suggestion) => {
+    if (isSandbox) {
+      setNotifications((current) => [
+        { id: `n-${Date.now()}`, type: 'recognition', message: suggestion.message, created_at: new Date().toISOString() },
+        ...current
+      ]);
+      showToast('Sandbox recognition sent.', 'success');
+      return;
+    }
+
+    try {
+      await fetchApi('/ai/appreciation', {
+        method: 'POST',
+        body: JSON.stringify({ send: true, employee_id: suggestion.employee_id, message: suggestion.message })
+      }, token);
+      showToast('Recognition sent to employee dashboard.', 'success');
+    } catch {
+      showToast('NudgeAI unavailable, try again later', 'error');
     }
   };
 
@@ -1956,6 +2073,11 @@ function App() {
                       {isSubmittingUpdate ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                       Log Progress Update
                     </button>
+                    {qualityTip ? (
+                      <div className="rounded-md border border-[#DAD7FB] bg-[#F4F3FF] p-3 text-xs font-semibold leading-6 text-[#3C3489]">
+                        <span className="font-bold">NudgeAI tip:</span> {qualityTip}
+                      </div>
+                    ) : null}
                   </form>
                 </div>
 
@@ -2022,6 +2144,12 @@ function App() {
                             <span>{formatDisplayDate(h.created_at)}</span>
                           </div>
                           <p className="mt-2 text-sm text-[#2C2C2A] font-medium leading-relaxed">{h.progress_text}</p>
+                          {h.quality_score ? (
+                            <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-[#F4F3FF] px-3 py-1 text-[11px] font-bold text-[#3C3489]">
+                              Powered by NudgeAI
+                              <span>Quality {h.quality_score}/10</span>
+                            </div>
+                          ) : null}
                           {h.proof_link && (
                             <a
                               href={h.proof_link}
@@ -2043,6 +2171,22 @@ function App() {
 
               {/* Employee Right Column: Task Status Desk */}
               <div className="space-y-8">
+                {notifications.length > 0 ? (
+                  <div className="rounded-lg border border-[#DAD7FB] bg-white p-6 shadow-sm">
+                    <h3 className="flex items-center gap-2 text-lg font-bold text-[#2C2C2A]">
+                      <Sparkles className="h-5 w-5 text-[#F59E0B]" />
+                      Recognition
+                    </h3>
+                    <div className="mt-4 space-y-3">
+                      {notifications.map((notification) => (
+                        <div key={notification.id} className="rounded-md border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                          <p className="text-sm font-semibold leading-6 text-[#2C2C2A]">{notification.message}</p>
+                          <p className="mt-2 text-[11px] font-semibold text-[#5F5E5A]">{formatDisplayDate(notification.created_at)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
                 
                 {/* Stats Dashboard mini */}
                 {empStats && (
@@ -2127,6 +2271,11 @@ function App() {
               
               {/* Admin Left Column */}
               <div className="space-y-8">
+                <NudgeAiStandupCard
+                  data={nudgeAiData.standup}
+                  loading={nudgeAiLoading.standup}
+                  onRegenerate={() => runNudgeAiFeature('standup', true)}
+                />
                 
                 {/* Metrics Stats Grid */}
                 {analytics && (
@@ -2156,7 +2305,7 @@ function App() {
                   </div>
                   <p className="mt-1 text-xs text-[#5F5E5A]">Turns active workforce data into summaries, delay signals, and suggested nudges.</p>
                   
-                  <div className="mt-5 grid grid-cols-3 gap-3">
+                  <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
                     <button
                       onClick={() => triggerAiReport('summary')}
                       className="rounded-md border border-[#DAD7FB] bg-[#F4F3FF] p-3 text-center transition hover:border-[#7F77DD]"
@@ -2178,6 +2327,41 @@ function App() {
                       <UserCheck className="mx-auto h-5 w-5 text-amber-500" />
                       <span className="mt-2 block text-xs font-bold text-amber-700">Check Inactivity</span>
                     </button>
+                    <button
+                      onClick={() => runNudgeAiFeature('forecast', true)}
+                      className="rounded-md border border-[#DAD7FB] bg-[#E8F7F1] p-3 text-center transition hover:border-[#1D9E75]"
+                    >
+                      <LineChart className="mx-auto h-5 w-5 text-[#1D9E75]" />
+                      <span className="mt-2 block text-xs font-bold text-[#1D9E75]">Sprint Forecast</span>
+                    </button>
+                    <button
+                      onClick={() => runNudgeAiFeature('burnout', true)}
+                      className="rounded-md border border-[#DAD7FB] bg-white p-3 text-center transition hover:border-[#7F77DD]"
+                    >
+                      <ShieldCheck className="mx-auto h-5 w-5 text-[#3C3489]" />
+                      <span className="mt-2 block text-xs font-bold text-[#3C3489]">Burnout Predictor</span>
+                    </button>
+                    <button
+                      onClick={() => runNudgeAiFeature('anomaly', true)}
+                      className="rounded-md border border-[#DAD7FB] bg-amber-50 p-3 text-center transition hover:border-amber-400"
+                    >
+                      <Activity className="mx-auto h-5 w-5 text-amber-600" />
+                      <span className="mt-2 block text-xs font-bold text-amber-700">Care Alerts</span>
+                    </button>
+                    <button
+                      onClick={() => runNudgeAiFeature('appreciation', true)}
+                      className="rounded-md border border-[#DAD7FB] bg-[#F4F3FF] p-3 text-center transition hover:border-[#7F77DD]"
+                    >
+                      <Sparkles className="mx-auto h-5 w-5 text-[#7F77DD]" />
+                      <span className="mt-2 block text-xs font-bold text-[#3C3489]">Appreciation</span>
+                    </button>
+                  </div>
+
+                  <div className="mt-5 grid gap-4">
+                    <NudgeAiForecastCard data={nudgeAiData.forecast} loading={nudgeAiLoading.forecast} onRegenerate={() => runNudgeAiFeature('forecast', true)} />
+                    <NudgeAiBurnoutCard data={nudgeAiData.burnout} loading={nudgeAiLoading.burnout} />
+                    <NudgeAiAnomalyCard data={nudgeAiData.anomaly} loading={nudgeAiLoading.anomaly} />
+                    <NudgeAiAppreciationCard data={nudgeAiData.appreciation} loading={nudgeAiLoading.appreciation} onSend={sendAppreciation} />
                   </div>
 
                   {/* AI Results Output Container */}
@@ -2282,7 +2466,12 @@ function App() {
                       allUpdates.map(u => (
                         <div key={u.id} className="py-4 first:pt-0 last:pb-0">
                           <div className="flex justify-between text-xs text-[#5F5E5A]">
-                            <span className="font-bold text-[#3C3489]">{u.user?.name} ({u.user?.departments?.name || 'Unassigned'})</span>
+                            <span className="font-bold text-[#3C3489]">
+                              {u.user?.name} ({u.user?.departments?.name || 'Unassigned'})
+                              {u.quality_score ? (
+                                <span className="ml-2 rounded-full bg-[#F4F3FF] px-2 py-0.5 text-[10px] text-[#3C3489]">Quality {u.quality_score}/10</span>
+                              ) : null}
+                            </span>
                             <span>{formatDisplayDate(u.created_at)}</span>
                           </div>
                           <p className="mt-2 text-sm text-[#2C2C2A] leading-relaxed">{u.progress_text}</p>
@@ -2497,6 +2686,175 @@ function NudgeMascot() {
         <circle cx="218" cy="66" r="26" fill="#E8F7F1" />
         <path d="m207 66 8 8 15-18" stroke="#1D9E75" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" fill="none" />
       </svg>
+    </div>
+  )
+}
+
+function PoweredByNudgeAi() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-[#F4F3FF] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#3C3489]">
+      <Zap className="h-3 w-3 text-[#F59E0B]" aria-hidden="true" />
+      Powered by NudgeAI
+    </span>
+  )
+}
+
+function NudgeAiLoader() {
+  return (
+    <div className="flex items-center gap-2 rounded-md border border-[#EEEDFE] bg-[#FCFCFF] p-4 text-xs font-semibold text-[#5F5E5A]">
+      <RefreshCw className="h-4 w-4 animate-spin text-[#3C3489]" aria-hidden="true" />
+      NudgeAI is thinking...
+    </div>
+  )
+}
+
+function NudgeAiStandupCard({ data, loading, onRegenerate }) {
+  const copyBrief = async () => {
+    if (data?.brief) await navigator.clipboard?.writeText(data.brief);
+  };
+
+  return (
+    <div className="rounded-lg border border-[#DAD7FB] bg-white p-6 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-[#F59E0B]" aria-hidden="true" />
+            <h3 className="text-lg font-bold text-[#2C2C2A]">Today&apos;s NudgeAI Standup Brief</h3>
+          </div>
+          <p className="mt-1 text-xs text-[#5F5E5A]">Generated from updates since yesterday 9am.</p>
+        </div>
+        <PoweredByNudgeAi />
+      </div>
+      <div className="mt-5">
+        {loading ? <NudgeAiLoader /> : (
+          <p className="rounded-md bg-[#FCFCFF] p-4 text-sm font-medium leading-7 text-[#2C2C2A]">
+            {data?.brief || 'Generate a standup brief to summarize team momentum for today.'}
+          </p>
+        )}
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <button type="button" onClick={onRegenerate} className="rounded-md bg-[#7F77DD] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#3C3489]">
+          Regenerate Brief
+        </button>
+        <button type="button" onClick={copyBrief} disabled={!data?.brief} className="rounded-md border border-[#DAD7FB] px-4 py-2 text-xs font-bold text-[#3C3489] transition hover:bg-[#EEEDFE] disabled:opacity-50">
+          Copy
+        </button>
+        {data?.generated_at ? <span className="text-xs text-[#5F5E5A]">Generated {formatDisplayDate(data.generated_at)}</span> : null}
+      </div>
+    </div>
+  )
+}
+
+function NudgeAiForecastCard({ data, loading, onRegenerate }) {
+  if (!data && !loading) return null;
+
+  return (
+    <div className="rounded-lg border border-[#EEEDFE] bg-[#FCFCFF] p-5">
+      <div className="flex items-center justify-between gap-3">
+        <h4 className="text-sm font-bold text-[#2C2C2A]">NudgeAI Sprint Forecast</h4>
+        <PoweredByNudgeAi />
+      </div>
+      {loading ? <div className="mt-4"><NudgeAiLoader /></div> : (
+        <div className="mt-4 space-y-4">
+          <p className="text-2xl font-extrabold text-[#3C3489]">This week forecast: {data.forecast_percent}% completion likely</p>
+          <details className="rounded-md border border-[#EEEDFE] bg-white p-4">
+            <summary className="cursor-pointer text-sm font-bold text-[#2C2C2A]">{data.tasks_at_risk?.length || 0} tasks at risk</summary>
+            <div className="mt-3 space-y-2">
+              {data.tasks_at_risk?.map((task, index) => (
+                <p key={`${task.title}-${index}`} className="text-xs leading-6 text-[#5F5E5A]"><strong>{task.title}</strong>: {task.reason}</p>
+              ))}
+            </div>
+          </details>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#1D9E75]">Recommended actions</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-[#5F5E5A]">
+              {data.recommended_actions?.map((action) => <li key={action}>{action}</li>)}
+            </ul>
+          </div>
+          <button type="button" onClick={onRegenerate} className="rounded-md border border-[#DAD7FB] px-4 py-2 text-xs font-bold text-[#3C3489] hover:bg-[#EEEDFE]">Regenerate Forecast</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function NudgeAiBurnoutCard({ data, loading }) {
+  if (!data && !loading) return null;
+  const colorClass = {
+    green: 'bg-[#E8F7F1] text-[#1D9E75]',
+    yellow: 'bg-amber-50 text-amber-700',
+    red: 'bg-rose-50 text-rose-700',
+  };
+
+  return (
+    <div className="rounded-lg border border-[#EEEDFE] bg-white p-5">
+      <div className="flex items-center justify-between gap-3">
+        <h4 className="text-sm font-bold text-[#2C2C2A]">NudgeAI Burnout Predictor</h4>
+        <PoweredByNudgeAi />
+      </div>
+      <p className="mt-1 text-xs text-[#5F5E5A]">Private admin/HR care signals. Never shown to employees.</p>
+      {loading ? <div className="mt-4"><NudgeAiLoader /></div> : (
+        <div className="mt-4 grid gap-3">
+          {data.burnout_risks?.map((risk) => (
+            <div key={risk.employee_id} className="rounded-md border border-[#EEEDFE] bg-[#FCFCFF] p-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-bold text-[#2C2C2A]">{risk.employee_name}</p>
+                <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${colorClass[risk.color] || colorClass.green}`}>{risk.risk_level}</span>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-[#5F5E5A]">{risk.reason}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function NudgeAiAnomalyCard({ data, loading }) {
+  if (!data && !loading) return null;
+
+  return (
+    <div className="rounded-lg border border-[#EEEDFE] bg-white p-5">
+      <div className="flex items-center justify-between gap-3">
+        <h4 className="text-sm font-bold text-[#2C2C2A]">NudgeAI Anomaly Alerts</h4>
+        <PoweredByNudgeAi />
+      </div>
+      <p className="mt-1 text-xs text-[#5F5E5A]">Framed as a care system, not a surveillance system.</p>
+      {loading ? <div className="mt-4"><NudgeAiLoader /></div> : (
+        <div className="mt-4 space-y-3">
+          {data.alerts?.length ? data.alerts.map((alert, index) => (
+            <div key={`${alert.employee_name}-${index}`} className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-900">
+              <strong>{alert.employee_name}</strong>: {alert.suggested_admin_action}
+            </div>
+          )) : <p className="text-xs text-[#5F5E5A]">No unusual care signals detected.</p>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function NudgeAiAppreciationCard({ data, loading, onSend }) {
+  if (!data && !loading) return null;
+
+  return (
+    <div className="rounded-lg border border-[#EEEDFE] bg-white p-5">
+      <div className="flex items-center justify-between gap-3">
+        <h4 className="text-sm font-bold text-[#2C2C2A]">NudgeAI Appreciation Suggestions</h4>
+        <PoweredByNudgeAi />
+      </div>
+      {loading ? <div className="mt-4"><NudgeAiLoader /></div> : (
+        <div className="mt-4 space-y-3">
+          {data.suggestions?.map((suggestion) => (
+            <div key={suggestion.employee_id} className="rounded-md border border-[#EEEDFE] bg-[#FCFCFF] p-3">
+              <p className="text-xs font-bold text-[#3C3489]">{suggestion.employee_name}</p>
+              <p className="mt-2 text-sm leading-6 text-[#2C2C2A]">&ldquo;{suggestion.message}&rdquo;</p>
+              <button type="button" onClick={() => onSend(suggestion)} className="mt-3 rounded-md bg-[#7F77DD] px-3 py-2 text-xs font-bold text-white hover:bg-[#3C3489]">
+                Send with 1 click
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

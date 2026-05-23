@@ -3,6 +3,7 @@ import {
   submitProgressUpdate,
   getMyProgressHistory,
   getMyDashboardStats,
+  getMyNotifications,
 } from '../controllers/employee.controller.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { validateBody } from '../middleware/validate.js';
@@ -20,5 +21,6 @@ router.get('/updates', authorize('employee', 'admin'), getMyProgressHistory);
 
 // Get employee dashboard quick stats
 router.get('/dashboard', authorize('employee'), getMyDashboardStats);
+router.get('/notifications', authorize('employee'), getMyNotifications);
 
 export default router;

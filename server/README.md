@@ -94,6 +94,14 @@ The frontend probes both `5000` and `5001`.
 - `GET /summary/daily` - Retrieve daily LLM-generated operational brief (Admin only).
 - `GET /delays` - Highlight overdue tasks and risk assessments (Admin only).
 - `GET /inactivity` - Identify employees with no progress updates for 3 days and generate nudge draft templates (Admin only).
+- `POST /burnout-check` - Private admin/HR burnout risk signals powered by NudgeAI (Admin only).
+- `POST /sprint-forecast` - Weekly completion forecast, at-risk tasks, and recommended actions (Admin only).
+- `POST /standup-brief` - Manager-ready daily standup brief from recent updates (Admin only).
+- `POST /score-update` - Optional progress update quality score and improvement tip (Employee/Admin).
+- `POST /anomaly-check` - Care-oriented check-in anomaly alerts (Admin only).
+- `POST /appreciation` - Appreciation suggestions and one-click recognition delivery (Admin only).
+
+Run the latest `src/db/schema.sql` in Supabase after pulling this version. It adds `ai_outputs`, `employee_notifications`, and update quality score columns used by NudgeAI.
 
 ## Postman
 

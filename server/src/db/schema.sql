@@ -50,6 +50,8 @@ CREATE TABLE IF NOT EXISTS progress_updates (
     task_id UUID REFERENCES tasks(id) ON DELETE SET NULL,
     progress_text TEXT NOT NULL,
     proof_link TEXT,
+    quality_score INTEGER CHECK (quality_score BETWEEN 1 AND 10),
+    quality_tip TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
@@ -84,9 +86,31 @@ CREATE TABLE IF NOT EXISTS employee_invitations (
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+-- 9. AI Output Cache Table
+CREATE TABLE IF NOT EXISTS ai_outputs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    feature_type VARCHAR(60) NOT NULL,
+    entity_id TEXT,
+    output_json JSONB NOT NULL,
+    generated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    expires_at TIMESTAMPTZ
+);
+
+-- 10. Employee Recognition Notifications
+CREATE TABLE IF NOT EXISTS employee_notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type VARCHAR(40) NOT NULL DEFAULT 'recognition',
+    message TEXT NOT NULL,
+    read BOOLEAN DEFAULT FALSE NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
 -- Backfill-safe migrations for existing Supabase projects
 ALTER TABLE departments ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE progress_updates ADD COLUMN IF NOT EXISTS quality_score INTEGER CHECK (quality_score BETWEEN 1 AND 10);
+ALTER TABLE progress_updates ADD COLUMN IF NOT EXISTS quality_tip TEXT;
 
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -101,3 +125,7 @@ CREATE INDEX IF NOT EXISTS idx_blocker_logs_task ON blocker_logs(task_id);
 CREATE INDEX IF NOT EXISTS idx_blocker_logs_resolved ON blocker_logs(resolved);
 CREATE INDEX IF NOT EXISTS idx_employee_invitations_email ON employee_invitations(email);
 CREATE INDEX IF NOT EXISTS idx_employee_invitations_organization ON employee_invitations(organization_id);
+CREATE INDEX IF NOT EXISTS idx_ai_outputs_feature ON ai_outputs(feature_type);
+CREATE INDEX IF NOT EXISTS idx_ai_outputs_entity ON ai_outputs(entity_id);
+CREATE INDEX IF NOT EXISTS idx_ai_outputs_expires ON ai_outputs(expires_at);
+CREATE INDEX IF NOT EXISTS idx_employee_notifications_user ON employee_notifications(user_id);

@@ -1,6 +1,141 @@
 import { groq, GROQ_MODEL } from '../config/groq.js';
 import { supabase } from '../config/supabase.js';
 
+const isNudgeAIConfigured = () => process.env.GROQ_API_KEY && process.env.GROQ_API_KEY !== 'gsk_your_groq_api_key_goes_here';
+
+const daysAgo = (days) => {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date;
+};
+
+const wordCount = (text = '') => text.trim().split(/\s+/).filter(Boolean).length;
+
+const average = (values) => {
+  const clean = values.filter((value) => Number.isFinite(value));
+  return clean.length ? clean.reduce((sum, value) => sum + value, 0) / clean.length : 0;
+};
+
+const riskColor = (risk = 'LOW') => {
+  const normalized = String(risk).toUpperCase();
+  if (normalized === 'HIGH') return 'red';
+  if (normalized === 'MEDIUM') return 'yellow';
+  return 'green';
+};
+
+const parseJson = (content, fallback) => {
+  try {
+    return JSON.parse(content);
+  } catch {
+    return fallback;
+  }
+};
+
+const callNudgeAIJson = async ({ system, prompt, fallback, temperature = 0.25 }) => {
+  if (!isNudgeAIConfigured()) return { data: fallback, unavailable: true };
+
+  try {
+    const completion = await groq.chat.completions.create({
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: prompt }
+      ],
+      model: GROQ_MODEL,
+      response_format: { type: 'json_object' },
+      temperature
+    });
+
+    return {
+      data: parseJson(completion.choices[0].message.content, fallback),
+      unavailable: false
+    };
+  } catch (error) {
+    console.error('NudgeAI unavailable:', error.message);
+    return { data: fallback, unavailable: true };
+  }
+};
+
+const saveAiOutput = async (featureType, entityId, outputJson, ttlHours = 24) => {
+  const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000).toISOString();
+  const { error } = await supabase
+    .from('ai_outputs')
+    .insert([{ feature_type: featureType, entity_id: entityId || null, output_json: outputJson, expires_at: expiresAt }]);
+
+  if (error) {
+    console.warn('AI output cache skipped:', error.message);
+  }
+};
+
+const getCachedAiOutput = async (featureType, entityId) => {
+  const { data, error } = await supabase
+    .from('ai_outputs')
+    .select('output_json, generated_at, expires_at')
+    .eq('feature_type', featureType)
+    .eq('entity_id', entityId || '')
+    .gt('expires_at', new Date().toISOString())
+    .order('generated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) return null;
+  return data;
+};
+
+const getEmployees = async () => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, name, email, role, department_id, departments(name)')
+    .eq('role', 'employee');
+
+  if (error) throw error;
+  return data || [];
+};
+
+const getRecentUpdates = async (fromDate) => {
+  const { data, error } = await supabase
+    .from('progress_updates')
+    .select('id, user_id, task_id, progress_text, quality_score, quality_tip, created_at, user:users(id, name, email, departments(name)), tasks(id, title, status)')
+    .gte('created_at', fromDate.toISOString())
+    .order('created_at', { ascending: false });
+
+  if (error && /quality_score|quality_tip|schema cache/i.test(error.message || '')) {
+    const fallback = await supabase
+      .from('progress_updates')
+      .select('id, user_id, task_id, progress_text, created_at, user:users(id, name, email, departments(name)), tasks(id, title, status)')
+      .gte('created_at', fromDate.toISOString())
+      .order('created_at', { ascending: false });
+
+    if (fallback.error) throw fallback.error;
+    return fallback.data || [];
+  }
+
+  if (error) throw error;
+  return data || [];
+};
+
+export const scoreUpdateWithNudgeAI = async (progressText) => {
+  const fallbackScore = Math.min(10, Math.max(1, Math.round(wordCount(progressText) / 3)));
+  const fallback = {
+    score: fallbackScore,
+    tip: fallbackScore < 7
+      ? 'Try adding the exact task, outcome, and next step so your manager can understand progress quickly.'
+      : ''
+  };
+
+  const { data, unavailable } = await callNudgeAIJson({
+    system: 'You are NudgeAI. Score employee progress updates for specificity. Return only valid JSON.',
+    prompt: `Score this progress update from 1-10 for quality and specificity. If score is below 7, include one short improvement tip. Return schema: {"score": number, "tip": "short tip or empty string"}\n\nUpdate: ${progressText}`,
+    fallback,
+    temperature: 0.1
+  });
+
+  return {
+    score: Number(data.score) || fallback.score,
+    tip: data.tip || '',
+    unavailable
+  };
+};
+
 /**
  * Generate Daily Team Summary
  * GET /ai/summary/daily
@@ -320,5 +455,302 @@ Return a valid JSON object matching this schema:
       message: 'Failed to analyze employee activity reports.',
       error: error.message
     });
+  }
+};
+
+export const burnoutCheck = async (req, res) => {
+  try {
+    const { refresh = true } = req.body || {};
+    if (!refresh) {
+      const cached = await getCachedAiOutput('burnout-check', 'admin');
+      if (cached) return res.status(200).json({ success: true, cached: true, data: cached.output_json });
+    }
+
+    const employees = await getEmployees();
+    const updates = await getRecentUpdates(daysAgo(14));
+
+    const results = await Promise.all(employees.map(async (employee) => {
+      const employeeUpdates = updates.filter((update) => update.user_id === employee.id);
+      const blockerCount = employeeUpdates.filter((update) => update.tasks?.status === 'blocked').length;
+      const missedCheckins = Math.max(0, 10 - new Set(employeeUpdates.map((update) => update.created_at.slice(0, 10))).size);
+      const textLengths = employeeUpdates.map((update) => wordCount(update.progress_text));
+      const submissionHours = employeeUpdates.map((update) => new Date(update.created_at).getHours() + (new Date(update.created_at).getMinutes() / 60));
+      const signals = {
+        employee: { id: employee.id, name: employee.name, department: employee.departments?.name || 'Unassigned' },
+        last_14_days: {
+          update_count: employeeUpdates.length,
+          average_submission_hour: Number(average(submissionHours).toFixed(2)),
+          latest_submission_hour: submissionHours[0] || null,
+          average_update_words: Math.round(average(textLengths)),
+          latest_update_words: textLengths[0] || 0,
+          blocker_count: blockerCount,
+          missed_checkins: missedCheckins,
+          mood_score: null
+        }
+      };
+
+      const heuristicRisk = missedCheckins >= 6 || blockerCount >= 3 ? 'HIGH' : missedCheckins >= 3 || average(textLengths) < 8 ? 'MEDIUM' : 'LOW';
+      const fallback = {
+        employee_id: employee.id,
+        employee_name: employee.name,
+        risk_level: heuristicRisk,
+        reason: heuristicRisk === 'LOW' ? 'Recent update patterns look steady.' : 'Recent check-in consistency or blocker signals need a private HR review.'
+      };
+
+      const { data, unavailable } = await callNudgeAIJson({
+        system: 'You are NudgeAI, a private HR care assistant. Return only JSON. Be careful, non-diagnostic, and concise.',
+        prompt: `Analyze these 14-day workforce signals. Return burnout risk LOW, MEDIUM, or HIGH and one private reason. Schema: {"employee_id":"id","employee_name":"name","risk_level":"LOW|MEDIUM|HIGH","reason":"one line"}\n${JSON.stringify(signals, null, 2)}`,
+        fallback
+      });
+
+      return {
+        ...fallback,
+        ...data,
+        color: riskColor(data.risk_level || fallback.risk_level),
+        unavailable
+      };
+    }));
+
+    const output = { generated_at: new Date().toISOString(), powered_by: 'NudgeAI', burnout_risks: results };
+    await saveAiOutput('burnout-check', 'admin', output, 12);
+    return res.status(200).json({ success: true, data: output });
+  } catch (error) {
+    console.error('NudgeAI burnout check error:', error);
+    return res.status(200).json({ success: false, message: 'NudgeAI unavailable, try again later', data: { burnout_risks: [] } });
+  }
+};
+
+export const sprintForecast = async (req, res) => {
+  try {
+    const { refresh = false } = req.body || {};
+    if (!refresh) {
+      const cached = await getCachedAiOutput('sprint-forecast', 'admin');
+      if (cached) return res.status(200).json({ success: true, cached: true, data: cached.output_json });
+    }
+
+    const [employees, updatesResult, tasksResult, blockersResult] = await Promise.all([
+      getEmployees(),
+      getRecentUpdates(daysAgo(14)),
+      supabase.from('tasks').select('id, title, description, status, due_date, assignee:users(id, name, email)').neq('status', 'completed'),
+      supabase.from('blocker_logs').select('id, task_id, reporter_id, blocker_text, resolved, created_at').eq('resolved', false)
+    ]);
+
+    if (tasksResult.error) throw tasksResult.error;
+    if (blockersResult.error) throw blockersResult.error;
+
+    const completionByEmployee = employees.map((employee) => {
+      const assignedOpen = (tasksResult.data || []).filter((task) => task.assignee?.id === employee.id).length;
+      const submitted = updatesResult.filter((update) => update.user_id === employee.id).length;
+      return {
+        id: employee.id,
+        name: employee.name,
+        two_week_update_count: submitted,
+        open_tasks: assignedOpen,
+        estimated_completion_rate: assignedOpen ? Math.min(100, Math.round((submitted / (assignedOpen + submitted)) * 100)) : 80
+      };
+    });
+
+    const payload = {
+      open_tasks: tasksResult.data || [],
+      completion_by_employee: completionByEmployee,
+      active_blockers: blockersResult.data || [],
+      team_capacity: employees.length
+    };
+
+    const fallbackPercent = Math.max(35, Math.min(92, 85 - ((blockersResult.data || []).length * 8)));
+    const fallback = {
+      forecast_percent: fallbackPercent,
+      tasks_at_risk: (tasksResult.data || []).slice(0, 3).map((task) => ({
+        task_id: task.id,
+        title: task.title,
+        reason: task.status === 'blocked' ? 'Task is currently blocked.' : 'Open task needs owner review.'
+      })),
+      recommended_actions: ['Review blocked work first.', 'Confirm owners for open tasks.', 'Ask teams for crisp daily check-ins.']
+    };
+
+    const { data, unavailable } = await callNudgeAIJson({
+      system: 'You are NudgeAI, a workforce sprint forecasting assistant. Return only JSON.',
+      prompt: `Predict what percentage of this week's open tasks will be completed. Identify 3 tasks most at risk and why. Give 2-3 recommended actions. Schema: {"forecast_percent": number, "tasks_at_risk":[{"task_id":"id","title":"title","reason":"why"}], "recommended_actions":["action"]}\n${JSON.stringify(payload, null, 2)}`,
+      fallback
+    });
+
+    const output = { ...fallback, ...data, generated_at: new Date().toISOString(), powered_by: 'NudgeAI', unavailable };
+    await saveAiOutput('sprint-forecast', 'admin', output, 24);
+    return res.status(200).json({ success: true, data: output });
+  } catch (error) {
+    console.error('NudgeAI sprint forecast error:', error);
+    return res.status(200).json({ success: false, message: 'NudgeAI unavailable, try again later', data: null });
+  }
+};
+
+export const standupBrief = async (req, res) => {
+  try {
+    const { refresh = false } = req.body || {};
+    if (!refresh) {
+      const cached = await getCachedAiOutput('standup-brief', 'admin');
+      if (cached) return res.status(200).json({ success: true, cached: true, data: cached.output_json });
+    }
+
+    const since = new Date();
+    since.setDate(since.getDate() - 1);
+    since.setHours(9, 0, 0, 0);
+
+    const updates = await getRecentUpdates(since);
+    const fallback = {
+      brief: updates.length
+        ? `What got done: ${updates.length} team updates were submitted. What is in progress: teams continue moving assigned work forward. What is blocked: review any blocked tasks in the dashboard. What needs manager attention today: follow up on unclear or delayed updates.`
+        : 'What got done: No updates have been submitted since yesterday 9am. What is in progress: Not enough signal yet. What is blocked: No blocker data available. What needs manager attention today: Ask teams to submit their first update.',
+      sections: {
+        done: [],
+        in_progress: [],
+        blocked: [],
+        attention: []
+      }
+    };
+
+    const { data, unavailable } = await callNudgeAIJson({
+      system: 'You are NudgeAI. Write concise manager standup briefs. Return only JSON.',
+      prompt: `Write a clean manager standup brief from these updates since yesterday 9am. Max 150 words. Professional but conversational. Format into what got done, in progress, blocked, and manager attention. Schema: {"brief":"paragraph max 150 words","sections":{"done":[],"in_progress":[],"blocked":[],"attention":[]}}\n${JSON.stringify(updates, null, 2)}`,
+      fallback,
+      temperature: 0.35
+    });
+
+    const output = { ...fallback, ...data, generated_at: new Date().toISOString(), powered_by: 'NudgeAI', unavailable };
+    await saveAiOutput('standup-brief', 'admin', output, 18);
+    return res.status(200).json({ success: true, data: output });
+  } catch (error) {
+    console.error('NudgeAI standup brief error:', error);
+    return res.status(200).json({ success: false, message: 'NudgeAI unavailable, try again later', data: null });
+  }
+};
+
+export const scoreUpdate = async (req, res) => {
+  try {
+    const { progress_text } = req.body;
+    if (!progress_text) {
+      return res.status(400).json({ success: false, message: 'progress_text is required.' });
+    }
+
+    const result = await scoreUpdateWithNudgeAI(progress_text);
+    const output = { ...result, generated_at: new Date().toISOString(), powered_by: 'NudgeAI' };
+    await saveAiOutput('score-update', req.user.id, output, 24);
+    return res.status(200).json({ success: true, data: output });
+  } catch (error) {
+    console.error('NudgeAI score update error:', error);
+    return res.status(200).json({ success: false, message: 'NudgeAI unavailable, try again later', data: null });
+  }
+};
+
+export const anomalyCheck = async (req, res) => {
+  try {
+    const { refresh = true } = req.body || {};
+    if (!refresh) {
+      const cached = await getCachedAiOutput('anomaly-check', 'admin');
+      if (cached) return res.status(200).json({ success: true, cached: true, data: cached.output_json });
+    }
+
+    const employees = await getEmployees();
+    const updates = await getRecentUpdates(daysAgo(14));
+
+    const alerts = await Promise.all(employees.map(async (employee) => {
+      const employeeUpdates = updates.filter((update) => update.user_id === employee.id);
+      const baselineUpdates = employeeUpdates.slice(1, 8);
+      const todayUpdate = employeeUpdates[0];
+      const baselineHour = average(baselineUpdates.map((update) => new Date(update.created_at).getHours()));
+      const todayHour = todayUpdate ? new Date(todayUpdate.created_at).getHours() : new Date().getHours();
+      const baselineWords = average(baselineUpdates.map((update) => wordCount(update.progress_text)));
+      const todayWords = todayUpdate ? wordCount(todayUpdate.progress_text) : 0;
+      const late = baselineHour && todayHour - baselineHour >= 3;
+      const short = baselineWords && todayWords < baselineWords * 0.4;
+
+      const baseline = {
+        employee: { id: employee.id, name: employee.name },
+        usual_checkin_hour: Number(baselineHour.toFixed(1)) || null,
+        average_update_words: Math.round(baselineWords),
+        today_checkin_hour: todayUpdate ? todayHour : null,
+        today_update_words: todayWords,
+        no_update_today: !todayUpdate || todayUpdate.created_at.slice(0, 10) !== new Date().toISOString().slice(0, 10)
+      };
+
+      const fallback = {
+        employee_id: employee.id,
+        employee_name: employee.name,
+        anomalous: late || short || baseline.no_update_today ? 'YES' : 'NO',
+        anomaly_type: baseline.no_update_today ? 'late_checkin' : late ? 'late_checkin' : short ? 'short_update' : 'none',
+        suggested_admin_action: late || short || baseline.no_update_today
+          ? `${employee.name} has a different check-in pattern today. Consider a supportive check-in.`
+          : 'No action needed.'
+      };
+
+      const { data, unavailable } = await callNudgeAIJson({
+        system: 'You are NudgeAI, a care-oriented anomaly detector. This is a care system, not surveillance. Return only JSON.',
+        prompt: `Given this employee baseline and today's data, is anything anomalous? Return YES/NO, anomaly type, and suggested admin action. Schema: {"employee_id":"id","employee_name":"name","anomalous":"YES|NO","anomaly_type":"late_checkin|output_drop|short_update|none","suggested_admin_action":"care-oriented action"}\n${JSON.stringify(baseline, null, 2)}`,
+        fallback
+      });
+
+      return { ...fallback, ...data, unavailable };
+    }));
+
+    const output = { generated_at: new Date().toISOString(), powered_by: 'NudgeAI', alerts: alerts.filter((alert) => alert.anomalous === 'YES') };
+    await saveAiOutput('anomaly-check', 'admin', output, 12);
+    return res.status(200).json({ success: true, data: output });
+  } catch (error) {
+    console.error('NudgeAI anomaly check error:', error);
+    return res.status(200).json({ success: false, message: 'NudgeAI unavailable, try again later', data: { alerts: [] } });
+  }
+};
+
+export const appreciation = async (req, res) => {
+  try {
+    const { send = false, employee_id, message, refresh = true } = req.body || {};
+
+    if (send && employee_id && message) {
+      const { error } = await supabase
+        .from('employee_notifications')
+        .insert([{ user_id: employee_id, type: 'recognition', message }]);
+
+      if (error) throw error;
+      return res.status(200).json({ success: true, message: 'Recognition sent to employee dashboard.' });
+    }
+
+    if (!refresh) {
+      const cached = await getCachedAiOutput('appreciation', 'admin');
+      if (cached) return res.status(200).json({ success: true, cached: true, data: cached.output_json });
+    }
+
+    const employees = await getEmployees();
+    const updates = await getRecentUpdates(daysAgo(7));
+    const suggestions = await Promise.all(employees.slice(0, 6).map(async (employee) => {
+      const employeeUpdates = updates.filter((update) => update.user_id === employee.id);
+      const completedCount = employeeUpdates.filter((update) => update.tasks?.status === 'completed').length;
+      const zeroMissed = new Set(employeeUpdates.map((update) => update.created_at.slice(0, 10))).size >= 5;
+      const achievement = completedCount > 0
+        ? `completed ${completedCount} task-linked updates this week`
+        : zeroMissed
+        ? 'kept a steady check-in rhythm this week'
+        : 'kept their team updated with useful progress notes';
+      const fallback = {
+        employee_id: employee.id,
+        employee_name: employee.name,
+        achievement,
+        message: `Nice work, ${employee.name}. Your ${achievement} helped the team stay clear and moving.`
+      };
+
+      const { data, unavailable } = await callNudgeAIJson({
+        system: 'You are NudgeAI. Write warm, genuine employee appreciation messages. Return only JSON.',
+        prompt: `Write a short, genuine, warm appreciation message for a manager to send. Max 2 sentences. Mention the specific achievement. Schema: {"employee_id":"id","employee_name":"name","achievement":"specific achievement","message":"message"}\n${JSON.stringify({ employee, achievement }, null, 2)}`,
+        fallback,
+        temperature: 0.45
+      });
+
+      return { ...fallback, ...data, unavailable };
+    }));
+
+    const output = { generated_at: new Date().toISOString(), powered_by: 'NudgeAI', suggestions };
+    await saveAiOutput('appreciation', 'admin', output, 24);
+    return res.status(200).json({ success: true, data: output });
+  } catch (error) {
+    console.error('NudgeAI appreciation error:', error);
+    return res.status(200).json({ success: false, message: 'NudgeAI unavailable, try again later', data: { suggestions: [] } });
   }
 };

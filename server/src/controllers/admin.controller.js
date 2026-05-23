@@ -19,7 +19,7 @@ export const getAllEmployeeUpdates = async (req, res) => {
 
     let query = supabase
       .from('progress_updates')
-      .select('id, progress_text, proof_link, created_at, user:users(id, name, email, department_id, departments(name)), tasks(id, title, status)', { count: 'exact' });
+      .select('id, progress_text, proof_link, quality_score, quality_tip, created_at, user:users(id, name, email, department_id, departments(name)), tasks(id, title, status)', { count: 'exact' });
 
     if (user_id) {
       query = query.eq('user_id', user_id);
@@ -37,6 +37,32 @@ export const getAllEmployeeUpdates = async (req, res) => {
                  .range(Number(offset), Number(offset) + Number(limit) - 1);
 
     const { data: updates, error, count } = await query;
+    if (error && /quality_score|quality_tip|schema cache/i.test(error.message || '')) {
+      let fallbackQuery = supabase
+        .from('progress_updates')
+        .select('id, progress_text, proof_link, created_at, user:users(id, name, email, department_id, departments(name)), tasks(id, title, status)', { count: 'exact' });
+
+      if (user_id) fallbackQuery = fallbackQuery.eq('user_id', user_id);
+      if (start_date) fallbackQuery = fallbackQuery.gte('created_at', start_date);
+      if (end_date) fallbackQuery = fallbackQuery.lte('created_at', end_date);
+
+      fallbackQuery = fallbackQuery.order('created_at', { ascending: false })
+        .range(Number(offset), Number(offset) + Number(limit) - 1);
+
+      const fallback = await fallbackQuery;
+      if (fallback.error) throw fallback.error;
+      const filtered = department_id
+        ? fallback.data.filter(u => u.user && u.user.department_id === department_id)
+        : fallback.data;
+
+      return res.status(200).json({
+        success: true,
+        count: department_id ? filtered.length : fallback.count,
+        limit: Number(limit),
+        offset: Number(offset),
+        updates: filtered
+      });
+    }
     if (error) throw error;
 
     // Filter by department in-memory if requested
