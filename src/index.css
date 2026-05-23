@@ -60,6 +60,14 @@ a {
   animation: summary-pulse 2.4s ease-in-out infinite;
 }
 
+.logo-marquee {
+  animation: logo-marquee 24s linear infinite;
+}
+
+.logo-marquee:hover {
+  animation-play-state: paused;
+}
+
 @keyframes brand-shimmer {
   0%,
   100% {
@@ -90,6 +98,16 @@ a {
 
   50% {
     box-shadow: 0 0 0 8px rgba(29, 158, 117, 0);
+  }
+}
+
+@keyframes logo-marquee {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
   }
 }
 

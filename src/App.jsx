@@ -7,6 +7,8 @@ import {
   Building2,
   Check,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   ClipboardCheck,
   Clock3,
   X,
@@ -151,7 +153,52 @@ const trustSignals = [
   ['AI-powered summaries', Activity],
 ]
 
-const sampleTeams = ['Northstar Ops', 'Tech Team', 'OpsFlow', 'PeopleDesk', 'FieldPilot']
+const sampleTeams = ['Field teams', 'HR teams', 'Ops teams', 'Support teams', 'Sales teams']
+
+const productScenarios = [
+  {
+    eyebrow: 'Use case',
+    title: 'Field teams report progress before managers ask.',
+    copy: 'Daily updates, blockers, and missed check-ins roll into one clean operating view for distributed teams.',
+    cta: 'Explore field workflows',
+    metric: '42%',
+    metricLabel: 'faster status reviews',
+    accent: '#1D9E75',
+    quote: 'A manager can see who is moving, who is blocked, and who needs a quick follow-up without chasing everyone manually.',
+    author: 'Example workflow',
+    role: 'For distributed operations',
+    visualTitle: 'Field Ops Pulse',
+    visualRows: ['North zone check-ins', '2 delayed site updates', '1 blocker escalated'],
+  },
+  {
+    eyebrow: 'Team momentum',
+    title: 'Weekly review meetings start with answers, not hunting.',
+    copy: 'NudgeAI highlights completed work and risk signals so HR and managers can focus on decisions.',
+    cta: 'See NudgeAI summaries',
+    metric: '30 hrs',
+    metricLabel: 'saved every week',
+    accent: '#7F77DD',
+    quote: 'The summary view is designed to make progress visible without asking every employee for the same update again.',
+    author: 'Example workflow',
+    role: 'For HR and team leads',
+    visualTitle: 'NudgeAI Brief',
+    visualRows: ['18 tasks completed', '4 updates need review', '3 blockers detected'],
+  },
+  {
+    eyebrow: 'Admin control',
+    title: 'Leaders get clean exports when they need proof.',
+    copy: 'Structured task, blocker, and department data can be exported for audits, reviews, and ops reporting.',
+    cta: 'Review admin tools',
+    metric: '1 click',
+    metricLabel: 'operational export',
+    accent: '#F59E0B',
+    quote: 'The admin view is built to turn scattered task updates into a report-ready dataset for leadership reviews.',
+    author: 'Example workflow',
+    role: 'For admins and founders',
+    visualTitle: 'Report Builder',
+    visualRows: ['Active assignees mapped', 'Blockers grouped by team', 'JSON export ready'],
+  },
+]
 
 const formatDisplayDate = (value) => {
   if (!value) return 'Not available';
@@ -278,6 +325,7 @@ function App() {
   const [aiReportType, setAiReportType] = useState(null) // 'summary' | 'delays' | 'inactivity'
   const [aiReportContent, setAiReportContent] = useState(null)
   const [aiLoading, setAiLoading] = useState(false)
+  const [activeStory, setActiveStory] = useState(0)
 
   // --- EFFECTS ---
   // Check active server port on mount
@@ -316,6 +364,16 @@ function App() {
       refreshDashboardData();
     }
   }, [token, authRole]);
+
+  useEffect(() => {
+    if (currentView !== 'landing') return undefined;
+
+    const timer = window.setInterval(() => {
+      setActiveStory((story) => (story + 1) % productScenarios.length);
+    }, 5200);
+
+    return () => window.clearInterval(timer);
+  }, [currentView]);
 
   // --- MOCK DATA SETUP (Sandbox Mode) ---
   const setMockData = () => {
@@ -721,6 +779,10 @@ function App() {
   // Open trial modal helper
   const openTrial = () => setIsTrialOpen(true)
   const closeTrial = () => setIsTrialOpen(false)
+  const showPreviousStory = () => setActiveStory((story) => (story === 0 ? productScenarios.length - 1 : story - 1))
+  const showNextStory = () => setActiveStory((story) => (story + 1) % productScenarios.length)
+
+  const currentStory = productScenarios[activeStory]
 
   return (
     <main className="min-h-screen overflow-x-clip bg-white text-[#2C2C2A] font-sans">
@@ -944,6 +1006,137 @@ function App() {
                   <span key={team} className="rounded-md border border-[#EEEDFE] bg-white px-4 py-2 text-sm font-semibold text-[#5F5E5A]">
                     {team}
                   </span>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="overflow-hidden bg-white px-5 py-20 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-7xl">
+              <div className="text-center">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#1D9E75]">Product scenarios</p>
+                <h2 className="mt-4 text-3xl font-bold text-[#2C2C2A] sm:text-4xl">Ways NudgeHQ keeps work moving.</h2>
+                <p className="mx-auto mt-4 max-w-2xl text-lg leading-8 text-[#5F5E5A]">
+                  A rotating look at practical workflows NudgeHQ is being built for, before public customer stories are available.
+                </p>
+              </div>
+
+              <div className="relative mt-12 overflow-hidden border-y border-[#EEEDFE] py-5">
+                <div className="logo-marquee flex w-max items-center gap-4">
+                  {[...sampleTeams, ...sampleTeams].map((team, index) => (
+                    <span
+                      key={`${team}-${index}`}
+                      className="min-w-36 rounded-md border border-[#EEEDFE] bg-[#FCFCFF] px-5 py-3 text-center text-sm font-bold text-[#5F5E5A]"
+                    >
+                      {team}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="relative mt-12">
+                <button
+                  type="button"
+                  onClick={showPreviousStory}
+                  className="absolute left-0 top-1/2 z-10 hidden h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[#DAD7FB] bg-white text-[#3C3489] shadow-md transition hover:bg-[#EEEDFE] lg:flex"
+                  aria-label="Show previous story"
+                >
+                  <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+                </button>
+
+                <div className="rounded-lg border border-[#DAD7FB] bg-white p-2 shadow-xl shadow-[#3C3489]/10">
+                  <AnimatePresence mode="wait">
+                    <motion.article
+                      key={currentStory.title}
+                      initial={{ opacity: 0, x: 28 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -28 }}
+                      transition={{ duration: 0.35, ease: 'easeOut' }}
+                      className="grid overflow-hidden rounded-md border border-[#EEEDFE] bg-[#FCFCFF] lg:grid-cols-[0.9fr_1.1fr]"
+                    >
+                      <div className="flex min-h-80 flex-col justify-between bg-white p-8 sm:p-10">
+                        <div>
+                          <p className="text-sm font-semibold uppercase tracking-[0.18em]" style={{ color: currentStory.accent }}>
+                            {currentStory.eyebrow}
+                          </p>
+                          <h3 className="mt-5 max-w-lg text-3xl font-bold leading-tight text-[#2C2C2A] sm:text-4xl">
+                            {currentStory.title}
+                          </h3>
+                          <p className="mt-5 max-w-xl text-lg leading-8 text-[#5F5E5A]">{currentStory.copy}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={openTrial}
+                          className="mt-8 inline-flex w-fit items-center gap-2 rounded-full border border-[#DAD7FB] px-5 py-3 text-sm font-bold text-[#3C3489] transition hover:bg-[#EEEDFE]"
+                        >
+                          {currentStory.cta}
+                          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                      </div>
+
+                      <div className="relative overflow-hidden bg-[#F7FAF9] p-6 sm:p-8">
+                        <div className="absolute right-8 top-8 rounded-full bg-white px-4 py-2 text-sm font-bold shadow-sm" style={{ color: currentStory.accent }}>
+                          Concept preview
+                        </div>
+                        <div className="grid min-h-72 gap-5 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+                          <div className="rounded-lg border border-white bg-white p-6 shadow-sm">
+                            <p className="text-5xl font-extrabold text-[#2C2C2A]">{currentStory.metric}</p>
+                            <p className="mt-2 text-sm font-semibold uppercase tracking-[0.14em] text-[#5F5E5A]">{currentStory.metricLabel}</p>
+                            <div className="mt-8 border-t border-[#EEEDFE] pt-5">
+                              <p className="text-sm leading-6 text-[#5F5E5A]">&quot;{currentStory.quote}&quot;</p>
+                              <p className="mt-5 font-bold text-[#2C2C2A]">{currentStory.author}</p>
+                              <p className="text-sm text-[#5F5E5A]">{currentStory.role}</p>
+                            </div>
+                          </div>
+
+                          <div className="rounded-lg border border-[#DAD7FB] bg-white p-4 shadow-lg shadow-[#3C3489]/10">
+                            <div className="rounded-md border border-[#EEEDFE] bg-[#FCFCFF] p-5">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="font-bold text-[#3C3489]">{currentStory.visualTitle}</p>
+                                  <p className="mt-1 text-xs text-[#5F5E5A]">Updated 4 min ago</p>
+                                </div>
+                                <span className="h-3 w-3 rounded-full" style={{ backgroundColor: currentStory.accent }} />
+                              </div>
+                              <div className="mt-5 space-y-3">
+                                {currentStory.visualRows.map((row, index) => (
+                                  <div key={row} className="flex items-center gap-3 rounded-md border border-[#EEEDFE] bg-white p-3">
+                                    <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[#EEEDFE] text-xs font-bold text-[#3C3489]">
+                                      {index + 1}
+                                    </span>
+                                    <span className="text-sm font-semibold text-[#2C2C2A]">{row}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.article>
+                  </AnimatePresence>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={showNextStory}
+                  className="absolute right-0 top-1/2 z-10 hidden h-11 w-11 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[#DAD7FB] bg-white text-[#3C3489] shadow-md transition hover:bg-[#EEEDFE] lg:flex"
+                  aria-label="Show next story"
+                >
+                  <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                </button>
+              </div>
+
+              <div className="mt-6 flex items-center justify-center gap-3">
+                {productScenarios.map((story, index) => (
+                  <button
+                    key={story.title}
+                    type="button"
+                    onClick={() => setActiveStory(index)}
+                    className={`h-2.5 rounded-full transition-all ${
+                      activeStory === index ? 'w-9 bg-[#7F77DD]' : 'w-2.5 bg-[#DAD7FB] hover:bg-[#7F77DD]/70'
+                    }`}
+                    aria-label={`Show story ${index + 1}`}
+                  />
                 ))}
               </div>
             </div>
