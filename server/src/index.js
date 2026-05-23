@@ -1,7 +1,9 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
-import dotenv from 'dotenv';
 
 // Import Routes
 import authRoutes from './routes/auth.routes.js';
@@ -10,9 +12,6 @@ import taskRoutes from './routes/task.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import analyticsRoutes from './routes/analytics.routes.js';
 import aiRoutes from './routes/ai.routes.js';
-
-// Load config
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;

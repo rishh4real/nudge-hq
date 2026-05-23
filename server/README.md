@@ -50,6 +50,14 @@ npm run dev
 ```
 The API is exposed locally at: `http://localhost:5000`
 
+If port `5000` is already occupied locally, run:
+
+```bash
+PORT=5001 npm run dev
+```
+
+The frontend probes both `5000` and `5001`.
+
 ## API Reference
 
 ### Auth Endpoint `/api/auth`
@@ -84,3 +92,12 @@ The API is exposed locally at: `http://localhost:5000`
 - `GET /summary/daily` - Retrieve daily LLM-generated operational brief (Admin only).
 - `GET /delays` - Highlight overdue tasks and risk assessments (Admin only).
 - `GET /inactivity` - Identify employees with no progress updates for 3 days and generate nudge draft templates (Admin only).
+
+## Postman
+
+Import from the repository root:
+
+- `postman/NudgeHQ.postman_collection.json`
+- `postman/NudgeHQ.postman_environment.json`
+
+Run the auth requests first to populate `adminToken` and `employeeToken`.

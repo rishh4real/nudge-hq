@@ -35,6 +35,7 @@ NudgeHQ is a B2B SaaS web app for real-time workforce progress tracking. It help
 ```text
 .
 ├── public/brand/          # NudgeHQ brand icon
+├── postman/               # API collection and local environment
 ├── src/                   # React frontend
 ├── server/                # Express API, Supabase schema, seed data
 ├── package.json           # Frontend scripts and dependencies
@@ -109,6 +110,15 @@ cd server
 npm run dev
 npm start
 ```
+
+## API Testing
+
+Import these files into Postman:
+
+- `postman/NudgeHQ.postman_collection.json`
+- `postman/NudgeHQ.postman_environment.json`
+
+Run `Login Admin` and `Login Employee` first. The collection saves JWTs into Postman environment variables for the protected routes.
 
 ## Contact
 
