@@ -317,6 +317,17 @@ function App() {
   const [proofLink, setProofLink] = useState('')
   const [selectedTaskId, setSelectedTaskId] = useState('')
   const [isSubmittingUpdate, setIsSubmittingUpdate] = useState(false)
+  const [focusText, setFocusText] = useState('')
+  const [focusEta, setFocusEta] = useState('today')
+  const [workLocation, setWorkLocation] = useState('home')
+  const [goals, setGoals] = useState(['', '', ''])
+  const [energyLevel, setEnergyLevel] = useState('medium')
+  const [deepWorkFocus, setDeepWorkFocus] = useState('')
+  const [deepWorkDuration, setDeepWorkDuration] = useState(60)
+  const [activeDeepWork, setActiveDeepWork] = useState(null)
+  const [deepWorkOutput, setDeepWorkOutput] = useState('')
+  const [growthSummary, setGrowthSummary] = useState(null)
+  const [growthLoading, setGrowthLoading] = useState(false)
 
   // Blocker text mapping for status update modal
   const [activeBlockTask, setActiveBlockTask] = useState(null)
@@ -337,6 +348,12 @@ function App() {
   const [inviteDepartmentId, setInviteDepartmentId] = useState('')
   const [inviteLoading, setInviteLoading] = useState(false)
   const [inviteResult, setInviteResult] = useState(null)
+  const [teamFocus, setTeamFocus] = useState([])
+  const [focusInsight, setFocusInsight] = useState('')
+  const [teamPresence, setTeamPresence] = useState([])
+  const [presenceInsight, setPresenceInsight] = useState('')
+  const [deepWorkTeam, setDeepWorkTeam] = useState(null)
+  const [boardPackLoading, setBoardPackLoading] = useState(false)
 
   // AI Summary Results
   const [aiReportType, setAiReportType] = useState(null) // 'summary' | 'delays' | 'inactivity'
@@ -439,6 +456,20 @@ function App() {
     setNotifications([
       { id: 'n-1', type: 'recognition', message: 'Nice work, Kunal. Your steady check-ins helped the team stay clear and moving.', created_at: new Date().toISOString() }
     ]);
+    setTeamFocus([
+      { id: 'f-1', focus_text: 'Finalizing weekly sales forecast', eta: 'today', status: 'focused', user: { name: 'Kunal', departments: { name: 'Sales Operations' } }, last_updated: new Date().toISOString() }
+    ]);
+    setFocusInsight('Focus patterns look steady today. No repeated switching pattern detected.');
+    setTeamPresence([
+      { id: 'p-1', location: 'home', goals_json: ['Finish weekly forecast', 'Resolve lead list cleanup', 'Share blocker status'], energy_level: 'high', user: { name: 'Kunal', departments: { name: 'Sales Operations' } } }
+    ]);
+    setPresenceInsight('Your team performs better when they declare goals in the morning. 1 person set goals today.');
+    setDeepWorkTeam({
+      active: [],
+      top_users: [{ name: 'Kunal', hours: 2 }],
+      insight: 'NudgeAI insight: teams using declared deep work create clearer focus windows without idle tracking.',
+      powered_by: 'NudgeAI'
+    });
     setNudgeAiData({
       standup: {
         brief: 'What got done: Sales Operations shared progress on list cleanup. What is in progress: weekly forecasting remains active. What is blocked: staging replication needs attention. What needs manager attention today: review the blocker and confirm next owner.',
@@ -449,6 +480,10 @@ function App() {
         forecast_percent: 72,
         tasks_at_risk: [{ title: 'Resolve database replication delays in staging', reason: 'Blocked by missing AWS staging keys.' }],
         recommended_actions: ['Review blocked engineering work first.', 'Confirm owner for staging credentials.', 'Ask teams for specific end-of-day updates.'],
+        powered_by: 'NudgeAI'
+      },
+      skillGap: {
+        gaps: [{ gap_name: 'Database optimization', frequency: 2, suggested_learning_area: 'SQL optimization training', urgency: 'medium' }],
         powered_by: 'NudgeAI'
       }
     });
@@ -496,7 +531,19 @@ function App() {
         });
         setAdminUsers(uniqueUsers);
 
+        const { data: focusRes } = await fetchApi('/focus/team', { method: 'GET' }, token);
+        setTeamFocus(focusRes.focus_feed || []);
+        setFocusInsight(focusRes.insight || '');
+
+        const { data: presenceRes } = await fetchApi('/checkin/team', { method: 'GET' }, token);
+        setTeamPresence(presenceRes.presence || []);
+        setPresenceInsight(presenceRes.insight || '');
+
+        const { data: deepWorkRes } = await fetchApi('/deepwork/team', { method: 'GET' }, token);
+        setDeepWorkTeam(deepWorkRes || null);
+
         runNudgeAiFeature('standup', false);
+        runNudgeAiFeature('skillGap', false);
       }
     } catch (err) {
       showToast('Error syncing live dashboard values: ' + err.message, 'error');
@@ -662,6 +709,13 @@ function App() {
     }
 
     try {
+      if (focusText.trim()) {
+        await fetchApi('/focus/update', {
+          method: 'POST',
+          body: JSON.stringify({ focus_text: focusText, eta: focusEta, status: 'focused' })
+        }, token);
+      }
+
       const { data } = await fetchApi('/employees/updates', {
         method: 'POST',
         body: JSON.stringify({
@@ -878,6 +932,7 @@ function App() {
       standup: '/ai/standup-brief',
       anomaly: '/ai/anomaly-check',
       appreciation: '/ai/appreciation',
+      skillGap: '/ai/skill-gap-analysis',
     };
 
     if (!endpointMap[type]) return;
@@ -912,6 +967,11 @@ function App() {
           },
           appreciation: {
             suggestions: [{ employee_id: 'emp-1', employee_name: 'Kunal', achievement: 'steady check-ins', message: 'Nice work, Kunal. Your steady check-ins helped the team stay clear and moving.' }],
+            powered_by: 'NudgeAI',
+            generated_at: new Date().toISOString()
+          },
+          skillGap: {
+            gaps: [{ gap_name: 'Database optimization', frequency: 2, suggested_learning_area: 'SQL optimization training', urgency: 'medium' }],
             powered_by: 'NudgeAI',
             generated_at: new Date().toISOString()
           }
@@ -954,6 +1014,120 @@ function App() {
       showToast('Recognition sent to employee dashboard.', 'success');
     } catch {
       showToast('NudgeAI unavailable, try again later', 'error');
+    }
+  };
+
+  const handleCheckinSubmit = async (e) => {
+    e.preventDefault();
+    if (isSandbox) {
+      showToast('Smart Presence check-in saved in sandbox.', 'success');
+      return;
+    }
+
+    try {
+      await fetchApi('/checkin/daily', {
+        method: 'POST',
+        body: JSON.stringify({ location: workLocation, goals, energy_level: energyLevel })
+      }, token);
+      showToast('Smart Presence check-in saved.', 'success');
+    } catch {
+      showToast('Could not save Smart Presence check-in.', 'error');
+    }
+  };
+
+  const startDeepWorkSession = async (e) => {
+    e.preventDefault();
+    if (!deepWorkFocus.trim()) return;
+    if (isSandbox) {
+      setActiveDeepWork({ id: 'sandbox-deep', focus_declared: deepWorkFocus, end_time: new Date(Date.now() + Number(deepWorkDuration) * 60000).toISOString(), duration_minutes: Number(deepWorkDuration) });
+      showToast('Deep Work Mode started in sandbox.', 'success');
+      return;
+    }
+
+    try {
+      const { data } = await fetchApi('/deepwork/start', {
+        method: 'POST',
+        body: JSON.stringify({ focus_declared: deepWorkFocus, duration_minutes: Number(deepWorkDuration) })
+      }, token);
+      setActiveDeepWork(data.session);
+      showToast('Deep Work Mode started.', 'success');
+    } catch {
+      showToast('Could not start Deep Work Mode.', 'error');
+    }
+  };
+
+  const endDeepWorkSession = async () => {
+    if (!activeDeepWork) return;
+    if (isSandbox) {
+      setActiveDeepWork(null);
+      setDeepWorkOutput('');
+      showToast('Deep work output logged in sandbox.', 'success');
+      return;
+    }
+
+    try {
+      await fetchApi('/deepwork/end', {
+        method: 'POST',
+        body: JSON.stringify({ session_id: activeDeepWork.id, output_logged: deepWorkOutput })
+      }, token);
+      setActiveDeepWork(null);
+      setDeepWorkOutput('');
+      showToast('Deep work output logged.', 'success');
+    } catch {
+      showToast('Could not end Deep Work Mode.', 'error');
+    }
+  };
+
+  const loadGrowthSummary = async () => {
+    setGrowthLoading(true);
+    if (isSandbox) {
+      setGrowthSummary({
+        summary: 'You have kept a steady rhythm of updates, completed visible work, and helped the team understand blockers clearly. Your strongest pattern is consistency.',
+        completed_tasks: 1,
+        blockers_resolved: 0,
+        most_productive_day: 'Saturday',
+        completion_rate: 33,
+        quality_trend: [{ date: new Date().toISOString().slice(0, 10), score: 8 }],
+        streak_days: [new Date().toISOString().slice(0, 10)],
+        recognitions: notifications,
+        powered_by: 'NudgeAI'
+      });
+      setGrowthLoading(false);
+      return;
+    }
+
+    try {
+      const { data } = await fetchApi('/employees/growth-summary', { method: 'GET' }, token);
+      setGrowthSummary(data.data);
+    } catch {
+      showToast('Could not load growth summary.', 'error');
+    } finally {
+      setGrowthLoading(false);
+    }
+  };
+
+  const generateBoardPack = async () => {
+    setBoardPackLoading(true);
+    try {
+      const port = activeServerPort || serverPort || 5001;
+      const response = await fetch(`http://localhost:${port}/api/reports/board-pack`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({})
+      });
+      if (!response.ok) throw new Error('Board pack request failed.');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'nudgehq-board-pack.pdf';
+      link.click();
+      URL.revokeObjectURL(url);
+      showToast('Board pack generated.', 'success');
+    } catch {
+      showToast('Could not generate board pack.', 'error');
+    } finally {
+      setBoardPackLoading(false);
     }
   };
 
@@ -2021,6 +2195,43 @@ function App() {
               
               {/* Employee Left Column */}
               <div className="space-y-8">
+                <div className="rounded-lg border border-[#EEEDFE] bg-white p-6 shadow-sm">
+                  <h3 className="text-lg font-bold text-[#2C2C2A] flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-[#1D9E75]" />
+                    Smart Presence Check-in
+                  </h3>
+                  <form onSubmit={handleCheckinSubmit} className="mt-5 grid gap-4">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <select value={workLocation} onChange={(e) => setWorkLocation(e.target.value)} className="rounded-md border border-[#DAD7FB] bg-white px-3 py-2.5 text-sm outline-none">
+                        <option value="office">Office</option>
+                        <option value="home">Home</option>
+                        <option value="client_site">Client site</option>
+                        <option value="travel">Travel</option>
+                      </select>
+                      <div className="grid grid-cols-3 gap-2">
+                        {['high', 'medium', 'low'].map((level) => (
+                          <button key={level} type="button" onClick={() => setEnergyLevel(level)} className={`rounded-md border px-3 py-2 text-xs font-bold capitalize ${energyLevel === level ? 'border-[#7F77DD] bg-[#F4F3FF] text-[#3C3489]' : 'border-[#EEEDFE] text-[#5F5E5A]'}`}>
+                            {level === 'high' ? '⚡' : level === 'medium' ? '🙂' : '🔋'} {level}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="grid gap-3">
+                      {goals.map((goal, index) => (
+                        <input
+                          key={index}
+                          value={goal}
+                          onChange={(e) => setGoals(goals.map((item, i) => i === index ? e.target.value : item))}
+                          placeholder={`Today's goal ${index + 1}`}
+                          className="rounded-md border border-[#DAD7FB] px-3.5 py-2.5 text-sm outline-none focus:border-[#7F77DD]"
+                        />
+                      ))}
+                    </div>
+                    <button type="submit" className="w-fit rounded-md bg-[#3C3489] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#7F77DD]">
+                      Save Check-in
+                    </button>
+                  </form>
+                </div>
                 
                 {/* Submit Daily Update */}
                 <div className="rounded-lg border border-[#EEEDFE] bg-white p-6 shadow-sm">
@@ -2052,6 +2263,27 @@ function App() {
                         className="mt-1.5 block min-h-24 w-full rounded-md border border-[#DAD7FB] px-3.5 py-2.5 text-sm outline-none focus:border-[#7F77DD]"
                         required
                       />
+                    </div>
+
+                    <div className="grid gap-3 rounded-md border border-[#EEEDFE] bg-[#FCFCFF] p-4 sm:grid-cols-[1fr_auto]">
+                      <div>
+                        <label className="block text-xs font-semibold text-[#5F5E5A]">What is your main focus right now?</label>
+                        <input
+                          type="text"
+                          value={focusText}
+                          onChange={(e) => setFocusText(e.target.value)}
+                          placeholder="One clear focus for Focus Pulse"
+                          className="mt-1.5 block w-full rounded-md border border-[#DAD7FB] px-3.5 py-2.5 text-sm outline-none focus:border-[#7F77DD]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-[#5F5E5A]">ETA</label>
+                        <select value={focusEta} onChange={(e) => setFocusEta(e.target.value)} className="mt-1.5 block w-full rounded-md border border-[#DAD7FB] bg-white px-3 py-2.5 text-sm outline-none">
+                          <option value="today">Today</option>
+                          <option value="tomorrow">Tomorrow</option>
+                          <option value="this_week">This Week</option>
+                        </select>
+                      </div>
                     </div>
 
                     <div>
@@ -2171,6 +2403,61 @@ function App() {
 
               {/* Employee Right Column: Task Status Desk */}
               <div className="space-y-8">
+                <div className="rounded-lg border border-[#DAD7FB] bg-white p-6 shadow-sm">
+                  <h3 className="flex items-center gap-2 text-lg font-bold text-[#2C2C2A]">
+                    <Clock3 className="h-5 w-5 text-[#7F77DD]" />
+                    Deep Work Mode
+                  </h3>
+                  {activeDeepWork ? (
+                    <div className="mt-4 rounded-md bg-[#F4F3FF] p-4">
+                      <p className="text-sm font-bold text-[#3C3489]">In Deep Work until {formatDisplayDate(activeDeepWork.end_time)}</p>
+                      <p className="mt-1 text-xs text-[#5F5E5A]">{activeDeepWork.focus_declared}</p>
+                      <textarea
+                        value={deepWorkOutput}
+                        onChange={(e) => setDeepWorkOutput(e.target.value)}
+                        placeholder="Deep work session complete! What did you accomplish?"
+                        className="mt-4 block min-h-20 w-full rounded-md border border-[#DAD7FB] px-3 py-2 text-sm outline-none"
+                      />
+                      <button type="button" onClick={endDeepWorkSession} className="mt-3 rounded-md bg-[#3C3489] px-4 py-2 text-xs font-bold text-white hover:bg-[#7F77DD]">
+                        Log Output
+                      </button>
+                    </div>
+                  ) : (
+                    <form onSubmit={startDeepWorkSession} className="mt-4 grid gap-3">
+                      <input value={deepWorkFocus} onChange={(e) => setDeepWorkFocus(e.target.value)} placeholder="What will you work on?" className="rounded-md border border-[#DAD7FB] px-3 py-2 text-sm outline-none" />
+                      <select value={deepWorkDuration} onChange={(e) => setDeepWorkDuration(e.target.value)} className="rounded-md border border-[#DAD7FB] bg-white px-3 py-2 text-sm outline-none">
+                        <option value={60}>1 hr</option>
+                        <option value={120}>2 hr</option>
+                        <option value={180}>3 hr</option>
+                        <option value={45}>Custom: 45 min</option>
+                      </select>
+                      <button type="submit" className="rounded-md bg-[#7F77DD] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#3C3489]">
+                        Start Deep Work
+                      </button>
+                    </form>
+                  )}
+                </div>
+
+                <div className="rounded-lg border border-[#EEEDFE] bg-white p-6 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-lg font-bold text-[#2C2C2A]">My Growth Portal</h3>
+                    <PoweredByNudgeAi />
+                  </div>
+                  <button type="button" onClick={loadGrowthSummary} className="mt-4 rounded-md border border-[#DAD7FB] px-4 py-2 text-xs font-bold text-[#3C3489] hover:bg-[#EEEDFE]">
+                    {growthLoading ? 'Loading...' : 'Generate 90-day summary'}
+                  </button>
+                  {growthSummary ? (
+                    <div className="mt-4 space-y-3 text-sm">
+                      <p className="rounded-md bg-[#FCFCFF] p-3 leading-6 text-[#2C2C2A]">{growthSummary.summary}</p>
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <span className="rounded-md bg-[#E8F7F1] p-2 text-xs font-bold text-[#1D9E75]">{growthSummary.completed_tasks} tasks</span>
+                        <span className="rounded-md bg-[#F4F3FF] p-2 text-xs font-bold text-[#3C3489]">{growthSummary.completion_rate}% complete</span>
+                        <span className="rounded-md bg-amber-50 p-2 text-xs font-bold text-amber-700">{growthSummary.streak_days?.length || 0} streak days</span>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
                 {notifications.length > 0 ? (
                   <div className="rounded-lg border border-[#DAD7FB] bg-white p-6 shadow-sm">
                     <h3 className="flex items-center gap-2 text-lg font-bold text-[#2C2C2A]">
@@ -2297,6 +2584,56 @@ function App() {
                   </div>
                 )}
 
+                <div className="grid gap-5 lg:grid-cols-3">
+                  <div className="rounded-lg border border-[#EEEDFE] bg-white p-5 shadow-sm">
+                    <h3 className="text-sm font-bold text-[#2C2C2A]">Team Focus Feed</h3>
+                    <p className="mt-1 text-xs text-[#5F5E5A]">Trust-first voluntary focus. No screenshots. No screen recording.</p>
+                    <div className="mt-4 space-y-3">
+                      {teamFocus.slice(0, 4).map((item) => (
+                        <div key={item.id} className="rounded-md bg-[#FCFCFF] p-3">
+                          <p className="text-xs font-bold text-[#3C3489]">{item.user?.name || 'Employee'} · {item.status}</p>
+                          <p className="mt-1 text-sm text-[#2C2C2A]">{item.focus_text}</p>
+                          <p className="mt-1 text-[11px] text-[#5F5E5A]">ETA: {item.eta?.replace('_', ' ')}</p>
+                        </div>
+                      ))}
+                    </div>
+                    {focusInsight ? <p className="mt-4 rounded-md bg-[#F4F3FF] p-3 text-xs font-semibold text-[#3C3489]">Powered by NudgeAI: {focusInsight}</p> : null}
+                  </div>
+
+                  <div className="rounded-lg border border-[#EEEDFE] bg-white p-5 shadow-sm">
+                    <h3 className="text-sm font-bold text-[#2C2C2A]">Team Presence Overview</h3>
+                    <div className="mt-4 space-y-3">
+                      {teamPresence.slice(0, 4).map((item) => (
+                        <div key={item.id} className="rounded-md bg-[#FCFCFF] p-3">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-bold text-[#3C3489]">{item.user?.name || 'Employee'}</p>
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${item.energy_level === 'high' ? 'bg-[#E8F7F1] text-[#1D9E75]' : item.energy_level === 'low' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>{item.energy_level}</span>
+                          </div>
+                          <p className="mt-1 text-xs text-[#5F5E5A]">{item.location?.replace('_', ' ')}</p>
+                          <p className="mt-1 text-xs text-[#2C2C2A]">{(item.goals_json || []).join(', ')}</p>
+                        </div>
+                      ))}
+                    </div>
+                    {presenceInsight ? <p className="mt-4 rounded-md bg-[#F4F3FF] p-3 text-xs font-semibold text-[#3C3489]">Powered by NudgeAI: {presenceInsight}</p> : null}
+                  </div>
+
+                  <div className="rounded-lg border border-[#EEEDFE] bg-white p-5 shadow-sm">
+                    <h3 className="text-sm font-bold text-[#2C2C2A]">Deep Work Tracker</h3>
+                    <div className="mt-4 space-y-3">
+                      {deepWorkTeam?.active?.length ? deepWorkTeam.active.map((session) => (
+                        <div key={session.id} className="rounded-md bg-[#F4F3FF] p-3">
+                          <p className="text-xs font-bold text-[#3C3489]">{session.user?.name} is in Deep Work</p>
+                          <p className="mt-1 text-xs text-[#5F5E5A]">Until {formatDisplayDate(session.end_time)}</p>
+                        </div>
+                      )) : <p className="text-xs text-[#5F5E5A]">No active deep work sessions right now.</p>}
+                      {deepWorkTeam?.top_users?.map((user) => (
+                        <p key={user.name} className="text-xs font-semibold text-[#2C2C2A]">{user.name}: {user.hours} hrs this month</p>
+                      ))}
+                    </div>
+                    {deepWorkTeam?.insight ? <p className="mt-4 rounded-md bg-[#F4F3FF] p-3 text-xs font-semibold text-[#3C3489]">{deepWorkTeam.insight}</p> : null}
+                  </div>
+                </div>
+
                 {/* NudgeAI Control Panel */}
                 <div className="rounded-lg border border-[#EEEDFE] bg-white p-6 shadow-sm">
                   <div className="flex items-center gap-2">
@@ -2355,6 +2692,13 @@ function App() {
                       <Sparkles className="mx-auto h-5 w-5 text-[#7F77DD]" />
                       <span className="mt-2 block text-xs font-bold text-[#3C3489]">Appreciation</span>
                     </button>
+                    <button
+                      onClick={() => runNudgeAiFeature('skillGap', true)}
+                      className="rounded-md border border-[#DAD7FB] bg-white p-3 text-center transition hover:border-[#3C3489]"
+                    >
+                      <Workflow className="mx-auto h-5 w-5 text-[#3C3489]" />
+                      <span className="mt-2 block text-xs font-bold text-[#3C3489]">Skill Gaps</span>
+                    </button>
                   </div>
 
                   <div className="mt-5 grid gap-4">
@@ -2362,6 +2706,7 @@ function App() {
                     <NudgeAiBurnoutCard data={nudgeAiData.burnout} loading={nudgeAiLoading.burnout} />
                     <NudgeAiAnomalyCard data={nudgeAiData.anomaly} loading={nudgeAiLoading.anomaly} />
                     <NudgeAiAppreciationCard data={nudgeAiData.appreciation} loading={nudgeAiLoading.appreciation} onSend={sendAppreciation} />
+                    <NudgeAiSkillGapCard data={nudgeAiData.skillGap} loading={nudgeAiLoading.skillGap} />
                   </div>
 
                   {/* AI Results Output Container */}
@@ -2515,6 +2860,15 @@ function App() {
                     <Download className="h-4 w-4" />
                     Compile & Export Report
                   </a>
+                  <button
+                    type="button"
+                    onClick={generateBoardPack}
+                    disabled={boardPackLoading}
+                    className="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-md border border-[#DAD7FB] bg-white py-3 text-xs font-semibold text-[#3C3489] transition hover:bg-[#EEEDFE] disabled:opacity-50"
+                  >
+                    <FileCheck2 className="h-4 w-4" />
+                    {boardPackLoading ? 'Generating Board Pack...' : 'Generate Board Pack PDF'}
+                  </button>
                 </div>
 
                 {/* Invite Employees */}
@@ -2851,6 +3205,35 @@ function NudgeAiAppreciationCard({ data, loading, onSend }) {
               <button type="button" onClick={() => onSend(suggestion)} className="mt-3 rounded-md bg-[#7F77DD] px-3 py-2 text-xs font-bold text-white hover:bg-[#3C3489]">
                 Send with 1 click
               </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function NudgeAiSkillGapCard({ data, loading }) {
+  if (!data && !loading) return null;
+
+  return (
+    <div className="rounded-lg border border-[#EEEDFE] bg-white p-5">
+      <div className="flex items-center justify-between gap-3">
+        <h4 className="text-sm font-bold text-[#2C2C2A]">Team Skill Gaps</h4>
+        <PoweredByNudgeAi />
+      </div>
+      {loading ? <div className="mt-4"><NudgeAiLoader /></div> : (
+        <div className="mt-4 space-y-3">
+          {data.gaps?.map((gap) => (
+            <div key={gap.gap_name} className="rounded-md border border-[#EEEDFE] bg-[#FCFCFF] p-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-bold text-[#2C2C2A]">{gap.gap_name}</p>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                  gap.urgency === 'high' ? 'bg-rose-50 text-rose-700' : gap.urgency === 'low' ? 'bg-[#E8F7F1] text-[#1D9E75]' : 'bg-amber-50 text-amber-700'
+                }`}>{gap.urgency}</span>
+              </div>
+              <p className="mt-1 text-xs text-[#5F5E5A]">{gap.frequency} blockers this month</p>
+              <p className="mt-2 text-xs font-semibold text-[#3C3489]">Suggest: {gap.suggested_learning_area}</p>
             </div>
           ))}
         </div>

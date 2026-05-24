@@ -100,8 +100,25 @@ The frontend probes both `5000` and `5001`.
 - `POST /score-update` - Optional progress update quality score and improvement tip (Employee/Admin).
 - `POST /anomaly-check` - Care-oriented check-in anomaly alerts (Admin only).
 - `POST /appreciation` - Appreciation suggestions and one-click recognition delivery (Admin only).
+- `GET|POST /skill-gap-analysis` - Recurring blocker themes and suggested learning areas (Admin only).
 
-Run the latest `src/db/schema.sql` in Supabase after pulling this version. It adds `ai_outputs`, `employee_notifications`, and update quality score columns used by NudgeAI.
+### Focus Pulse Endpoint `/api/focus`
+- `POST /update` - Employee voluntarily shares current focus, ETA, and focus status.
+- `GET /team` - Admin view of the current team focus feed and NudgeAI switching insight.
+
+### Smart Presence Endpoint `/api/checkin`
+- `POST /daily` - Employee submits work location, top goals, and energy level.
+- `GET /team` - Admin overview of location, goals, and energy patterns.
+
+### Deep Work Endpoint `/api/deepwork`
+- `POST /start` - Employee starts Deep Work Mode with focus and duration.
+- `POST /end` - Employee logs output after a deep work session.
+- `GET /team` - Admin insight into active and monthly deep work usage.
+
+### Board Pack Endpoint `/api/reports`
+- `POST /board-pack` - Generate a monthly NudgeAI PDF board pack (Admin only).
+
+Run the latest `src/db/schema.sql` in Supabase after pulling this version. It adds `ai_outputs`, `employee_notifications`, update quality score columns, `focus_sessions`, `daily_checkins`, `deep_work_sessions`, and board-pack report metadata used by NudgeAI.
 
 ## Postman
 

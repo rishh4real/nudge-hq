@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase.js';
 import { scoreUpdateWithNudgeAI } from './ai.controller.js';
+import { groq, GROQ_MODEL } from '../config/groq.js';
 
 /**
  * Submit Daily Progress Update
@@ -221,5 +222,71 @@ export const getMyNotifications = async (req, res) => {
       message: 'Failed to retrieve notifications.',
       error: error.message
     });
+  }
+};
+
+export const getGrowthSummary = async (req, res) => {
+  try {
+    const from = new Date();
+    from.setDate(from.getDate() - 90);
+
+    const [tasksRes, updatesRes, blockersRes, notificationsRes] = await Promise.all([
+      supabase.from('tasks').select('id, title, status, created_at').eq('assignee_id', req.user.id),
+      supabase.from('progress_updates').select('id, progress_text, quality_score, created_at').eq('user_id', req.user.id).gte('created_at', from.toISOString()).order('created_at', { ascending: true }),
+      supabase.from('blocker_logs').select('id, resolved, created_at, resolved_at').eq('reporter_id', req.user.id).gte('created_at', from.toISOString()),
+      supabase.from('employee_notifications').select('id, message, created_at').eq('user_id', req.user.id).order('created_at', { ascending: false })
+    ]);
+
+    if (tasksRes.error) throw tasksRes.error;
+    if (updatesRes.error) throw updatesRes.error;
+
+    const tasks = tasksRes.data || [];
+    const updates = updatesRes.data || [];
+    const blockers = blockersRes.error ? [] : (blockersRes.data || []);
+    const recognitions = notificationsRes.error ? [] : (notificationsRes.data || []);
+    const completedTasks = tasks.filter((task) => task.status === 'completed').length;
+    const qualityTrend = updates.map((update) => ({ date: update.created_at.slice(0, 10), score: update.quality_score || null }));
+    const streakDays = [...new Set(updates.map((update) => update.created_at.slice(0, 10)))];
+    const dayCounts = updates.reduce((acc, update) => {
+      const day = new Date(update.created_at).toLocaleDateString('en-US', { weekday: 'long' });
+      acc[day] = (acc[day] || 0) + 1;
+      return acc;
+    }, {});
+    const mostProductiveDay = Object.entries(dayCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Not enough data';
+
+    let summary = `In the last 90 days, you completed ${completedTasks} tasks, logged ${updates.length} updates, and kept ${streakDays.length} check-in days active. Your most productive day was ${mostProductiveDay}.`;
+    if (process.env.GROQ_API_KEY && process.env.GROQ_API_KEY !== 'gsk_your_groq_api_key_goes_here') {
+      try {
+        const completion = await groq.chat.completions.create({
+          messages: [
+            { role: 'system', content: 'You are NudgeAI. Generate warm, encouraging employee performance summaries. Never mention Groq. Return plain text only.' },
+            { role: 'user', content: `Generate a warm, encouraging, specific 90-day performance summary for this employee. Max 100 words.\n${JSON.stringify({ user: req.user, completedTasks, updates: updates.length, blockers: blockers.length, mostProductiveDay }, null, 2)}` }
+          ],
+          model: GROQ_MODEL,
+          temperature: 0.4
+        });
+        summary = completion.choices[0].message.content;
+      } catch {
+        // keep fallback summary
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        summary,
+        completed_tasks: completedTasks,
+        blockers_resolved: blockers.filter((blocker) => blocker.resolved).length,
+        most_productive_day: mostProductiveDay,
+        quality_trend: qualityTrend,
+        completion_rate: tasks.length ? Math.round((completedTasks / tasks.length) * 100) : 0,
+        streak_days: streakDays,
+        recognitions,
+        powered_by: 'NudgeAI'
+      }
+    });
+  } catch (error) {
+    console.error('Growth summary error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to generate growth summary.', error: error.message });
   }
 };

@@ -12,6 +12,10 @@ import taskRoutes from './routes/task.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import analyticsRoutes from './routes/analytics.routes.js';
 import aiRoutes from './routes/ai.routes.js';
+import focusRoutes from './routes/focus.routes.js';
+import checkinRoutes from './routes/checkin.routes.js';
+import deepworkRoutes from './routes/deepwork.routes.js';
+import reportRoutes from './routes/report.routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -24,10 +28,15 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 // API Routing Mountpoints
 app.use('/api/auth', authRoutes);
 app.use('/api/employees', employeeRoutes);
+app.use('/api/employee', employeeRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/focus', focusRoutes);
+app.use('/api/checkin', checkinRoutes);
+app.use('/api/deepwork', deepworkRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Base Health Check endpoint
 app.get('/health', (req, res) => {

@@ -9,6 +9,7 @@ import {
   scoreUpdate,
   anomalyCheck,
   appreciation,
+  skillGapAnalysis,
 } from '../controllers/ai.controller.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 
@@ -28,5 +29,7 @@ router.post('/sprint-forecast', sprintForecast);
 router.post('/standup-brief', standupBrief);
 router.post('/anomaly-check', anomalyCheck);
 router.post('/appreciation', appreciation);
+router.get('/skill-gap-analysis', skillGapAnalysis);
+router.post('/skill-gap-analysis', skillGapAnalysis);
 
 export default router;

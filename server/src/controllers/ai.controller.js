@@ -754,3 +754,47 @@ export const appreciation = async (req, res) => {
     return res.status(200).json({ success: false, message: 'NudgeAI unavailable, try again later', data: { suggestions: [] } });
   }
 };
+
+export const skillGapAnalysis = async (req, res) => {
+  try {
+    const { refresh = false } = req.body || {};
+    if (!refresh) {
+      const cached = await getCachedAiOutput('skill_gap', 'company');
+      if (cached) return res.status(200).json({ success: true, cached: true, data: cached.output_json });
+    }
+
+    const monthStart = daysAgo(30);
+    const { data: blockers, error } = await supabase
+      .from('blocker_logs')
+      .select('id, blocker_text, created_at, reporter:users(name, departments(name)), task:tasks(title)')
+      .gte('created_at', monthStart.toISOString());
+
+    if (error) throw error;
+
+    const fallback = {
+      gaps: [
+        {
+          gap_name: 'Blocker resolution process',
+          frequency: blockers?.length || 0,
+          suggested_learning_area: 'Root-cause updates and escalation hygiene',
+          urgency: blockers?.length > 5 ? 'high' : 'medium'
+        }
+      ],
+      generated_at: new Date().toISOString(),
+      powered_by: 'NudgeAI'
+    };
+
+    const { data, unavailable } = await callNudgeAIJson({
+      system: 'You are NudgeAI. Analyze blocker descriptions and identify skill or knowledge gaps. Return only JSON.',
+      prompt: `Analyze these blocker descriptions and identify the top 3 skill gaps or knowledge gaps they indicate. Return schema: {"gaps":[{"gap_name":"name","frequency":number,"suggested_learning_area":"area","urgency":"high|medium|low"}]}\n${JSON.stringify(blockers || [], null, 2)}`,
+      fallback
+    });
+
+    const output = { ...fallback, ...data, generated_at: new Date().toISOString(), powered_by: 'NudgeAI', unavailable };
+    await saveAiOutput('skill_gap', 'company', output, 24 * 7);
+    return res.status(200).json({ success: true, data: output });
+  } catch (error) {
+    console.error('NudgeAI skill gap error:', error);
+    return res.status(200).json({ success: false, message: 'NudgeAI unavailable, try again later', data: { gaps: [] } });
+  }
+};
