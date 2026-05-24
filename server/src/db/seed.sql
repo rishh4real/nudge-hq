@@ -22,7 +22,7 @@ WHERE id IN (
 
 -- 3. Insert Users
 -- Password for both accounts: nudgehq123 (hashed: $2a$10$iNcWZbbWXE9NpcvR9dX6KO6.3B7Wwo6E8NRtrRdnhl6juBfx/iMDi)
-INSERT INTO users (id, name, email, password_hash, role, department_id)
+INSERT INTO users (id, name, email, password_hash, role, department_id, is_verified)
 VALUES
   (
     'c3333333-3333-3333-3333-333333333333', 
@@ -30,7 +30,8 @@ VALUES
     'hr@nudgehq.com', 
     '$2a$10$iNcWZbbWXE9NpcvR9dX6KO6.3B7Wwo6E8NRtrRdnhl6juBfx/iMDi', 
     'admin', 
-    NULL
+    NULL,
+    TRUE
   ),
   (
     'd4444444-4444-4444-4444-444444444444', 
@@ -38,12 +39,15 @@ VALUES
     'employee@nudgehq.com', 
     '$2a$10$iNcWZbbWXE9NpcvR9dX6KO6.3B7Wwo6E8NRtrRdnhl6juBfx/iMDi', 
     'employee', 
-    'a1111111-1111-1111-1111-111111111111'
+    'a1111111-1111-1111-1111-111111111111',
+    TRUE
   )
 ON CONFLICT (email) DO NOTHING;
 
 UPDATE users
-SET organization_id = '99999999-9999-9999-9999-999999999999'
+SET
+  organization_id = '99999999-9999-9999-9999-999999999999',
+  is_verified = TRUE
 WHERE id IN (
   'c3333333-3333-3333-3333-333333333333',
   'd4444444-4444-4444-4444-444444444444'

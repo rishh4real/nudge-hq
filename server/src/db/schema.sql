@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'employee')) DEFAULT 'employee',
     department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+    is_verified BOOLEAN DEFAULT FALSE NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
@@ -84,11 +85,31 @@ CREATE TABLE IF NOT EXISTS employee_invitations (
     email VARCHAR(255) NOT NULL,
     invited_by UUID REFERENCES users(id) ON DELETE SET NULL,
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    token TEXT,
+    expires_at TIMESTAMPTZ,
     status VARCHAR(20) NOT NULL CHECK (status IN ('pending', 'accepted', 'revoked')) DEFAULT 'pending',
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
--- 9. AI Output Cache Table
+-- 9. Email Verification Tokens
+CREATE TABLE IF NOT EXISTS email_verifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token TEXT UNIQUE NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+-- 10. Password Reset Tokens
+CREATE TABLE IF NOT EXISTS password_resets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) NOT NULL,
+    token TEXT UNIQUE NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+-- 11. AI Output Cache Table
 CREATE TABLE IF NOT EXISTS ai_outputs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     feature_type VARCHAR(60) NOT NULL,
@@ -98,7 +119,7 @@ CREATE TABLE IF NOT EXISTS ai_outputs (
     expires_at TIMESTAMPTZ
 );
 
--- 10. Employee Recognition Notifications
+-- 12. Employee Recognition Notifications
 CREATE TABLE IF NOT EXISTS employee_notifications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -108,7 +129,7 @@ CREATE TABLE IF NOT EXISTS employee_notifications (
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
--- 11. Focus Pulse Sessions
+-- 13. Focus Pulse Sessions
 CREATE TABLE IF NOT EXISTS focus_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -119,7 +140,7 @@ CREATE TABLE IF NOT EXISTS focus_sessions (
     last_updated TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
--- 12. Smart Presence Daily Check-ins
+-- 14. Smart Presence Daily Check-ins
 CREATE TABLE IF NOT EXISTS daily_checkins (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -132,7 +153,7 @@ CREATE TABLE IF NOT EXISTS daily_checkins (
     UNIQUE(user_id, date)
 );
 
--- 13. Deep Work Sessions
+-- 15. Deep Work Sessions
 CREATE TABLE IF NOT EXISTS deep_work_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -147,10 +168,18 @@ CREATE TABLE IF NOT EXISTS deep_work_sessions (
 -- Backfill-safe migrations for existing Supabase projects
 ALTER TABLE departments ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE NOT NULL;
 ALTER TABLE progress_updates ADD COLUMN IF NOT EXISTS quality_score INTEGER CHECK (quality_score BETWEEN 1 AND 10);
 ALTER TABLE progress_updates ADD COLUMN IF NOT EXISTS quality_tip TEXT;
 ALTER TABLE reports ADD COLUMN IF NOT EXISTS report_month INTEGER;
 ALTER TABLE reports ADD COLUMN IF NOT EXISTS report_year INTEGER;
+ALTER TABLE employee_invitations ADD COLUMN IF NOT EXISTS token TEXT;
+ALTER TABLE employee_invitations ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
+
+-- Keep demo accounts usable after email verification is enabled.
+UPDATE users
+SET is_verified = TRUE
+WHERE email IN ('hr@nudgehq.com', 'employee@nudgehq.com');
 
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -165,6 +194,11 @@ CREATE INDEX IF NOT EXISTS idx_blocker_logs_task ON blocker_logs(task_id);
 CREATE INDEX IF NOT EXISTS idx_blocker_logs_resolved ON blocker_logs(resolved);
 CREATE INDEX IF NOT EXISTS idx_employee_invitations_email ON employee_invitations(email);
 CREATE INDEX IF NOT EXISTS idx_employee_invitations_organization ON employee_invitations(organization_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_employee_invitations_token ON employee_invitations(token);
+CREATE INDEX IF NOT EXISTS idx_email_verifications_token ON email_verifications(token);
+CREATE INDEX IF NOT EXISTS idx_email_verifications_user ON email_verifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_password_resets_token ON password_resets(token);
+CREATE INDEX IF NOT EXISTS idx_password_resets_email ON password_resets(email);
 CREATE INDEX IF NOT EXISTS idx_ai_outputs_feature ON ai_outputs(feature_type);
 CREATE INDEX IF NOT EXISTS idx_ai_outputs_entity ON ai_outputs(entity_id);
 CREATE INDEX IF NOT EXISTS idx_ai_outputs_expires ON ai_outputs(expires_at);

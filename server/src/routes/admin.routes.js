@@ -23,7 +23,7 @@ router.put('/departments/:id', authorize('admin'), updateDepartment);
 router.delete('/departments/:id', authorize('admin'), deleteDepartment);
 
 // Employee onboarding
-router.post('/employees/invite', authorize('admin'), validateBody(['name', 'email']), inviteEmployee);
+router.post('/employees/invite', authorize('admin'), validateBody(['email']), inviteEmployee);
 
 // Admin queries and logs (Admin only)
 router.get('/updates', authorize('admin'), getAllEmployeeUpdates);

@@ -3,17 +3,31 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Create transporter
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.mailtrap.io',
-  port: process.env.SMTP_PORT || 2525,
-  auth: {
-    user: process.env.SMTP_USER || '',
-    pass: process.env.SMTP_PASS || '',
-  },
-});
+const hasSmtpConfig = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+const FROM_EMAIL = process.env.MAIL_FROM || 'hello.nudgehq@gmail.com';
+
+const transporter = hasSmtpConfig
+  ? nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT || 587),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    })
+  : null;
 
 const APP_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+
+const sendNudgeMail = async (mailOptions, fallbackLink) => {
+  if (!transporter) {
+    console.info(`[NudgeHQ mail skipped] ${mailOptions.subject}: ${fallbackLink}`);
+    return { skipped: true, previewLink: fallbackLink };
+  }
+
+  return transporter.sendMail(mailOptions);
+};
 
 /**
  * Send onboarding verification email
@@ -22,7 +36,7 @@ export const sendVerificationEmail = async (email, name, token) => {
   const verifyLink = `${APP_URL}/verify-email?token=${token}`;
   
   const mailOptions = {
-    from: `"NudgeHQ Onboarding" <no-reply@nudgehq.com>`,
+    from: `"NudgeHQ Onboarding" <${FROM_EMAIL}>`,
     to: email,
     subject: 'Verify your NudgeHQ Workspace Account',
     html: `
@@ -38,7 +52,7 @@ export const sendVerificationEmail = async (email, name, token) => {
     `,
   };
 
-  return transporter.sendMail(mailOptions);
+  return sendNudgeMail(mailOptions, verifyLink);
 };
 
 /**
@@ -48,7 +62,7 @@ export const sendResetPasswordEmail = async (email, token) => {
   const resetLink = `${APP_URL}/reset-password?token=${token}`;
   
   const mailOptions = {
-    from: `"NudgeHQ Security" <no-reply@nudgehq.com>`,
+    from: `"NudgeHQ Security" <${FROM_EMAIL}>`,
     to: email,
     subject: 'Reset your NudgeHQ Password',
     html: `
@@ -64,7 +78,7 @@ export const sendResetPasswordEmail = async (email, token) => {
     `,
   };
 
-  return transporter.sendMail(mailOptions);
+  return sendNudgeMail(mailOptions, resetLink);
 };
 
 /**
@@ -74,7 +88,7 @@ export const sendEmployeeInviteEmail = async (email, companyName, token) => {
   const inviteLink = `${APP_URL}/accept-invite?token=${token}`;
 
   const mailOptions = {
-    from: `"NudgeHQ Workspaces" <no-reply@nudgehq.com>`,
+    from: `"NudgeHQ Workspaces" <${FROM_EMAIL}>`,
     to: email,
     subject: `Join ${companyName} on NudgeHQ`,
     html: `
@@ -90,5 +104,5 @@ export const sendEmployeeInviteEmail = async (email, companyName, token) => {
     `,
   };
 
-  return transporter.sendMail(mailOptions);
+  return sendNudgeMail(mailOptions, inviteLink);
 };
