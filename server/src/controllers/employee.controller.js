@@ -17,6 +17,7 @@ export const submitProgressUpdate = async (req, res) => {
         .from('tasks')
         .select('id, assignee_id')
         .eq('id', task_id)
+        .eq('organization_id', req.user.organization_id)
         .maybeSingle();
 
       if (taskError) throw taskError;

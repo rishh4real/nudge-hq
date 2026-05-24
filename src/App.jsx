@@ -286,6 +286,7 @@ const fetchApi = async (endpoint, options = {}, token = null) => {
 // --- MAIN APPLICATION ---
 function App() {
   const [currentView, setCurrentView] = useState('landing') // 'landing' | 'signin' | 'signup' | 'demo_console' | 'dashboard'
+  const [queryParams, setQueryParams] = useState(new URLSearchParams(window.location.search))
   const [authRole, setAuthRole] = useState(null) // 'admin' | 'employee'
   const [user, setUser] = useState(null)
   const [token, setToken] = useState(null)
@@ -395,6 +396,66 @@ function App() {
     };
     probeServer();
   }, []);
+
+  // URL routing synchronization (listening to back/forward and initial path)
+  useEffect(() => {
+    const handleUrlChange = () => {
+      const path = window.location.pathname;
+      const params = new URLSearchParams(window.location.search);
+      setQueryParams(params);
+      
+      if (path === '/verify-email') {
+        setCurrentView('verify_email');
+      } else if (path === '/forgot-password') {
+        setCurrentView('forgot_password');
+      } else if (path === '/reset-password') {
+        setCurrentView('reset_password');
+      } else if (path === '/accept-invite') {
+        setCurrentView('accept_invite');
+      } else if (path === '/signup' || path === '/onboarding') {
+        setCurrentView('signup');
+      } else if (path === '/login' || path === '/signin') {
+        setCurrentView('signin');
+      } else if (path === '/dashboard') {
+        if (token) {
+          setCurrentView('dashboard');
+        } else {
+          window.history.replaceState({}, '', '/login');
+          setCurrentView('signin');
+        }
+      } else if (path === '/demo') {
+        setCurrentView('demo_console');
+      } else {
+        setCurrentView('landing');
+      }
+    };
+
+    window.addEventListener('popstate', handleUrlChange);
+    handleUrlChange();
+
+    return () => window.removeEventListener('popstate', handleUrlChange);
+  }, [token]);
+
+  // Sync browser path with react view state changes
+  useEffect(() => {
+    const currentPath = window.location.pathname;
+    let targetPath = '/';
+    
+    if (currentView === 'landing') targetPath = '/';
+    else if (currentView === 'signin') targetPath = '/login';
+    else if (currentView === 'signup') targetPath = '/signup';
+    else if (currentView === 'demo_console') targetPath = '/demo';
+    else if (currentView === 'dashboard') targetPath = '/dashboard';
+    else if (currentView === 'verify_email') targetPath = '/verify-email';
+    else if (currentView === 'forgot_password') targetPath = '/forgot-password';
+    else if (currentView === 'reset_password') targetPath = '/reset-password';
+    else if (currentView === 'accept_invite') targetPath = '/accept-invite';
+    
+    // Avoid overwriting query parameters during verification/reset/invite pages
+    if (currentPath !== targetPath && !['/verify-email', '/reset-password', '/accept-invite'].includes(currentPath)) {
+      window.history.pushState({}, '', targetPath);
+    }
+  }, [currentView]);
 
   // Sync dashboard data when logged in
   useEffect(() => {
@@ -651,6 +712,17 @@ function App() {
           password: signupPassword,
         })
       });
+
+      if (!data.token) {
+        showToast(data.message || 'Workspace registered. Please verify your email address before logging in.', 'success');
+        setCurrentView('signin');
+        setSignupCompany('');
+        setSignupName('');
+        setSignupEmail('');
+        setSignupPassword('');
+        setSignupConfirm('');
+        return;
+      }
 
       setUser(data.user);
       setToken(data.token);
@@ -1251,6 +1323,33 @@ function App() {
       </header>
 
       {/* --- VIEW ROUTER --- */}
+
+      {/* VIEW: EMAIL VERIFICATION */}
+      {currentView === 'verify_email' && (
+        <VerifyEmailView queryParams={queryParams} setCurrentView={setCurrentView} showToast={showToast} />
+      )}
+
+      {/* VIEW: FORGOT PASSWORD */}
+      {currentView === 'forgot_password' && (
+        <ForgotPasswordView setCurrentView={setCurrentView} showToast={showToast} />
+      )}
+
+      {/* VIEW: RESET PASSWORD */}
+      {currentView === 'reset_password' && (
+        <ResetPasswordView queryParams={queryParams} setCurrentView={setCurrentView} showToast={showToast} />
+      )}
+
+      {/* VIEW: ACCEPT INVITATION */}
+      {currentView === 'accept_invite' && (
+        <AcceptInviteView
+          queryParams={queryParams}
+          setCurrentView={setCurrentView}
+          setUser={setUser}
+          setToken={setToken}
+          setAuthRole={setAuthRole}
+          showToast={showToast}
+        />
+      )}
 
       {/* VIEW 1: LANDING PAGE */}
       {currentView === 'landing' && (
@@ -1916,6 +2015,15 @@ function App() {
                     placeholder="Enter password"
                     required
                   />
+                </div>
+                <div className="flex justify-end mt-1">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentView('forgot_password')}
+                    className="text-xs font-semibold text-[#3C3489] hover:underline hover:text-[#7F77DD]"
+                  >
+                    Forgot Password?
+                  </button>
                 </div>
 
                 {loginError ? (
@@ -3250,6 +3358,417 @@ function SectionHeader({ eyebrow, title, copy }) {
       {copy ? <p className="mt-4 text-lg leading-8 text-[#5F5E5A]">{copy}</p> : null}
     </div>
   )
+}
+
+function VerifyEmailView({ queryParams, setCurrentView, showToast }) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    const verify = async () => {
+      const token = queryParams.get('token');
+      if (!token) {
+        setError('No verification token provided in URL.');
+        setLoading(false);
+        return;
+      }
+      try {
+        const { data } = await fetchApi(`/auth/verify-email?token=${token}`, { method: 'GET' });
+        setSuccess(true);
+        showToast(data.message || 'Email verified successfully!', 'success');
+      } catch (err) {
+        setError(err.message || 'Failed to verify email address.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    verify();
+  }, [queryParams]);
+
+  return (
+    <div className="mx-auto max-w-md px-6 py-24 sm:py-32">
+      <div className="rounded-2xl border border-[#EEEDFE] bg-white p-8 shadow-xl text-center">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-6">
+            <RefreshCw className="h-12 w-12 text-[#7F77DD] animate-spin mb-4" />
+            <h3 className="text-lg font-bold text-[#2C2C2A]">Verifying your email...</h3>
+            <p className="mt-2 text-sm text-[#5F5E5A]">Please wait while we activate your NudgeHQ account.</p>
+          </div>
+        ) : success ? (
+          <div className="flex flex-col items-center justify-center py-6">
+            <CheckCircle2 className="h-16 w-16 text-[#1D9E75] mb-4" />
+            <h3 className="text-xl font-bold text-[#2C2C2A]">Email Verified!</h3>
+            <p className="mt-2 text-sm text-[#5F5E5A] mb-8">Your account has been verified successfully. You can now access your workspace.</p>
+            <button
+              onClick={() => setCurrentView('signin')}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-[#7F77DD] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#3C3489]"
+            >
+              Go to Sign In
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-6">
+            <AlertCircle className="h-16 w-16 text-rose-500 mb-4" />
+            <h3 className="text-xl font-bold text-rose-600">Verification Failed</h3>
+            <p className="mt-2 text-sm text-[#5F5E5A] mb-8">{error}</p>
+            <button
+              onClick={() => setCurrentView('signin')}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-[#7F77DD] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#3C3489]"
+            >
+              Back to Sign In
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ForgotPasswordView({ setCurrentView, showToast }) {
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      const { data } = await fetchApi('/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      });
+      setSubmitted(true);
+      showToast(data.message, 'success');
+    } catch (err) {
+      setError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="mx-auto max-w-md px-6 py-24 sm:py-32">
+      <div className="rounded-2xl border border-[#EEEDFE] bg-white p-8 shadow-xl">
+        <h3 className="text-2xl font-bold text-[#2C2C2A] text-center">Forgot Password</h3>
+        <p className="mt-2 text-sm text-[#5F5E5A] text-center mb-8">Enter your registered email address and we'll send you a password reset link.</p>
+
+        {submitted ? (
+          <div className="text-center py-4">
+            <CheckCircle2 className="h-12 w-12 text-[#1D9E75] mx-auto mb-4" />
+            <p className="text-sm font-semibold text-[#2C2C2A] mb-8">Password reset link sent! Check your inbox for further instructions.</p>
+            <button
+              onClick={() => setCurrentView('signin')}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-[#7F77DD] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#3C3489]"
+            >
+              Back to Sign In
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="text-xs font-bold uppercase tracking-[0.14em] text-[#5F5E5A]">Email Address</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-2 block w-full rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none transition focus:border-[#7F77DD]"
+                placeholder="you@company.com"
+                required
+              />
+            </div>
+
+            {error && (
+              <p className="rounded-md border border-rose-100 bg-rose-50 p-3 text-sm font-medium text-rose-600">{error}</p>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-[#7F77DD] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#3C3489] disabled:opacity-50"
+            >
+              {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+              Send Reset Link
+            </button>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setCurrentView('signin')}
+                className="text-sm font-bold text-[#3C3489] hover:underline"
+              >
+                Back to Sign In
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ResetPasswordView({ queryParams, setCurrentView, showToast }) {
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState(null);
+
+  const token = queryParams.get('token');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const { data } = await fetchApi('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ token, newPassword }),
+      });
+      setSuccess(true);
+      showToast(data.message || 'Password reset successfully!', 'success');
+    } catch (err) {
+      setError(err.message || 'Failed to reset password. Link might be expired.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="mx-auto max-w-md px-6 py-24 sm:py-32">
+      <div className="rounded-2xl border border-[#EEEDFE] bg-white p-8 shadow-xl">
+        <h3 className="text-2xl font-bold text-[#2C2C2A] text-center">Reset Password</h3>
+        <p className="mt-2 text-sm text-[#5F5E5A] text-center mb-8">Enter your new secure password below to access your account.</p>
+
+        {!token ? (
+          <div className="text-center py-4">
+            <AlertCircle className="h-12 w-12 text-rose-500 mx-auto mb-4" />
+            <p className="text-sm font-semibold text-rose-600 mb-8">No password reset token provided. Please request a new link.</p>
+            <button
+              onClick={() => setCurrentView('signin')}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-[#7F77DD] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#3C3489]"
+            >
+              Back to Sign In
+            </button>
+          </div>
+        ) : success ? (
+          <div className="text-center py-4">
+            <CheckCircle2 className="h-12 w-12 text-[#1D9E75] mx-auto mb-4" />
+            <p className="text-sm font-semibold text-[#2C2C2A] mb-8">Password reset successful! You can now log in using your new credentials.</p>
+            <button
+              onClick={() => setCurrentView('signin')}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-[#7F77DD] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#3C3489]"
+            >
+              Sign In
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="text-xs font-bold uppercase tracking-[0.14em] text-[#5F5E5A]">New Password</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="mt-2 block w-full rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none transition focus:border-[#7F77DD]"
+                placeholder="••••••••"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold uppercase tracking-[0.14em] text-[#5F5E5A]">Confirm New Password</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="mt-2 block w-full rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none transition focus:border-[#7F77DD]"
+                placeholder="••••••••"
+                required
+              />
+            </div>
+
+            {error && (
+              <p className="rounded-md border border-rose-100 bg-rose-50 p-3 text-sm font-medium text-rose-600">{error}</p>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-[#7F77DD] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#3C3489] disabled:opacity-50"
+            >
+              {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              Update Password
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AcceptInviteView({ queryParams, setCurrentView, setUser, setToken, setAuthRole, showToast }) {
+  const [invitation, setInvitation] = useState(null);
+  const [name, setName] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [checking, setChecking] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  const token = queryParams.get('token');
+
+  useEffect(() => {
+    const checkInvite = async () => {
+      if (!token) {
+        setError('No invitation token provided in URL.');
+        setChecking(false);
+        return;
+      }
+      try {
+        const { data } = await fetchApi(`/auth/invite-status?token=${token}`, { method: 'GET' });
+        setInvitation(data.invitation);
+      } catch (err) {
+        setError(err.message || 'Invitation is invalid or has expired.');
+      } finally {
+        setChecking(false);
+      }
+    };
+    checkInvite();
+  }, [token]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const { data } = await fetchApi('/auth/accept-invite', {
+        method: 'POST',
+        body: JSON.stringify({ token, name, password }),
+      });
+      setUser(data.user);
+      setToken(data.token);
+      setAuthRole(data.user.role);
+      setCurrentView('dashboard');
+      showToast(`Welcome to NudgeHQ, ${data.user.name}!`, 'success');
+    } catch (err) {
+      setError(err.message || 'Failed to accept invitation.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (checking) {
+    return (
+      <div className="mx-auto max-w-md px-6 py-24 sm:py-32">
+        <div className="rounded-2xl border border-[#EEEDFE] bg-white p-8 shadow-xl text-center">
+          <RefreshCw className="h-12 w-12 text-[#7F77DD] animate-spin mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-[#2C2C2A]">Checking invitation details...</h3>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-md px-6 py-24 sm:py-32">
+      <div className="rounded-2xl border border-[#EEEDFE] bg-white p-8 shadow-xl">
+        <h3 className="text-2xl font-bold text-[#2C2C2A] text-center">Accept Invitation</h3>
+        {invitation ? (
+          <p className="mt-2 text-sm text-[#5F5E5A] text-center mb-8">
+            You've been invited to join <strong>{invitation.organizations?.name || 'your company'}</strong>. Set up your employee profile below.
+          </p>
+        ) : null}
+
+        {error ? (
+          <div className="text-center py-4">
+            <AlertCircle className="h-12 w-12 text-rose-500 mx-auto mb-4" />
+            <p className="text-sm font-semibold text-rose-600 mb-8">{error}</p>
+            <button
+              onClick={() => setCurrentView('signin')}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-[#7F77DD] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#3C3489]"
+            >
+              Back to Sign In
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="text-xs font-bold uppercase tracking-[0.14em] text-[#5F5E5A]">Email Address</label>
+              <input
+                type="email"
+                value={invitation?.email || ''}
+                disabled
+                className="mt-2 block w-full rounded-md border border-[#DAD7FB] bg-[#F7F7FD] px-4 py-3 text-sm text-[#5F5E5A] outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold uppercase tracking-[0.14em] text-[#5F5E5A]">Your Full Name</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="mt-2 block w-full rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none transition focus:border-[#7F77DD]"
+                placeholder="John Doe"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold uppercase tracking-[0.14em] text-[#5F5E5A]">Create Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="mt-2 block w-full rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none transition focus:border-[#7F77DD]"
+                placeholder="••••••••"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold uppercase tracking-[0.14em] text-[#5F5E5A]">Confirm Password</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="mt-2 block w-full rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none transition focus:border-[#7F77DD]"
+                placeholder="••••••••"
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-[#7F77DD] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#3C3489] disabled:opacity-50"
+            >
+              {submitting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              Activate Profile
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default App
