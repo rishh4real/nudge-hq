@@ -37,7 +37,9 @@ import {
   Shield,
   Search,
   Zap,
-  ExternalLink
+  ExternalLink,
+  Eye,
+  EyeOff
 } from 'lucide-react'
 
 // --- CONSTANTS ---
@@ -118,6 +120,36 @@ const pricing = [
     features: ['Unlimited teams', 'Custom integrations', 'Priority support'],
   },
 ]
+
+function PasswordField({ label, value, onChange, placeholder = 'Enter password', className = '', labelClassName = '', required = true }) {
+  const [visible, setVisible] = useState(false)
+
+  return (
+    <div className={className}>
+      <label className={labelClassName || 'text-xs font-bold uppercase tracking-[0.14em] text-[#5F5E5A]'}>
+        {label}
+      </label>
+      <div className="relative mt-2">
+        <input
+          type={visible ? 'text' : 'password'}
+          value={value}
+          onChange={onChange}
+          className="block w-full rounded-md border border-[#DAD7FB] px-4 py-3 pr-12 text-sm outline-none transition focus:border-[#7F77DD]"
+          placeholder={placeholder}
+          required={required}
+        />
+        <button
+          type="button"
+          onClick={() => setVisible((state) => !state)}
+          className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-[#5F5E5A] transition hover:text-[#3C3489]"
+          aria-label={visible ? 'Hide password' : 'Show password'}
+        >
+          {visible ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+        </button>
+      </div>
+    </div>
+  )
+}
 
 const badges = [
   {
@@ -235,6 +267,19 @@ const isBackendConnectionError = (message = '') => (
   /fetch failed|aborted|timed out|connection refused|supabase/i.test(message)
 )
 
+const getInitialView = () => {
+  const path = window.location.pathname;
+  if (path === '/verify-email') return 'verify_email';
+  if (path === '/forgot-password') return 'forgot_password';
+  if (path === '/reset-password') return 'reset_password';
+  if (path === '/accept-invite') return 'accept_invite';
+  if (path === '/signup' || path === '/onboarding') return 'signup';
+  if (path === '/login' || path === '/signin') return 'signin';
+  if (path === '/dashboard') return 'signin';
+  if (path === '/demo') return 'demo_console';
+  return 'landing';
+}
+
 // --- API UTILITY (Auto-probe ports 5000 and 5001) ---
 const fetchApi = async (endpoint, options = {}, token = null) => {
   const ports = activeServerPort ? [activeServerPort] : [5000, 5001];
@@ -285,7 +330,7 @@ const fetchApi = async (endpoint, options = {}, token = null) => {
 
 // --- MAIN APPLICATION ---
 function App() {
-  const [currentView, setCurrentView] = useState('landing') // 'landing' | 'signin' | 'signup' | 'demo_console' | 'dashboard'
+  const [currentView, setCurrentView] = useState(getInitialView) // 'landing' | 'signin' | 'signup' | 'demo_console' | 'dashboard'
   const [queryParams, setQueryParams] = useState(new URLSearchParams(window.location.search))
   const [authRole, setAuthRole] = useState(null) // 'admin' | 'employee'
   const [user, setUser] = useState(null)
@@ -1678,7 +1723,7 @@ function App() {
               />
               <div className="mt-12 grid gap-5 md:grid-cols-3">
                 {painPoints.map(({ icon: Icon, title, copy }) => (
-                  <motion.article key={title} {...cardMotion} className="rounded-lg border border-[#EEEDFE] bg-white p-6 shadow-sm">
+                  <motion.article key={title} {...cardMotion} className="rounded-lg border border-[#EEEDFE] bg-white p-7 shadow-md shadow-[#3C3489]/5">
                     <div className="flex h-11 w-11 items-center justify-center rounded-md bg-[#EEEDFE] text-[#3C3489]">
                       <Icon className="h-5 w-5" aria-hidden="true" />
                     </div>
@@ -2009,17 +2054,12 @@ function App() {
                     required
                   />
                 </div>
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-[0.14em] text-[#5F5E5A]">Password</label>
-                  <input
-                    type="password"
-                    value={passwordInput}
-                    onChange={(e) => setPasswordInput(e.target.value)}
-                    className="mt-2 block w-full rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none transition focus:border-[#7F77DD]"
-                    placeholder="Enter password"
-                    required
-                  />
-                </div>
+                <PasswordField
+                  label="Password"
+                  value={passwordInput}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                  placeholder="Enter password"
+                />
                 <div className="flex justify-end mt-1">
                   <button
                     type="button"
@@ -2124,28 +2164,18 @@ function App() {
                   </div>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="text-xs font-bold uppercase tracking-[0.14em] text-[#5F5E5A]">Password</label>
-                    <input
-                      type="password"
-                      value={signupPassword}
-                      onChange={(e) => setSignupPassword(e.target.value)}
-                      className="mt-2 block w-full rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none transition focus:border-[#7F77DD]"
-                      placeholder="Choose password"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold uppercase tracking-[0.14em] text-[#5F5E5A]">Confirm password</label>
-                    <input
-                      type="password"
-                      value={signupConfirm}
-                      onChange={(e) => setSignupConfirm(e.target.value)}
-                      className="mt-2 block w-full rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none transition focus:border-[#7F77DD]"
-                      placeholder="Repeat password"
-                      required
-                    />
-                  </div>
+                  <PasswordField
+                    label="Password"
+                    value={signupPassword}
+                    onChange={(e) => setSignupPassword(e.target.value)}
+                    placeholder="Choose password"
+                  />
+                  <PasswordField
+                    label="Confirm password"
+                    value={signupConfirm}
+                    onChange={(e) => setSignupConfirm(e.target.value)}
+                    placeholder="Repeat password"
+                  />
                 </div>
 
                 {signupError ? (
@@ -2222,16 +2252,13 @@ function App() {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-[#5F5E5A]">Password</label>
-                <input
-                  type="password"
-                  value={passwordInput}
-                  onChange={(e) => setPasswordInput(e.target.value)}
-                  className="mt-1.5 block w-full rounded-md border border-[#DAD7FB] px-3.5 py-2.5 text-sm outline-none focus:border-[#7F77DD]"
-                  required
-                />
-              </div>
+              <PasswordField
+                label="Password"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                placeholder="Enter password"
+                labelClassName="block text-xs font-semibold uppercase tracking-wider text-[#5F5E5A]"
+              />
 
               {loginError && (
                 <div className="rounded-md bg-rose-50 p-3 text-xs font-medium text-rose-600 border border-rose-100">
@@ -2277,37 +2304,73 @@ function App() {
 
       {/* VIEW 3: LIVE DASHBOARD AREA */}
       {currentView === 'dashboard' && (
-        <section className="mx-auto max-w-7xl px-5 py-12 sm:px-6 lg:px-8">
+        <section className="relative mx-auto max-w-[92rem] px-5 py-10 sm:px-6 lg:px-8">
+          <div className="dot-grid absolute inset-x-0 top-0 -z-10 h-72 opacity-30" />
           
           {/* Welcome User Header */}
-          <div className="flex flex-col gap-4 border-b border-[#EEEDFE] pb-8 sm:flex-row sm:items-center sm:justify-between">
+          <div className="overflow-hidden rounded-lg border border-[#DAD7FB] bg-white p-7 shadow-xl shadow-[#3C3489]/10 sm:p-8">
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <div className="flex items-center gap-2">
-                <span className={`h-3 w-3 rounded-full ${authRole === 'admin' ? 'bg-[#1D9E75]' : 'bg-[#7F77DD]'}`} />
-                <span className="text-xs font-semibold uppercase tracking-wider text-[#5F5E5A]">
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#F4F3FF] px-3 py-1.5">
+                <span className={`h-2.5 w-2.5 rounded-full ${authRole === 'admin' ? 'bg-[#1D9E75]' : 'bg-[#7F77DD]'}`} />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#3C3489]">
                   {authRole === 'admin' ? 'HR & Administration Workspace' : 'Employee Check-in Desk'}
                 </span>
               </div>
-              <h2 className="mt-1 text-3xl font-extrabold text-[#2C2C2A]">Hello, {user?.name || 'Demo User'}</h2>
-              <p className="text-sm text-[#5F5E5A]">Logged in as: <strong className="text-[#3C3489]">{user?.email}</strong></p>
+              <h2 className="mt-4 text-4xl font-extrabold leading-tight text-[#2C2C2A] sm:text-5xl">Hello, {user?.name || 'Demo User'}</h2>
+              <p className="mt-2 max-w-2xl text-base leading-7 text-[#5F5E5A]">
+                {authRole === 'admin'
+                  ? 'A cleaner command center for team progress, NudgeAI signals, employee operations, and reports.'
+                  : 'A focused workspace for daily check-ins, tasks, deep work, progress history, and personal growth.'}
+              </p>
+              <p className="mt-2 text-sm text-[#5F5E5A]">Logged in as: <strong className="text-[#3C3489]">{user?.email}</strong></p>
             </div>
 
             <button
               onClick={refreshDashboardData}
-              className="inline-flex items-center gap-1.5 rounded-md border border-[#DAD7FB] bg-white px-4.5 py-2.5 text-xs font-semibold text-[#3C3489] hover:bg-[#EEEDFE] transition shrink-0"
+              className="inline-flex items-center justify-center gap-2 rounded-md border border-[#DAD7FB] bg-[#F4F3FF] px-5 py-3 text-sm font-bold text-[#3C3489] transition hover:bg-[#EEEDFE] shrink-0"
             >
-              <RefreshCw className="h-3.5 w-3.5" />
+              <RefreshCw className="h-4 w-4" />
               Refresh Dashboard
             </button>
+            </div>
+
+            <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {(authRole === 'admin'
+                ? [
+                    ['NudgeAI Desk', 'Forecasts, standups, risks, and skill gaps.', Sparkles, '#7F77DD'],
+                    ['Team Focus Feed', 'See what people are focused on right now.', Activity, '#1D9E75'],
+                    ['Employee Ops', 'Invite people, create tasks, and manage teams.', UsersRound, '#3C3489'],
+                    ['Board Pack', 'Generate clean monthly leadership reports.', FileCheck2, '#F59E0B']
+                  ]
+                : [
+                    ['Daily Check-in', 'Share work location, energy, and top goals.', Activity, '#1D9E75'],
+                    ['Progress Update', 'Log work, proof links, blockers, and focus.', Send, '#7F77DD'],
+                    ['Deep Work', 'Declare focused time without noisy nudges.', Clock3, '#3C3489'],
+                    ['Growth Portal', 'Build your personal performance summary.', LineChart, '#F59E0B']
+                  ]).map(([title, copy, Icon, color]) => (
+                <div key={title} className="rounded-lg border border-[#EEEDFE] bg-[#FCFCFF] p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-[#DAD7FB] hover:shadow-md">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-md bg-white shadow-sm" style={{ color }}>
+                      <Icon className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <div>
+                      <p className="text-base font-extrabold text-[#2C2C2A]">{title}</p>
+                      <p className="mt-1 text-xs leading-5 text-[#5F5E5A]">{copy}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* --- SUBVIEW: EMPLOYEE WORKSPACE --- */}
           {authRole === 'employee' && (
-            <div className="mt-10 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="mt-8 grid gap-7 lg:grid-cols-[1.1fr_0.9fr]">
               
               {/* Employee Left Column */}
-              <div className="space-y-8">
-                <div className="rounded-lg border border-[#EEEDFE] bg-white p-6 shadow-sm">
+              <div className="space-y-7">
+                <div className="rounded-lg border border-[#EEEDFE] bg-white p-7 shadow-md shadow-[#3C3489]/5">
                   <h3 className="text-lg font-bold text-[#2C2C2A] flex items-center gap-2">
                     <Activity className="h-5 w-5 text-[#1D9E75]" />
                     Smart Presence Check-in
@@ -2346,7 +2409,7 @@ function App() {
                 </div>
                 
                 {/* Submit Daily Update */}
-                <div className="rounded-lg border border-[#EEEDFE] bg-white p-6 shadow-sm">
+                <div className="rounded-lg border border-[#EEEDFE] bg-white p-7 shadow-md shadow-[#3C3489]/5">
                   <h3 className="text-lg font-bold text-[#2C2C2A] flex items-center gap-2">
                     <Send className="h-5 w-5 text-[#7F77DD]" />
                     Share Daily Progress Update
@@ -2472,7 +2535,7 @@ function App() {
                 )}
 
                 {/* Progress Check-in History */}
-                <div className="rounded-lg border border-[#EEEDFE] bg-white p-6 shadow-sm">
+                <div className="rounded-lg border border-[#EEEDFE] bg-white p-7 shadow-md shadow-[#3C3489]/5">
                   <h3 className="text-lg font-bold text-[#2C2C2A] flex items-center gap-2">
                     <ClipboardCheck className="h-5 w-5 text-[#3C3489]" />
                     Your Progress Update History
@@ -2514,8 +2577,8 @@ function App() {
               </div>
 
               {/* Employee Right Column: Task Status Desk */}
-              <div className="space-y-8">
-                <div className="rounded-lg border border-[#DAD7FB] bg-white p-6 shadow-sm">
+              <div className="space-y-7">
+                <div className="rounded-lg border border-[#DAD7FB] bg-white p-7 shadow-md shadow-[#3C3489]/5">
                   <h3 className="flex items-center gap-2 text-lg font-bold text-[#2C2C2A]">
                     <Clock3 className="h-5 w-5 text-[#7F77DD]" />
                     Deep Work Mode
@@ -2550,7 +2613,7 @@ function App() {
                   )}
                 </div>
 
-                <div className="rounded-lg border border-[#EEEDFE] bg-white p-6 shadow-sm">
+                <div className="rounded-lg border border-[#EEEDFE] bg-white p-7 shadow-md shadow-[#3C3489]/5">
                   <div className="flex items-center justify-between gap-3">
                     <h3 className="text-lg font-bold text-[#2C2C2A]">My Growth Portal</h3>
                     <PoweredByNudgeAi />
@@ -2571,7 +2634,7 @@ function App() {
                 </div>
 
                 {notifications.length > 0 ? (
-                  <div className="rounded-lg border border-[#DAD7FB] bg-white p-6 shadow-sm">
+                  <div className="rounded-lg border border-[#DAD7FB] bg-white p-7 shadow-md shadow-[#3C3489]/5">
                     <h3 className="flex items-center gap-2 text-lg font-bold text-[#2C2C2A]">
                       <Sparkles className="h-5 w-5 text-[#F59E0B]" />
                       Recognition
@@ -2589,7 +2652,7 @@ function App() {
                 
                 {/* Stats Dashboard mini */}
                 {empStats && (
-                  <div className="rounded-lg border border-[#EEEDFE] bg-[#FCFCFF] p-6">
+                  <div className="rounded-lg border border-[#EEEDFE] bg-[#FCFCFF] p-7 shadow-md shadow-[#3C3489]/5">
                     <h4 className="text-xs font-semibold uppercase tracking-wider text-[#5F5E5A]">Assigned Task Ratios</h4>
                     <div className="mt-4 grid grid-cols-4 gap-2 text-center">
                       <div className="bg-white border border-[#EEEDFE] rounded p-2.5">
@@ -2613,7 +2676,7 @@ function App() {
                 )}
 
                 {/* Assigned Tasks Card */}
-                <div className="rounded-lg border border-[#EEEDFE] bg-white p-6 shadow-sm">
+                <div className="rounded-lg border border-[#EEEDFE] bg-white p-7 shadow-md shadow-[#3C3489]/5">
                   <h3 className="text-lg font-bold text-[#2C2C2A] flex items-center gap-2">
                     <ListTodo className="h-5 w-5 text-[#1D9E75]" />
                     Assigned Task Registry
@@ -2666,10 +2729,10 @@ function App() {
 
           {/* --- SUBVIEW: ADMIN WORKSPACE --- */}
           {authRole === 'admin' && (
-            <div className="mt-10 grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="mt-8 grid gap-7 lg:grid-cols-[1.2fr_0.8fr]">
               
               {/* Admin Left Column */}
-              <div className="space-y-8">
+              <div className="space-y-7">
                 <NudgeAiStandupCard
                   data={nudgeAiData.standup}
                   loading={nudgeAiLoading.standup}
@@ -2747,7 +2810,7 @@ function App() {
                 </div>
 
                 {/* NudgeAI Control Panel */}
-                <div className="rounded-lg border border-[#EEEDFE] bg-white p-6 shadow-sm">
+                <div className="rounded-lg border border-[#EEEDFE] bg-white p-7 shadow-md shadow-[#3C3489]/5">
                   <div className="flex items-center gap-2">
                     <Zap className="h-5 w-5 text-[#F59E0B]" />
                     <h3 className="text-lg font-bold text-[#2C2C2A]">NudgeAI Operations Desk</h3>
@@ -2914,7 +2977,7 @@ function App() {
                 </div>
 
                 {/* Audit All Employee Updates feed */}
-                <div className="rounded-lg border border-[#EEEDFE] bg-white p-6 shadow-sm">
+                <div className="rounded-lg border border-[#EEEDFE] bg-white p-7 shadow-md shadow-[#3C3489]/5">
                   <h3 className="text-lg font-bold text-[#2C2C2A]">Auditing Employee Update Feed</h3>
                   <div className="mt-5 divide-y divide-[#EEEDFE] max-h-96 overflow-y-auto pr-2">
                     {allUpdates.length === 0 ? (
@@ -2949,10 +3012,10 @@ function App() {
               </div>
 
               {/* Admin Right Column */}
-              <div className="space-y-8">
+              <div className="space-y-7">
                 
                 {/* Export Reports Ready Card */}
-                <div className="rounded-lg border border-[#EEEDFE] bg-[#FCFCFF] p-6">
+                <div className="rounded-lg border border-[#EEEDFE] bg-[#FCFCFF] p-7 shadow-md shadow-[#3C3489]/5">
                   <h4 className="text-sm font-bold text-[#2C2C2A]">Export Operational Datasets</h4>
                   <p className="text-xs text-[#5F5E5A] mt-1">Download flat JSON metrics mapping active task assignees and blockers.</p>
                   
@@ -2984,7 +3047,7 @@ function App() {
                 </div>
 
                 {/* Invite Employees */}
-                <div className="rounded-lg border border-[#EEEDFE] bg-white p-6 shadow-sm">
+                <div className="rounded-lg border border-[#EEEDFE] bg-white p-7 shadow-md shadow-[#3C3489]/5">
                   <h3 className="text-sm font-bold text-[#2C2C2A]">Invite Employee</h3>
                   <p className="mt-1 text-xs text-[#5F5E5A]">Create an employee login and assign them to a department.</p>
 
@@ -3034,7 +3097,7 @@ function App() {
                 </div>
 
                 {/* Create & Assign Tasks */}
-                <div className="rounded-lg border border-[#EEEDFE] bg-white p-6 shadow-sm">
+                <div className="rounded-lg border border-[#EEEDFE] bg-white p-7 shadow-md shadow-[#3C3489]/5">
                   <h3 className="text-sm font-bold text-[#2C2C2A]">Create & Assign Tasks</h3>
                   <form onSubmit={handleCreateTask} className="mt-4 space-y-3">
                     <div>
@@ -3079,7 +3142,7 @@ function App() {
                 </div>
 
                 {/* Manage Departments */}
-                <div className="rounded-lg border border-[#EEEDFE] bg-white p-6 shadow-sm">
+                <div className="rounded-lg border border-[#EEEDFE] bg-white p-7 shadow-md shadow-[#3C3489]/5">
                   <h3 className="text-sm font-bold text-[#2C2C2A]">Manage Departments</h3>
                   
                   <div className="mt-3 space-y-2 max-h-40 overflow-y-auto pr-1">
@@ -3180,7 +3243,7 @@ function NudgeAiStandupCard({ data, loading, onRegenerate }) {
   };
 
   return (
-    <div className="rounded-lg border border-[#DAD7FB] bg-white p-6 shadow-sm">
+    <div className="rounded-lg border border-[#DAD7FB] bg-white p-7 shadow-md shadow-[#3C3489]/5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -3578,29 +3641,19 @@ function ResetPasswordView({ queryParams, setCurrentView, showToast }) {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="text-xs font-bold uppercase tracking-[0.14em] text-[#5F5E5A]">New Password</label>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="mt-2 block w-full rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none transition focus:border-[#7F77DD]"
-                placeholder="••••••••"
-                required
-              />
-            </div>
+            <PasswordField
+              label="New Password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Enter new password"
+            />
 
-            <div>
-              <label className="text-xs font-bold uppercase tracking-[0.14em] text-[#5F5E5A]">Confirm New Password</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="mt-2 block w-full rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none transition focus:border-[#7F77DD]"
-                placeholder="••••••••"
-                required
-              />
-            </div>
+            <PasswordField
+              label="Confirm New Password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Repeat new password"
+            />
 
             {error && (
               <p className="rounded-md border border-rose-100 bg-rose-50 p-3 text-sm font-medium text-rose-600">{error}</p>
@@ -3736,29 +3789,19 @@ function AcceptInviteView({ queryParams, setCurrentView, setUser, setToken, setA
               />
             </div>
 
-            <div>
-              <label className="text-xs font-bold uppercase tracking-[0.14em] text-[#5F5E5A]">Create Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-2 block w-full rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none transition focus:border-[#7F77DD]"
-                placeholder="••••••••"
-                required
-              />
-            </div>
+            <PasswordField
+              label="Create Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Create password"
+            />
 
-            <div>
-              <label className="text-xs font-bold uppercase tracking-[0.14em] text-[#5F5E5A]">Confirm Password</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="mt-2 block w-full rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none transition focus:border-[#7F77DD]"
-                placeholder="••••••••"
-                required
-              />
-            </div>
+            <PasswordField
+              label="Confirm Password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Repeat password"
+            />
 
             <button
               type="submit"
