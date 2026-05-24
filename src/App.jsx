@@ -628,6 +628,7 @@ function App() {
     setUser(simulatedUser);
     setToken('sandbox-token-jwt');
     setAuthRole(simulatedUser.role);
+    window.history.pushState({}, '', '/dashboard');
     setCurrentView('dashboard');
     setLoginError(null);
     showToast(`Using Sandbox Mode as ${simulatedUser.name}. Connect Supabase later for live data.`, 'info');
@@ -659,6 +660,7 @@ function App() {
       setUser(simulatedUser);
       setToken('sandbox-token-jwt');
       setAuthRole(simulatedUser.role);
+      window.history.pushState({}, '', '/dashboard');
       setCurrentView('dashboard');
       showToast(`Welcome! Logged into Sandbox Mode as ${simulatedUser.name}`, 'info');
       setLoginLoading(false);
@@ -674,6 +676,7 @@ function App() {
       setUser(data.user);
       setToken(data.token);
       setAuthRole(data.user.role);
+      window.history.pushState({}, '', '/dashboard');
       setCurrentView('dashboard');
       showToast(`Welcome back, ${data.user.name}!`, 'success');
     } catch (err) {
@@ -727,6 +730,7 @@ function App() {
       setUser(data.user);
       setToken(data.token);
       setAuthRole(data.user.role);
+      window.history.pushState({}, '', '/dashboard');
       setCurrentView('dashboard');
       showToast(`Workspace created for ${signupCompany}. Welcome, ${data.user.name}.`, 'success');
       setSignupCompany('');
