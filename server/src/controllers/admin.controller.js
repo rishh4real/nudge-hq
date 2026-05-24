@@ -1,5 +1,7 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { supabase } from '../config/supabase.js';
+import { sendEmployeeInviteEmail } from '../utils/mailer.js';
 
 const TEMP_PASSWORD = 'nudgehq123';
 
@@ -16,10 +18,12 @@ const isMissingSchema = (error) => (
 export const getAllEmployeeUpdates = async (req, res) => {
   try {
     const { department_id, user_id, start_date, end_date, limit = 50, offset = 0 } = req.query;
+    const orgId = req.user.organization_id;
 
     let query = supabase
       .from('progress_updates')
-      .select('id, progress_text, proof_link, quality_score, quality_tip, created_at, user:users(id, name, email, department_id, departments(name)), tasks(id, title, status)', { count: 'exact' });
+      .select('id, progress_text, proof_link, quality_score, quality_tip, created_at, user:users!inner(id, name, email, department_id, organization_id, departments(name)), tasks(id, title, status)', { count: 'exact' })
+      .eq('user.organization_id', orgId);
 
     if (user_id) {
       query = query.eq('user_id', user_id);
@@ -40,7 +44,8 @@ export const getAllEmployeeUpdates = async (req, res) => {
     if (error && /quality_score|quality_tip|schema cache/i.test(error.message || '')) {
       let fallbackQuery = supabase
         .from('progress_updates')
-        .select('id, progress_text, proof_link, created_at, user:users(id, name, email, department_id, departments(name)), tasks(id, title, status)', { count: 'exact' });
+        .select('id, progress_text, proof_link, created_at, user:users!inner(id, name, email, department_id, organization_id, departments(name)), tasks(id, title, status)', { count: 'exact' })
+        .eq('user.organization_id', orgId);
 
       if (user_id) fallbackQuery = fallbackQuery.eq('user_id', user_id);
       if (start_date) fallbackQuery = fallbackQuery.gte('created_at', start_date);
@@ -94,9 +99,12 @@ export const getAllEmployeeUpdates = async (req, res) => {
  */
 export const getDepartments = async (req, res) => {
   try {
+    const orgId = req.user.organization_id;
+
     const { data: departments, error } = await supabase
       .from('departments')
       .select('id, name, description, created_at')
+      .eq('organization_id', orgId)
       .order('name', { ascending: true });
 
     if (error) throw error;
@@ -122,24 +130,26 @@ export const getDepartments = async (req, res) => {
 export const createDepartment = async (req, res) => {
   try {
     const { name, description } = req.body;
+    const orgId = req.user.organization_id;
 
     const { data: existingDept, error: checkError } = await supabase
       .from('departments')
       .select('id')
       .eq('name', name)
+      .eq('organization_id', orgId)
       .maybeSingle();
 
     if (checkError) throw checkError;
     if (existingDept) {
       return res.status(409).json({
         success: false,
-        message: `Department with name '${name}' already exists.`
+        message: `Department with name '${name}' already exists in this organization.`
       });
     }
 
     const { data: department, error } = await supabase
       .from('departments')
-      .insert([{ name, description }])
+      .insert([{ name, description, organization_id: orgId }])
       .select()
       .single();
 
@@ -168,6 +178,7 @@ export const updateDepartment = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description } = req.body;
+    const orgId = req.user.organization_id;
 
     const updates = {};
     if (name !== undefined) updates.name = name;
@@ -177,6 +188,7 @@ export const updateDepartment = async (req, res) => {
       .from('departments')
       .update(updates)
       .eq('id', id)
+      .eq('organization_id', orgId)
       .select()
       .single();
 
@@ -204,11 +216,13 @@ export const updateDepartment = async (req, res) => {
 export const deleteDepartment = async (req, res) => {
   try {
     const { id } = req.params;
+    const orgId = req.user.organization_id;
 
     const { error } = await supabase
       .from('departments')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('organization_id', orgId);
 
     if (error) throw error;
 
@@ -232,9 +246,11 @@ export const deleteDepartment = async (req, res) => {
  */
 export const inviteEmployee = async (req, res) => {
   try {
-    const { name, email, department_id } = req.body;
+    const { email, department_id } = req.body;
     const normalizedEmail = email.toLowerCase().trim();
+    const adminOrgId = req.user.organization_id;
 
+    // Check if user already exists
     const { data: existingUser, error: checkError } = await supabase
       .from('users')
       .select('id, name, email, role')
@@ -246,56 +262,61 @@ export const inviteEmployee = async (req, res) => {
     if (existingUser) {
       return res.status(409).json({
         success: false,
-        message: 'An employee with this email already exists.',
-        user: existingUser
+        message: 'A user with this email is already registered.'
       });
     }
 
-    const passwordHash = await bcrypt.hash(TEMP_PASSWORD, 10);
+    // Check if pending invitation exists, delete if expired
+    await supabase
+      .from('employee_invitations')
+      .delete()
+      .eq('email', normalizedEmail)
+      .eq('status', 'pending')
+      .lt('expires_at', new Date().toISOString());
 
-    const { data: employee, error: insertError } = await supabase
-      .from('users')
-      .insert([
-        {
-          name,
-          email: normalizedEmail,
-          password_hash: passwordHash,
-          role: 'employee',
-          department_id: department_id || null
-        }
-      ])
-      .select('id, name, email, role, department_id, created_at')
+    // Generate unique invitation record
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    // Fetch company name to display in the email invite
+    const { data: company, error: companyError } = await supabase
+      .from('organizations')
+      .select('name')
+      .eq('id', adminOrgId)
       .single();
 
-    if (insertError) throw insertError;
+    if (companyError) throw companyError;
 
-    const { error: inviteLogError } = await supabase
+    const { data: invitation, error: inviteError } = await supabase
       .from('employee_invitations')
       .insert([
         {
+          organization_id: adminOrgId,
           email: normalizedEmail,
           invited_by: req.user.id,
-          user_id: employee.id,
-          status: 'accepted'
+          token,
+          expires_at: expiresAt,
+          status: 'pending'
         }
-      ]);
+      ])
+      .select()
+      .single();
 
-    if (inviteLogError && !isMissingSchema(inviteLogError)) {
-      throw inviteLogError;
-    }
+    if (inviteError) throw inviteError;
+
+    // Send invitation email
+    await sendEmployeeInviteEmail(normalizedEmail, company.name, token);
 
     return res.status(201).json({
       success: true,
-      message: 'Employee invited and demo login created successfully.',
-      employee,
-      temporary_password: TEMP_PASSWORD,
-      invitation_logged: !inviteLogError
+      message: 'Invitation sent successfully. Magic link emailed to employee.',
+      invitation
     });
   } catch (error) {
     console.error('Invite employee error:', error);
     return res.status(500).json({
       success: false,
-      message: 'Failed to invite employee.',
+      message: 'Failed to send invitation.',
       error: error.message
     });
   }

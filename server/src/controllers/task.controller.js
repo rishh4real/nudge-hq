@@ -33,6 +33,8 @@ export const createTask = async (req, res) => {
       }
     }
 
+    const orgId = req.user.organization_id;
+
     const { data: task, error: insertError } = await supabase
       .from('tasks')
       .insert([
@@ -41,7 +43,8 @@ export const createTask = async (req, res) => {
           description: description || null,
           assignee_id: assignee_id || null,
           due_date: due_date || null,
-          status
+          status,
+          organization_id: orgId
         }
       ])
       .select('id, title, description, status, assignee_id, due_date, created_at')
@@ -72,9 +75,12 @@ export const getTasks = async (req, res) => {
   try {
     const { status, assignee_id, department_id } = req.query;
 
+    const orgId = req.user.organization_id;
+
     let query = supabase
       .from('tasks')
-      .select('id, title, description, status, due_date, created_at, assignee:users(id, name, email, department_id)');
+      .select('id, title, description, status, due_date, created_at, assignee:users(id, name, email, department_id)')
+      .eq('organization_id', orgId);
 
     // Role-based restrictions: Employees can only see their assigned tasks unless department-based visibility is allowed
     if (req.user.role === 'employee' && !assignee_id) {
@@ -128,11 +134,14 @@ export const updateTaskStatus = async (req, res) => {
       });
     }
 
+    const orgId = req.user.organization_id;
+
     // Fetch original task
     const { data: task, error: fetchError } = await supabase
       .from('tasks')
       .select('id, status, assignee_id')
       .eq('id', taskId)
+      .eq('organization_id', orgId)
       .maybeSingle();
 
     if (fetchError) throw fetchError;
@@ -194,6 +203,7 @@ export const updateTaskStatus = async (req, res) => {
       .from('tasks')
       .update({ status })
       .eq('id', taskId)
+      .eq('organization_id', orgId)
       .select('id, title, status, assignee_id, due_date')
       .single();
 
@@ -223,11 +233,14 @@ export const updateTask = async (req, res) => {
     const taskId = req.params.id;
     const { title, description, assignee_id, due_date, status } = req.body;
 
+    const orgId = req.user.organization_id;
+
     // Fetch original task
     const { data: task, error: fetchError } = await supabase
       .from('tasks')
       .select('id')
       .eq('id', taskId)
+      .eq('organization_id', orgId)
       .maybeSingle();
 
     if (fetchError) throw fetchError;
@@ -258,6 +271,7 @@ export const updateTask = async (req, res) => {
       .from('tasks')
       .update(updates)
       .eq('id', taskId)
+      .eq('organization_id', orgId)
       .select()
       .single();
 
@@ -286,10 +300,13 @@ export const deleteTask = async (req, res) => {
   try {
     const taskId = req.params.id;
 
+    const orgId = req.user.organization_id;
+
     const { data: task, error: fetchError } = await supabase
       .from('tasks')
       .select('id')
       .eq('id', taskId)
+      .eq('organization_id', orgId)
       .maybeSingle();
 
     if (fetchError) throw fetchError;
@@ -303,7 +320,8 @@ export const deleteTask = async (req, res) => {
     const { error: deleteError } = await supabase
       .from('tasks')
       .delete()
-      .eq('id', taskId);
+      .eq('id', taskId)
+      .eq('organization_id', orgId);
 
     if (deleteError) throw deleteError;
 
