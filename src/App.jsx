@@ -1695,15 +1695,9 @@ function App() {
                   onClick={() => setCurrentView('demo_console')}
                   className="inline-flex min-w-56 items-center justify-center gap-3 rounded-full bg-[#111827] px-8 py-5 text-sm font-extrabold uppercase tracking-[0.16em] text-white shadow-xl shadow-[#111827]/20 transition hover:-translate-y-0.5 hover:bg-[#3C3489]"
                 >
-                  Book Demo
+                  Take Demo
                   <ArrowRight className="h-5 w-5" aria-hidden="true" />
                 </button>
-                <a
-                  href="mailto:hello.nudgehq@gmail.com"
-                  className="inline-flex min-w-56 items-center justify-center rounded-full border border-[#CBD5E1] bg-white/60 px-8 py-5 text-sm font-extrabold uppercase tracking-[0.16em] text-[#475569] shadow-lg shadow-[#3C3489]/5 backdrop-blur transition hover:border-[#7F77DD] hover:text-[#3C3489]"
-                >
-                  Contact Us
-                </a>
               </motion.div>
             </div>
           </section>
@@ -2087,6 +2081,12 @@ function App() {
                 title="Start simple. Scale when visibility becomes company-wide."
                 copy="Choose a plan that matches your current team size and progress tracking needs."
               />
+              <div className="mx-auto mt-7 max-w-3xl rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-5 py-4 text-center shadow-sm">
+                <p className="text-sm font-extrabold uppercase tracking-[0.12em] text-[#92400E]">Temporary pricing</p>
+                <p className="mt-2 text-base font-bold leading-7 text-[#2C2C2A]">
+                  Pricing is not fixed yet. These plans are early estimates and may change as NudgeHQ grows, adds features, and moves into future releases.
+                </p>
+              </div>
               <div className="mt-14 grid gap-5 lg:grid-cols-4">
                 {pricing.map(({ name, price, description, features, highlighted }, index) => (
                   <motion.article
@@ -2197,10 +2197,10 @@ function App() {
                 <p className="font-semibold text-[#2C2C2A]">Company</p>
                 <div className="mt-4 grid gap-3 text-sm font-medium text-[#5F5E5A]">
                   <a className="hover:text-[#3C3489]" href="mailto:hello.nudgehq@gmail.com">Contact</a>
-                  <a className="inline-flex items-center gap-1 hover:text-[#3C3489]" href="https://www.linkedin.com/" target="_blank" rel="noreferrer">
+                  <span className="inline-flex w-fit items-center gap-2 rounded-full bg-[#EEEDFE] px-3 py-1 text-xs font-bold text-[#3C3489]">
                     LinkedIn
-                    <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                  </a>
+                    <span className="text-[#5F5E5A]">Coming soon</span>
+                  </span>
                   <a
                     className="hover:text-[#3C3489]"
                     href="/privacy"
