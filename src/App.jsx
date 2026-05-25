@@ -151,6 +151,81 @@ function PasswordField({ label, value, onChange, placeholder = 'Enter password',
   )
 }
 
+function LegalPage({ pageKey, setCurrentView }) {
+  const page = legalPages[pageKey]
+
+  return (
+    <main className="relative isolate overflow-hidden bg-[#F8FBFF] px-5 py-16 sm:px-6 lg:px-8">
+      <div className="absolute inset-0 -z-20 bg-[radial-gradient(circle_at_12%_8%,#DFECFF_0,transparent_30%),radial-gradient(circle_at_88%_14%,#DCF8EF_0,transparent_26%),linear-gradient(180deg,#F8FBFF_0%,#FFFFFF_58%)]" />
+      <div className="absolute left-1/2 top-16 -z-10 h-72 w-[48rem] -translate-x-1/2 rounded-full bg-[#EEEDFE]/70 blur-3xl" />
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: 'easeOut' }}
+        className="mx-auto max-w-5xl"
+      >
+        <button
+          type="button"
+          onClick={() => setCurrentView('landing')}
+          className="mb-8 inline-flex items-center gap-2 rounded-full border border-[#DAD7FB] bg-white/80 px-4 py-2 text-sm font-bold text-[#3C3489] shadow-sm transition hover:bg-[#EEEDFE]"
+        >
+          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+          Back to home
+        </button>
+
+        <section className="rounded-lg border border-[#DAD7FB] bg-white/90 p-6 shadow-2xl shadow-[#3C3489]/10 backdrop-blur sm:p-10 lg:p-12">
+          <div className="border-b border-[#EEEDFE] pb-8">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#1D9E75]">{page.eyebrow}</p>
+            <h1 className="mt-4 text-4xl font-extrabold leading-tight text-[#2C2C2A] sm:text-5xl">{page.title}</h1>
+            <p className="mt-3 text-sm font-semibold text-[#5F5E5A]">{page.updated}</p>
+            <p className="mt-6 max-w-3xl text-lg leading-8 text-[#5F5E5A]">{page.intro}</p>
+          </div>
+
+          <div className="mt-8 grid gap-6">
+            {page.sections.map((section, index) => (
+              <article key={section.title} className="rounded-md border border-[#EEEDFE] bg-[#FCFCFF] p-5">
+                <div className="flex gap-4">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#EEEDFE] text-sm font-extrabold text-[#3C3489]">
+                    {index + 1}
+                  </span>
+                  <div>
+                    <h2 className="text-xl font-bold text-[#2C2C2A]">{section.title}</h2>
+                    <p className="mt-2 leading-7 text-[#5F5E5A]">{section.body}</p>
+                    {section.bullets ? (
+                      <ul className="mt-4 grid gap-2">
+                        {section.bullets.map((item) => (
+                          <li key={item} className="flex gap-3 text-sm font-medium leading-6 text-[#5F5E5A]">
+                            <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#1D9E75]" aria-hidden="true" />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div className="mt-8 flex flex-col gap-3 rounded-md border border-[#DAD7FB] bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-bold text-[#2C2C2A]">Need help from NudgeHQ?</p>
+              <p className="mt-1 text-sm text-[#5F5E5A]">Reach our team for privacy, legal, or support questions.</p>
+            </div>
+            <a
+              href="mailto:nudgehq.team@gmail.com"
+              className="inline-flex items-center justify-center gap-2 rounded-md bg-[#3C3489] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#7F77DD]"
+            >
+              <Mail className="h-4 w-4" aria-hidden="true" />
+              nudgehq.team@gmail.com
+            </a>
+          </div>
+        </section>
+      </motion.div>
+    </main>
+  )
+}
+
 const badges = [
   {
     title: 'Encrypted data',
@@ -243,6 +318,127 @@ const productScenarios = [
   },
 ]
 
+const legalPages = {
+  privacy: {
+    eyebrow: 'Privacy Policy',
+    title: 'Privacy Policy - NudgeHQ',
+    updated: 'Last Updated: May 2026',
+    intro: 'NudgeHQ values the privacy and security of all users and organizations using our platform. This Privacy Policy explains how we collect, use, and protect information shared with us.',
+    sections: [
+      {
+        title: 'Information We Collect',
+        body: 'We may collect:',
+        bullets: [
+          'Name, email address, and company information',
+          'Employee task updates and work progress data',
+          'Uploaded files, screenshots, and attachments',
+          'Usage analytics and platform activity',
+        ],
+      },
+      {
+        title: 'How We Use Information',
+        body: 'We use collected data to:',
+        bullets: [
+          'Provide workforce tracking services',
+          'Generate reports and analytics',
+          'Improve platform performance and user experience',
+          'Enable AI-powered summaries and insights',
+          'Maintain platform security',
+        ],
+      },
+      {
+        title: 'Data Security',
+        body: 'NudgeHQ uses industry-standard security practices including:',
+        bullets: [
+          'Encrypted data transmission',
+          'Secure authentication systems',
+          'Role-based access control',
+          'Protected cloud infrastructure',
+        ],
+      },
+      {
+        title: 'Data Sharing',
+        body: 'We do not sell or share company or employee data with third parties for advertising or marketing purposes.',
+      },
+      {
+        title: 'User Access & Control',
+        body: 'Organizations can request:',
+        bullets: [
+          'Data correction',
+          'Account deletion',
+          'Full removal of company data',
+        ],
+      },
+      {
+        title: 'Third-Party Services',
+        body: 'NudgeHQ may use trusted third-party services such as Supabase, Vercel, Railway, and AI APIs to operate the platform securely.',
+      },
+      {
+        title: 'Changes to This Policy',
+        body: 'We may update this Privacy Policy as the platform evolves.',
+      },
+      {
+        title: 'Contact',
+        body: 'For questions regarding privacy or data protection, email nudgehq.team@gmail.com.',
+      },
+    ],
+  },
+  terms: {
+    eyebrow: 'Terms & Conditions',
+    title: 'Terms & Conditions - NudgeHQ',
+    updated: 'Last Updated: May 2026',
+    intro: 'By accessing or using NudgeHQ, you agree to the following terms and conditions.',
+    sections: [
+      {
+        title: 'Platform Usage',
+        body: 'NudgeHQ provides workforce tracking, productivity monitoring, reporting, and collaboration tools for organizations and teams.',
+      },
+      {
+        title: 'User Responsibilities',
+        body: 'Users agree:',
+        bullets: [
+          'To provide accurate information',
+          'Not to misuse the platform',
+          'Not to attempt unauthorized access',
+          'Not to upload harmful or illegal content',
+        ],
+      },
+      {
+        title: 'Account Security',
+        body: 'Users are responsible for maintaining the security of their accounts and login credentials.',
+      },
+      {
+        title: 'Beta Platform Disclaimer',
+        body: 'NudgeHQ is currently under active development. Some features may change, improve, or become temporarily unavailable during testing phases.',
+      },
+      {
+        title: 'Data & Content',
+        body: 'Organizations retain ownership of their internal data uploaded to the platform.',
+      },
+      {
+        title: 'Service Availability',
+        body: 'We aim to provide reliable services but do not guarantee uninterrupted platform availability during early-stage development.',
+      },
+      {
+        title: 'Limitation of Liability',
+        body: 'NudgeHQ is not liable for indirect losses, data interruptions, or issues caused by third-party integrations or services.',
+      },
+      {
+        title: 'Termination',
+        body: 'We reserve the right to suspend accounts involved in misuse, abuse, or violations of these terms.',
+      },
+      {
+        title: 'Changes to Terms',
+        body: 'These Terms may be updated as the platform grows and evolves.',
+      },
+      {
+        title: 'Contact',
+        body: 'For support or legal inquiries, email nudgehq.team@gmail.com.',
+      },
+    ],
+  },
+}
+
 const formatDisplayDate = (value) => {
   if (!value) return 'Not available';
   return new Intl.DateTimeFormat('en-IN', {
@@ -269,6 +465,8 @@ const isBackendConnectionError = (message = '') => (
 
 const getInitialView = () => {
   const path = window.location.pathname;
+  if (path === '/privacy') return 'privacy';
+  if (path === '/terms') return 'terms';
   if (path === '/verify-email') return 'verify_email';
   if (path === '/forgot-password') return 'forgot_password';
   if (path === '/reset-password') return 'reset_password';
@@ -330,7 +528,7 @@ const fetchApi = async (endpoint, options = {}, token = null) => {
 
 // --- MAIN APPLICATION ---
 function App() {
-  const [currentView, setCurrentView] = useState(getInitialView) // 'landing' | 'signin' | 'signup' | 'demo_console' | 'dashboard'
+  const [currentView, setCurrentView] = useState(getInitialView) // 'landing' | 'signin' | 'signup' | 'demo_console' | 'dashboard' | 'privacy' | 'terms'
   const [queryParams, setQueryParams] = useState(new URLSearchParams(window.location.search))
   const [authRole, setAuthRole] = useState(null) // 'admin' | 'employee'
   const [user, setUser] = useState(null)
@@ -449,7 +647,11 @@ function App() {
       const params = new URLSearchParams(window.location.search);
       setQueryParams(params);
       
-      if (path === '/verify-email') {
+      if (path === '/privacy') {
+        setCurrentView('privacy');
+      } else if (path === '/terms') {
+        setCurrentView('terms');
+      } else if (path === '/verify-email') {
         setCurrentView('verify_email');
       } else if (path === '/forgot-password') {
         setCurrentView('forgot_password');
@@ -487,6 +689,8 @@ function App() {
     let targetPath = '/';
     
     if (currentView === 'landing') targetPath = '/';
+    else if (currentView === 'privacy') targetPath = '/privacy';
+    else if (currentView === 'terms') targetPath = '/terms';
     else if (currentView === 'signin') targetPath = '/login';
     else if (currentView === 'signup') targetPath = '/signup';
     else if (currentView === 'demo_console') targetPath = '/demo';
@@ -1312,7 +1516,7 @@ function App() {
             <span className="text-lg font-bold text-[#3C3489]">NudgeHQ</span>
           </a>
 
-          {currentView === 'landing' || currentView === 'signin' || currentView === 'signup' ? (
+          {['landing', 'signin', 'signup', 'privacy', 'terms'].includes(currentView) ? (
             <>
               <div className="hidden items-center gap-8 text-sm font-medium text-[#5F5E5A] md:flex">
                 <a onClick={() => setCurrentView('landing')} className="transition hover:text-[#3C3489]" href="#features">Features</a>
@@ -1375,6 +1579,15 @@ function App() {
       </header>
 
       {/* --- VIEW ROUTER --- */}
+
+      {/* VIEW: LEGAL PAGES */}
+      {currentView === 'privacy' && (
+        <LegalPage pageKey="privacy" setCurrentView={setCurrentView} />
+      )}
+
+      {currentView === 'terms' && (
+        <LegalPage pageKey="terms" setCurrentView={setCurrentView} />
+      )}
 
       {/* VIEW: EMAIL VERIFICATION */}
       {currentView === 'verify_email' && (
@@ -1988,8 +2201,26 @@ function App() {
                     LinkedIn
                     <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                   </a>
-                  <a className="hover:text-[#3C3489]" href="#top">Privacy Policy</a>
-                  <a className="hover:text-[#3C3489]" href="#top">Terms</a>
+                  <a
+                    className="hover:text-[#3C3489]"
+                    href="/privacy"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      setCurrentView('privacy');
+                    }}
+                  >
+                    Privacy Policy
+                  </a>
+                  <a
+                    className="hover:text-[#3C3489]"
+                    href="/terms"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      setCurrentView('terms');
+                    }}
+                  >
+                    Terms
+                  </a>
                 </div>
               </div>
             </div>
