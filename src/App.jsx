@@ -1293,8 +1293,11 @@ function App() {
       </AnimatePresence>
 
       {/* --- SITE HEADER --- */}
-      <header className="sticky inset-x-0 top-0 z-50 border-b border-[#EEEDFE] bg-white/95 shadow-sm shadow-[#EEEDFE]/70">
-        <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-6 lg:px-8">
+      <header className={`${currentView === 'landing' ? 'absolute inset-x-0 top-0' : 'sticky inset-x-0 top-0 border-b border-[#EEEDFE] bg-white/95 shadow-sm shadow-[#EEEDFE]/70'} z-50`}>
+        <nav className={`${currentView === 'landing'
+          ? 'mx-auto mt-6 flex max-w-5xl items-center justify-between rounded-full border border-white/80 bg-white/90 px-6 py-3 shadow-2xl shadow-[#3C3489]/10 backdrop-blur-xl sm:px-7'
+          : 'mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-6 lg:px-8'}`}
+        >
           <a
             href="#top"
             onClick={() => {
@@ -1337,18 +1340,18 @@ function App() {
                 <button
                   type="button"
                   onClick={openSignin}
-                  className={`inline-flex items-center rounded-md px-3 py-2.5 text-sm font-semibold transition hover:bg-[#EEEDFE] ${
+                  className={`inline-flex items-center rounded-full px-3 py-2.5 text-sm font-semibold transition hover:bg-[#EEEDFE] ${
                     currentView === 'signin' ? 'text-[#7F77DD]' : 'text-[#3C3489]'
                   }`}
                 >
-                  Sign In
+                  Log in
                 </button>
                 <button
                   type="button"
                   onClick={openSignup}
-                  className="inline-flex items-center rounded-md border border-[#7F77DD] bg-white px-3.5 py-2.5 text-sm font-semibold text-[#3C3489] transition hover:bg-[#7F77DD] hover:text-white sm:px-4"
+                  className="inline-flex items-center rounded-full border border-[#111827] bg-[#111827] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#3C3489] sm:px-5"
                 >
-                  Sign Up
+                  Join Now
                 </button>
               </div>
             </>
@@ -1403,99 +1406,92 @@ function App() {
       {/* VIEW 1: LANDING PAGE */}
       {currentView === 'landing' && (
         <>
-          <section id="top" className="relative isolate">
-            <div className="dot-grid absolute inset-0 -z-10 opacity-50" />
-            <div className="absolute left-1/2 top-14 -z-10 h-72 w-[42rem] -translate-x-1/2 rounded-full bg-[#F4F3FF]" />
-            <div className="mx-auto grid max-w-7xl items-center gap-14 px-5 pb-24 pt-16 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8 lg:pb-28 lg:pt-20">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-[#EEEDFE] bg-white px-4 py-2 text-sm font-semibold text-[#3C3489] shadow-sm">
-                  <Sparkles className="h-4 w-4 text-[#1D9E75]" aria-hidden="true" />
-                  Real-time workforce progress tracking
-                </div>
-                <h1 className="mt-7 max-w-4xl text-5xl font-extrabold leading-[1.02] text-[#2C2C2A] sm:text-6xl lg:text-7xl">
-                  Track team progress without chasing updates.
-                </h1>
-                <p className="mt-6 max-w-2xl text-lg leading-8 text-[#5F5E5A] sm:text-xl">
-                  <span className="brand-shimmer font-bold">NudgeHQ</span> gives employees a fast way to share progress, blockers, and status while admins get one live view of workforce momentum.
-                </p>
-                <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentView('demo_console')}
-                    className="inline-flex items-center justify-center gap-2 rounded-md bg-[#7F77DD] px-6 py-4 text-base font-semibold text-white shadow-lg shadow-[#7F77DD]/25 transition hover:-translate-y-0.5 hover:bg-[#3C3489]"
-                  >
-                    Launch Demo Console
-                    <Zap className="h-5 w-5" aria-hidden="true" />
-                  </button>
-                  <a
-                    href="#features"
-                    className="inline-flex items-center justify-center rounded-md border border-[#DAD7FB] bg-white px-6 py-4 text-base font-semibold text-[#3C3489] transition hover:border-[#7F77DD] hover:bg-[#EEEDFE]"
-                  >
-                    Explore features
-                  </a>
-                </div>
-              </div>
+          <section id="top" className="relative isolate min-h-[100svh] overflow-hidden bg-[#F7FAFF]">
+            <div className="absolute inset-0 -z-20 bg-[radial-gradient(circle_at_15%_10%,#DFECFF_0,transparent_34%),radial-gradient(circle_at_88%_18%,#DCF8EF_0,transparent_28%),linear-gradient(180deg,#F8FBFF_0%,#FFFFFF_100%)]" />
+            <div className="absolute left-1/2 top-20 -z-10 h-80 w-[54rem] -translate-x-1/2 rounded-full bg-[#EEEDFE]/80 blur-3xl" />
+            <div className="absolute bottom-8 left-1/2 -z-10 h-52 w-[42rem] -translate-x-1/2 rounded-full bg-[#E8F7F1]/80 blur-3xl" />
+            <div className="mx-auto flex max-w-7xl flex-col items-center px-5 pb-20 pt-52 text-center sm:px-6 lg:px-8 lg:pt-60">
+              <motion.div
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.55, ease: 'easeOut' }}
+                className="inline-flex items-center gap-2 rounded-full border border-white bg-white/80 px-4 py-2 text-sm font-semibold text-[#3C3489] shadow-lg shadow-[#3C3489]/5 backdrop-blur"
+              >
+                <Sparkles className="h-4 w-4 text-[#1D9E75]" aria-hidden="true" />
+                Newly building for modern Indian teams
+              </motion.div>
+              <motion.h1
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, ease: 'easeOut', delay: 0.08 }}
+                className="mt-8 max-w-5xl text-5xl font-medium leading-[1.08] text-[#1E2737] sm:text-6xl lg:text-[5.7rem]"
+              >
+                Track <span className="font-extrabold text-[#6476FF]">Real</span> Progress.
+                <br />
+                Act at the <span className="font-extrabold text-[#6476FF]">Right</span> Time.
+              </motion.h1>
+              <motion.p
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, ease: 'easeOut', delay: 0.18 }}
+                className="mt-8 max-w-3xl text-lg leading-8 text-[#718099] sm:text-xl"
+              >
+                NudgeHQ helps employees share progress, blockers, focus, and energy while admins get one calm dashboard powered by NudgeAI.
+              </motion.p>
 
-              <div className="relative">
-                <div className="soft-grid rounded-lg border border-[#DAD7FB] bg-white p-4 shadow-xl shadow-[#3C3489]/10">
-                  <div className="rounded-md border border-[#EEEDFE] bg-white">
-                    <div className="flex items-center justify-between border-b border-[#EEEDFE] px-5 py-4">
-                      <div>
-                        <p className="text-sm font-semibold text-[#3C3489]">Workforce dashboard</p>
-                        <p className="text-xs text-[#5F5E5A]">Live across 2 teams</p>
-                      </div>
-                      <span className="rounded-full bg-[#E8F7F1] px-3 py-1 text-xs font-semibold text-[#1D9E75]">Live</span>
-                    </div>
-                    <div className="grid gap-4 p-5 sm:grid-cols-3">
-                      {[
-                        ['66%', 'Tasks on track'],
-                        ['1', 'Open blockers'],
-                        ['100%', 'Check-ins sent'],
-                      ].map(([value, label]) => (
-                        <div key={label} className="rounded-md border border-[#EEEDFE] bg-white p-4">
-                          <p className="text-2xl font-bold text-[#3C3489]">{value}</p>
-                          <p className="mt-1 text-xs font-medium text-[#5F5E5A]">{label}</p>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="grid gap-5 px-5 pb-5 lg:grid-cols-[1.2fr_0.8fr]">
-                      <div className="rounded-md border border-[#EEEDFE] bg-[#FCFCFF] p-5">
-                        <div className="mb-5 flex items-center justify-between">
-                          <p className="font-semibold text-[#2C2C2A]">Department progress</p>
-                          <LineChart className="h-5 w-5 text-[#7F77DD]" aria-hidden="true" />
-                        </div>
-                        {[
-                          ['Sales ops', '66%'],
-                          ['Engineering', '0%'],
-                        ].map(([team, percent]) => (
-                          <div key={team} className="mb-4 last:mb-0">
-                            <div className="mb-2 flex justify-between text-sm">
-                              <span className="font-medium text-[#2C2C2A]">{team}</span>
-                              <span className="text-[#5F5E5A]">{percent}</span>
-                            </div>
-                            <div className="h-2 rounded-full bg-[#EEEDFE]">
-                              <div className="h-2 rounded-full bg-[#7F77DD]" style={{ width: percent }} />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="rounded-md border border-[#EEEDFE] bg-[#FCFCFF] p-5">
-                        <p className="font-semibold text-[#2C2C2A]">Today&apos;s nudges</p>
-                        <div className="mt-5 space-y-3">
-                          {['1 blocker follow-up', '1 progress check-in'].map((item) => (
-                            <div key={item} className="flex items-center gap-3 text-sm text-[#5F5E5A]">
-                              <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[#EEEDFE] text-[#3C3489]">
-                                <BellRing className="h-4 w-4" aria-hidden="true" />
-                              </span>
-                              {item}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
+              <motion.div
+                initial={{ opacity: 0, y: 20, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.65, ease: 'easeOut', delay: 0.26 }}
+                className="mt-9 w-full max-w-[48rem] rounded-[1.35rem] border border-white/90 bg-white/70 p-4 text-left shadow-2xl shadow-[#7F77DD]/20 backdrop-blur-xl"
+              >
+                <div className="rounded-[1rem] bg-gradient-to-r from-white via-[#F4F3FF] to-[#E8F7F1] p-5 sm:flex sm:items-center sm:justify-between">
+                  <div>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#7F77DD] px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.12em] text-white">
+                      <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                      NudgeAI live draft
+                    </span>
+                    <p className="mt-4 text-2xl font-extrabold text-[#2C2C2A]">Today&apos;s team summary</p>
+                    <p className="mt-1 text-sm font-medium text-[#718099]">12 tasks completed • 2 blockers detected • 3 delayed check-ins</p>
+                  </div>
+                  <div className="mt-5 flex -space-x-3 sm:mt-0">
+                    {['#7F77DD', '#1D9E75', '#3C3489', '#F59E0B'].map((color, index) => (
+                      <span
+                        key={color}
+                        className="flex h-12 w-12 items-center justify-center rounded-full border-4 border-white text-xs font-extrabold text-white shadow-md"
+                        style={{ backgroundColor: color }}
+                      >
+                        {['HR', 'OP', 'SA', 'AI'][index]}
+                      </span>
+                    ))}
+                    <span className="flex h-12 w-12 items-center justify-center rounded-full border-4 border-white bg-white text-xs font-extrabold text-[#6476FF] shadow-md">
+                      +
+                    </span>
                   </div>
                 </div>
-              </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.55, ease: 'easeOut', delay: 0.34 }}
+                className="mt-11 flex flex-col gap-4 sm:flex-row"
+              >
+                <button
+                  type="button"
+                  onClick={() => setCurrentView('demo_console')}
+                  className="inline-flex min-w-56 items-center justify-center gap-3 rounded-full bg-[#111827] px-8 py-5 text-sm font-extrabold uppercase tracking-[0.16em] text-white shadow-xl shadow-[#111827]/20 transition hover:-translate-y-0.5 hover:bg-[#3C3489]"
+                >
+                  Book Demo
+                  <ArrowRight className="h-5 w-5" aria-hidden="true" />
+                </button>
+                <a
+                  href="mailto:hello.nudgehq@gmail.com"
+                  className="inline-flex min-w-56 items-center justify-center rounded-full border border-[#CBD5E1] bg-white/60 px-8 py-5 text-sm font-extrabold uppercase tracking-[0.16em] text-[#475569] shadow-lg shadow-[#3C3489]/5 backdrop-blur transition hover:border-[#7F77DD] hover:text-[#3C3489]"
+                >
+                  Contact Us
+                </a>
+              </motion.div>
             </div>
           </section>
 
