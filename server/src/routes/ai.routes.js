@@ -10,10 +10,13 @@ import {
   anomalyCheck,
   appreciation,
   skillGapAnalysis,
+  assistantChat,
 } from '../controllers/ai.controller.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 
 const router = Router();
+
+router.post('/assistant', assistantChat);
 
 router.use(authenticate);
 

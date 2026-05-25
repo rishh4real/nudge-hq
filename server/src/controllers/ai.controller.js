@@ -91,6 +91,84 @@ const getEmployees = async () => {
   return data || [];
 };
 
+const assistantFallback = (message = '', context = 'public') => {
+  const text = message.toLowerCase();
+  if (/price|pricing|cost|plan/.test(text)) {
+    return 'NudgeHQ pricing is currently temporary. The landing page shows early estimates for Free, Starter, Growth, and Enterprise plans, but final pricing can change as the product grows.';
+  }
+  if (/feature|what.*do|nudgeai|ai/.test(text)) {
+    return 'NudgeHQ tracks workforce progress through employee updates, task status, blockers, focus, daily check-ins, deep work, admin dashboards, reports, and NudgeAI summaries, forecasts, care alerts, skill gap analysis, and appreciation suggestions.';
+  }
+  if (/login|signup|sign up|account|invite/.test(text)) {
+    return 'Admins can create a workspace, invite employees by email, and assign tasks. Employees can sign in to submit progress updates, blockers, focus, presence, and deep work outputs.';
+  }
+  if (/security|privacy|data/.test(text)) {
+    return 'NudgeHQ uses role-based access, secure authentication, protected Supabase-backed data, and structured privacy and terms pages. Admin and employee views are separated by role.';
+  }
+  if (context === 'dashboard') {
+    return 'Inside the dashboard, you can ask me about tasks, progress updates, blockers, employee check-ins, NudgeAI reports, focus sessions, deep work, and admin actions.';
+  }
+  return 'NudgeHQ helps teams stop chasing updates by giving employees simple progress check-ins and admins one clear dashboard for tasks, blockers, focus, goals, reports, and NudgeAI insights.';
+};
+
+export const assistantChat = async (req, res) => {
+  try {
+    const { message, context = 'public', role = 'visitor', page = 'landing', dashboard_snapshot = null } = req.body || {};
+
+    if (!message || !String(message).trim()) {
+      return res.status(400).json({ success: false, message: 'message is required.' });
+    }
+
+    const fallback = {
+      answer: assistantFallback(message, context),
+      suggestions: ['What does NudgeHQ do?', 'How does NudgeAI help?', 'What can admins see?']
+    };
+
+    if (/price|pricing|cost|plan/i.test(message)) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          ...fallback,
+          powered_by: 'NudgeAI',
+          unavailable: false
+        }
+      });
+    }
+
+    const snapshotText = dashboard_snapshot
+      ? `\nDashboard snapshot:\n${JSON.stringify(dashboard_snapshot, null, 2)}`
+      : '';
+
+    const { data, unavailable } = await callNudgeAIJson({
+      system: `You are NudgeAI, the helpful product assistant for NudgeHQ. Never mention Groq. Answer like a concise SaaS product expert. Known facts: NudgeHQ is a workforce progress tracking SaaS. It has employee updates, tasks, blockers, Focus Pulse, Smart Presence, Deep Work, Employee Growth, admin dashboards, reports, privacy/terms pages, and NudgeAI insights. Pricing is temporary only: Free, Starter Rs.2000 for 10 employees, Growth Rs.6000 for 40 employees, Enterprise custom. Never invent prices, customers, integrations, or policies. If dashboard context is provided, use it. Return only JSON with schema {"answer":"answer","suggestions":["short follow-up 1","short follow-up 2","short follow-up 3"]}.`,
+      prompt: `User role: ${role}\nPage/context: ${page} / ${context}\nQuestion: ${message}${snapshotText}`,
+      fallback,
+      temperature: 0.2
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        answer: data.answer || fallback.answer,
+        suggestions: Array.isArray(data.suggestions) ? data.suggestions.slice(0, 3) : fallback.suggestions,
+        powered_by: 'NudgeAI',
+        unavailable
+      }
+    });
+  } catch (error) {
+    console.error('NudgeAI assistant error:', error);
+    return res.status(200).json({
+      success: true,
+      data: {
+        answer: assistantFallback(req.body?.message, req.body?.context),
+        suggestions: ['What does NudgeHQ do?', 'How do dashboards work?', 'What is NudgeAI?'],
+        powered_by: 'NudgeAI',
+        unavailable: true
+      }
+    });
+  }
+};
+
 const getRecentUpdates = async (fromDate) => {
   const { data, error } = await supabase
     .from('progress_updates')

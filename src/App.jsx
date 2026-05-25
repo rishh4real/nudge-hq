@@ -218,16 +218,163 @@ function LegalPage({ pageKey, setCurrentView }) {
               <p className="mt-1 text-sm text-[#5F5E5A]">Reach our team for privacy, legal, or support questions.</p>
             </div>
             <a
-              href="mailto:nudgehq.team@gmail.com"
+              href="mailto:hello.nudgehq@gmail.com"
               className="inline-flex items-center justify-center gap-2 rounded-md bg-[#3C3489] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#7F77DD]"
             >
               <Mail className="h-4 w-4" aria-hidden="true" />
-              nudgehq.team@gmail.com
+              hello.nudgehq@gmail.com
             </a>
           </div>
         </section>
       </motion.div>
     </main>
+  )
+}
+
+function NudgeAssistant({ context, role, page, dashboardSnapshot, onAsk }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [input, setInput] = useState('')
+  const [messages, setMessages] = useState([
+    {
+      from: 'assistant',
+      text: context === 'dashboard'
+        ? 'Ask me about this workspace, tasks, blockers, NudgeAI reports, or what to do next.'
+        : 'Ask me anything about NudgeHQ, pricing, features, privacy, or how the platform works.',
+    },
+  ])
+  const [loading, setLoading] = useState(false)
+
+  const submitQuestion = async (question = input) => {
+    const clean = question.trim()
+    if (!clean || loading) return
+
+    setMessages((items) => [...items, { from: 'user', text: clean }])
+    setInput('')
+    setLoading(true)
+
+    try {
+      const answer = await onAsk({ message: clean, context, role, page, dashboard_snapshot: dashboardSnapshot })
+      setMessages((items) => [...items, { from: 'assistant', text: answer }])
+    } catch {
+      setMessages((items) => [
+        ...items,
+        {
+          from: 'assistant',
+          text: 'NudgeAI is unavailable right now. Try again in a moment.',
+        },
+      ])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const quickPrompts = context === 'dashboard'
+    ? ['What needs attention?', 'Explain my dashboard', 'What should I do next?']
+    : ['What is NudgeHQ?', 'How does NudgeAI help?', 'Is pricing fixed?']
+
+  return (
+    <div className="fixed bottom-5 right-5 z-[70]">
+      <AnimatePresence>
+        {isOpen ? (
+          <motion.div
+            initial={{ opacity: 0, y: 18, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.96 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+            className="mb-4 w-[calc(100vw-2.5rem)] max-w-sm overflow-hidden rounded-2xl border border-[#DAD7FB] bg-white shadow-2xl shadow-[#3C3489]/20"
+          >
+            <div className="flex items-center justify-between bg-gradient-to-r from-[#3C3489] via-[#7F77DD] to-[#1D9E75] px-4 py-3 text-white">
+              <div className="flex items-center gap-2">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15">
+                  <Sparkles className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <div>
+                  <p className="text-sm font-extrabold">NudgeAI Assistant</p>
+                  <p className="text-[11px] font-medium text-white/75">{context === 'dashboard' ? `${role || 'workspace'} dashboard` : 'Product guide'}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="rounded-full p-1.5 text-white/80 transition hover:bg-white/15 hover:text-white"
+                aria-label="Close NudgeAI assistant"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="max-h-80 space-y-3 overflow-y-auto bg-[#FCFCFF] p-4">
+              {messages.map((message, index) => (
+                <div
+                  key={`${message.from}-${index}-${message.text.slice(0, 12)}`}
+                  className={`rounded-2xl px-4 py-3 text-sm leading-6 ${
+                    message.from === 'user'
+                      ? 'ml-8 bg-[#3C3489] text-white'
+                      : 'mr-8 border border-[#EEEDFE] bg-white text-[#2C2C2A]'
+                  }`}
+                >
+                  {message.text}
+                </div>
+              ))}
+              {loading ? (
+                <div className="mr-8 inline-flex items-center gap-2 rounded-2xl border border-[#EEEDFE] bg-white px-4 py-3 text-sm font-semibold text-[#5F5E5A]">
+                  <RefreshCw className="h-4 w-4 animate-spin text-[#7F77DD]" aria-hidden="true" />
+                  NudgeAI is thinking...
+                </div>
+              ) : null}
+            </div>
+
+            <div className="border-t border-[#EEEDFE] bg-white p-4">
+              <div className="mb-3 flex flex-wrap gap-2">
+                {quickPrompts.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    onClick={() => submitQuestion(prompt)}
+                    className="rounded-full border border-[#EEEDFE] bg-[#FCFCFF] px-3 py-1.5 text-[11px] font-bold text-[#3C3489] transition hover:border-[#DAD7FB] hover:bg-[#EEEDFE]"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  submitQuestion()
+                }}
+                className="flex gap-2"
+              >
+                <input
+                  value={input}
+                  onChange={(event) => setInput(event.target.value)}
+                  className="min-w-0 flex-1 rounded-full border border-[#DAD7FB] px-4 py-2.5 text-sm outline-none transition focus:border-[#7F77DD]"
+                  placeholder="Ask NudgeAI..."
+                />
+                <button
+                  type="submit"
+                  disabled={loading || !input.trim()}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#3C3489] text-white transition hover:bg-[#7F77DD] disabled:opacity-45"
+                  aria-label="Send message"
+                >
+                  <Send className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </form>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <button
+        type="button"
+        onClick={() => setIsOpen((state) => !state)}
+        className="group flex items-center gap-3 rounded-full bg-[#111827] px-5 py-4 text-sm font-extrabold text-white shadow-2xl shadow-[#111827]/25 transition hover:-translate-y-0.5 hover:bg-[#3C3489]"
+      >
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-[#8DE4C3]">
+          <MessageSquareText className="h-4 w-4" aria-hidden="true" />
+        </span>
+        Ask NudgeAI
+      </button>
+    </div>
   )
 }
 
@@ -384,7 +531,7 @@ const legalPages = {
       },
       {
         title: 'Contact',
-        body: 'For questions regarding privacy or data protection, email nudgehq.team@gmail.com.',
+        body: 'For questions regarding privacy or data protection, email hello.nudgehq@gmail.com.',
       },
     ],
   },
@@ -438,7 +585,7 @@ const legalPages = {
       },
       {
         title: 'Contact',
-        body: 'For support or legal inquiries, email nudgehq.team@gmail.com.',
+        body: 'For support or legal inquiries, email hello.nudgehq@gmail.com.',
       },
     ],
   },
@@ -1473,6 +1620,36 @@ function App() {
   const showNextStory = () => setActiveStory((story) => (story + 1) % productScenarios.length)
 
   const currentStory = productScenarios[activeStory]
+  const assistantSnapshot = currentView === 'dashboard'
+    ? {
+        role: authRole,
+        user: user?.name,
+        stats: authRole === 'admin' ? analytics : empStats,
+        tasks: authRole === 'admin' ? allUpdates.slice(0, 5) : empTasks.slice(0, 5),
+        departments: departments.slice(0, 5),
+        focus: authRole === 'admin' ? teamFocus.slice(0, 5) : focusText,
+        presence: authRole === 'admin' ? teamPresence.slice(0, 5) : { workLocation, goals, energyLevel },
+        latest_nudgeai: nudgeAiData,
+      }
+    : null
+
+  const askNudgeAi = async (payload) => {
+    try {
+      const { data } = await fetchApi('/ai/assistant', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }, token);
+      return data.data?.answer || data.answer || 'NudgeAI answered, but the response was empty. Try asking in a different way.';
+    } catch {
+      if (/price|pricing|cost/i.test(payload.message)) {
+        return 'Pricing is temporary right now. The current plans are early estimates and can change as NudgeHQ grows.';
+      }
+      if (/feature|nudgeai|dashboard/i.test(payload.message)) {
+        return 'NudgeHQ includes employee progress updates, task tracking, blockers, focus, smart presence, deep work, admin dashboards, reports, and NudgeAI insights.';
+      }
+      return 'NudgeAI is unavailable right now. Try again in a moment.';
+    }
+  }
 
   return (
     <main className="min-h-screen overflow-x-clip bg-white text-[#2C2C2A] font-sans">
@@ -2238,38 +2415,55 @@ function App() {
 
       {/* VIEW 2: SIGN IN */}
       {currentView === 'signin' && (
-        <section className="relative overflow-hidden px-5 py-20 sm:px-6 lg:px-8">
-          <div className="dot-grid absolute inset-0 -z-10 opacity-40" />
-          <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+        <section className="relative isolate min-h-[calc(100svh-5rem)] overflow-hidden bg-[#F7FAFF] px-5 py-16 sm:px-6 lg:px-8">
+          <div className="absolute inset-0 -z-20 bg-[radial-gradient(circle_at_15%_10%,#DFECFF_0,transparent_32%),radial-gradient(circle_at_86%_18%,#DCF8EF_0,transparent_28%),linear-gradient(180deg,#F8FBFF_0%,#FFFFFF_100%)]" />
+          <div className="absolute left-1/2 top-10 -z-10 h-80 w-[52rem] -translate-x-1/2 rounded-full bg-[#EEEDFE]/80 blur-3xl" />
+          <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
             <motion.div {...cardMotion}>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#1D9E75]">Welcome back</p>
-              <h1 className="mt-4 max-w-xl text-4xl font-extrabold leading-tight text-[#2C2C2A] sm:text-5xl">
-                Sign in to your NudgeHQ workspace.
+              <span className="inline-flex items-center gap-2 rounded-full border border-white bg-white/80 px-4 py-2 text-sm font-bold text-[#3C3489] shadow-lg shadow-[#3C3489]/5 backdrop-blur">
+                <Sparkles className="h-4 w-4 text-[#1D9E75]" aria-hidden="true" />
+                Welcome back
+              </span>
+              <h1 className="mt-6 max-w-xl text-5xl font-medium leading-[1.08] text-[#1E2737] sm:text-6xl">
+                Open your <span className="font-extrabold text-[#6476FF]">live</span> workspace.
               </h1>
               <p className="mt-5 max-w-xl text-lg leading-8 text-[#5F5E5A]">
                 Use your company email and password to access employee updates, admin reports, tasks, blockers, and NudgeAI insights.
               </p>
-              <div className="mt-8 rounded-lg border border-[#EEEDFE] bg-white p-5 shadow-sm">
-                <p className="text-sm font-bold text-[#3C3489]">Testing locally?</p>
-                <p className="mt-2 text-sm leading-6 text-[#5F5E5A]">
-                  You can still launch the demo console for role switching while real company auth is being finalized.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setCurrentView('demo_console')}
-                  className="mt-4 inline-flex items-center gap-2 rounded-md bg-[#3C3489] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#7F77DD]"
-                >
-                  <Zap className="h-4 w-4 text-[#F59E0B]" aria-hidden="true" />
-                  Launch Demo Console
-                </button>
+              <div className="mt-8 rounded-2xl border border-white/90 bg-white/70 p-4 shadow-2xl shadow-[#7F77DD]/15 backdrop-blur-xl">
+                <div className="rounded-xl bg-gradient-to-r from-white via-[#F4F3FF] to-[#E8F7F1] p-5">
+                  <div className="flex items-center justify-between border-b border-white/70 pb-4">
+                    <div>
+                      <p className="text-sm font-extrabold text-[#3C3489]">Workspace pulse</p>
+                      <p className="mt-1 text-xs font-medium text-[#5F5E5A]">NudgeAI keeps the next action visible</p>
+                    </div>
+                    <span className="rounded-full bg-[#E8F7F1] px-3 py-1 text-xs font-bold text-[#1D9E75]">Live</span>
+                  </div>
+                  <div className="mt-4 grid gap-3">
+                    {['18 progress updates reviewed', '3 blockers need attention', '30 hrs saved every week'].map((item) => (
+                      <div key={item} className="flex items-center gap-3 rounded-lg bg-white/80 px-4 py-3 text-sm font-bold text-[#2C2C2A]">
+                        <Check className="h-4 w-4 text-[#1D9E75]" aria-hidden="true" />
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentView('demo_console')}
+                    className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#111827] px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#3C3489]"
+                  >
+                    <Zap className="h-4 w-4 text-[#F59E0B]" aria-hidden="true" />
+                    Launch Demo Console
+                  </button>
+                </div>
               </div>
             </motion.div>
 
-            <motion.div {...cardMotion} className="rounded-lg border border-[#DAD7FB] bg-white p-7 shadow-xl shadow-[#3C3489]/10">
+            <motion.div {...cardMotion} className="rounded-2xl border border-white/90 bg-white/85 p-7 shadow-2xl shadow-[#3C3489]/15 backdrop-blur-xl">
               <div className="flex items-center gap-3">
                 <img src="/brand/nudgehq-icon.svg" alt="" className="h-11 w-11 rounded-lg" />
                 <div>
-                  <h2 className="text-2xl font-bold text-[#2C2C2A]">Sign In</h2>
+                  <h2 className="text-2xl font-extrabold text-[#2C2C2A]">Sign In</h2>
                   <p className="text-sm text-[#5F5E5A]">Continue to your workspace</p>
                 </div>
               </div>
@@ -2329,20 +2523,24 @@ function App() {
 
       {/* VIEW 3: SIGN UP */}
       {currentView === 'signup' && (
-        <section className="relative overflow-hidden px-5 py-20 sm:px-6 lg:px-8">
-          <div className="dot-grid absolute inset-0 -z-10 opacity-40" />
-          <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+        <section className="relative isolate min-h-[calc(100svh-5rem)] overflow-hidden bg-[#F7FAFF] px-5 py-16 sm:px-6 lg:px-8">
+          <div className="absolute inset-0 -z-20 bg-[radial-gradient(circle_at_12%_8%,#DFECFF_0,transparent_30%),radial-gradient(circle_at_88%_16%,#DCF8EF_0,transparent_28%),linear-gradient(180deg,#F8FBFF_0%,#FFFFFF_100%)]" />
+          <div className="absolute left-1/2 top-10 -z-10 h-80 w-[52rem] -translate-x-1/2 rounded-full bg-[#EEEDFE]/80 blur-3xl" />
+          <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
             <motion.div {...cardMotion}>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#1D9E75]">Create workspace</p>
-              <h1 className="mt-4 max-w-xl text-4xl font-extrabold leading-tight text-[#2C2C2A] sm:text-5xl">
-                Start tracking company progress from day one.
+              <span className="inline-flex items-center gap-2 rounded-full border border-white bg-white/80 px-4 py-2 text-sm font-bold text-[#3C3489] shadow-lg shadow-[#3C3489]/5 backdrop-blur">
+                <Building2 className="h-4 w-4 text-[#1D9E75]" aria-hidden="true" />
+                Create workspace
+              </span>
+              <h1 className="mt-6 max-w-xl text-5xl font-medium leading-[1.08] text-[#1E2737] sm:text-6xl">
+                Build your <span className="font-extrabold text-[#6476FF]">progress HQ</span>.
               </h1>
               <p className="mt-5 max-w-xl text-lg leading-8 text-[#5F5E5A]">
                 Add your company, create the first admin account, then invite employees and assign tasks from the admin dashboard.
               </p>
-              <div className="mt-8 grid gap-3">
+              <div className="mt-8 grid gap-3 rounded-2xl border border-white/90 bg-white/70 p-4 shadow-2xl shadow-[#7F77DD]/15 backdrop-blur-xl">
                 {['Create your organization', 'Set up admin access', 'Invite employees by email', 'Track updates and blockers'].map((item) => (
-                  <div key={item} className="flex items-center gap-3 rounded-md border border-[#EEEDFE] bg-white p-4 shadow-sm">
+                  <div key={item} className="flex items-center gap-3 rounded-xl border border-[#EEEDFE] bg-white/85 p-4 shadow-sm">
                     <Check className="h-5 w-5 text-[#1D9E75]" aria-hidden="true" />
                     <span className="font-semibold text-[#2C2C2A]">{item}</span>
                   </div>
@@ -2350,11 +2548,11 @@ function App() {
               </div>
             </motion.div>
 
-            <motion.div {...cardMotion} className="rounded-lg border border-[#DAD7FB] bg-white p-7 shadow-xl shadow-[#3C3489]/10">
+            <motion.div {...cardMotion} className="rounded-2xl border border-white/90 bg-white/85 p-7 shadow-2xl shadow-[#3C3489]/15 backdrop-blur-xl">
               <div className="flex items-center gap-3">
                 <img src="/brand/nudgehq-icon.svg" alt="" className="h-11 w-11 rounded-lg" />
                 <div>
-                  <h2 className="text-2xl font-bold text-[#2C2C2A]">Sign Up</h2>
+                  <h2 className="text-2xl font-extrabold text-[#2C2C2A]">Sign Up</h2>
                   <p className="text-sm text-[#5F5E5A]">Create your company workspace</p>
                 </div>
               </div>
@@ -3425,6 +3623,16 @@ function App() {
 
         </section>
       )}
+
+      {['landing', 'signin', 'signup', 'privacy', 'terms', 'dashboard'].includes(currentView) ? (
+        <NudgeAssistant
+          context={currentView === 'dashboard' ? 'dashboard' : 'public'}
+          role={authRole || 'visitor'}
+          page={currentView}
+          dashboardSnapshot={assistantSnapshot}
+          onAsk={askNudgeAi}
+        />
+      ) : null}
     </main>
   )
 }
