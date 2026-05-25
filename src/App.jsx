@@ -154,6 +154,11 @@ function PasswordField({ label, value, onChange, placeholder = 'Enter password',
 function LegalPage({ pageKey, setCurrentView }) {
   const page = legalPages[pageKey]
 
+  useEffect(() => {
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [pageKey]);
+
   return (
     <main className="relative isolate overflow-hidden bg-[#F8FBFF] px-5 py-16 sm:px-6 lg:px-8">
       <div className="absolute inset-0 -z-20 bg-[radial-gradient(circle_at_12%_8%,#DFECFF_0,transparent_30%),radial-gradient(circle_at_88%_14%,#DCF8EF_0,transparent_26%),linear-gradient(180deg,#F8FBFF_0%,#FFFFFF_58%)]" />
