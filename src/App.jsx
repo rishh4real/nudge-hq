@@ -701,7 +701,6 @@ function App() {
   const [passwordInput, setPasswordInput] = useState('')
   const [loginError, setLoginError] = useState(null)
   const [loginLoading, setLoginLoading] = useState(false)
-  const [googleLoading, setGoogleLoading] = useState(false)
   const [signupCompany, setSignupCompany] = useState('')
   const [signupName, setSignupName] = useState('')
   const [signupEmail, setSignupEmail] = useState('')
@@ -1149,37 +1148,6 @@ function App() {
         : message);
     } finally {
       setLoginLoading(false);
-    }
-  };
-
-  const startGoogleAuth = async (intent) => {
-    setLoginError(null);
-    setSignupError(null);
-
-    if (intent === 'signup') {
-      if (!signupCompany.trim()) {
-        setSignupError('Add your company name before continuing with Google.');
-        return;
-      }
-      if (!signupAgree) {
-        setSignupError('Please agree to the Terms & Conditions to continue with Google.');
-        return;
-      }
-      window.localStorage.setItem('nudgehq_google_signup_company', signupCompany.trim());
-    } else {
-      window.localStorage.removeItem('nudgehq_google_signup_company');
-    }
-
-    setGoogleLoading(true);
-    try {
-      const { data } = await fetchApi(`/auth/oauth/google/url?intent=${intent}`, { method: 'GET' });
-      window.location.href = data.url;
-    } catch (error) {
-      const message = error.message || 'Could not start Google sign-in.';
-      if (intent === 'signup') setSignupError(message);
-      else setLoginError(message);
-    } finally {
-      setGoogleLoading(false);
     }
   };
 
@@ -2856,12 +2824,11 @@ function App() {
               <form onSubmit={handleLoginSubmit} className="mt-7 grid gap-4">
                 <button
                   type="button"
-                  onClick={() => startGoogleAuth('login')}
-                  disabled={googleLoading}
-                  className="inline-flex items-center justify-center gap-3 rounded-md border border-[#DAD7FB] bg-white px-5 py-3.5 text-sm font-extrabold text-[#2C2C2A] transition hover:border-[#7F77DD] hover:bg-[#FCFCFF] disabled:opacity-50"
+                  disabled
+                  className="inline-flex cursor-not-allowed items-center justify-center gap-3 rounded-md border border-[#DAD7FB] bg-white px-5 py-3.5 text-sm font-extrabold text-[#A09F9A] opacity-75"
                 >
                   <span className="grid h-6 w-6 place-items-center rounded-full border border-[#EEEDFE] bg-white text-base font-black text-[#4285F4]">G</span>
-                  {googleLoading ? 'Connecting...' : 'Continue with Google'}
+                  Continue with Google - Coming soon
                 </button>
                 <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-[0.14em] text-[#A09F9A]">
                   <span className="h-px flex-1 bg-[#EEEDFE]" />
@@ -3026,12 +2993,11 @@ function App() {
 
                 <button
                   type="button"
-                  onClick={() => startGoogleAuth('signup')}
-                  disabled={googleLoading}
-                  className="inline-flex items-center justify-center gap-3 rounded-md border border-[#DAD7FB] bg-white px-5 py-3.5 text-sm font-extrabold text-[#2C2C2A] transition hover:border-[#7F77DD] hover:bg-[#FCFCFF] disabled:opacity-50"
+                  disabled
+                  className="inline-flex cursor-not-allowed items-center justify-center gap-3 rounded-md border border-[#DAD7FB] bg-white px-5 py-3.5 text-sm font-extrabold text-[#A09F9A] opacity-75"
                 >
                   <span className="grid h-6 w-6 place-items-center rounded-full border border-[#EEEDFE] bg-white text-base font-black text-[#4285F4]">G</span>
-                  {googleLoading ? 'Connecting...' : 'Continue with Google'}
+                  Continue with Google - Coming soon
                 </button>
 
                 <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-[0.14em] text-[#A09F9A]">
