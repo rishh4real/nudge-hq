@@ -245,7 +245,8 @@ export const companySignup = async (req, res) => {
 
     // Create verification token and send email
     const verificationToken = await createVerificationToken(adminUser.id);
-    await sendVerificationEmail(normalizedEmail, adminName, verificationToken);
+    sendVerificationEmail(normalizedEmail, adminName, verificationToken)
+      .catch((mailError) => console.error('Company signup verification email failed:', mailError.message));
 
     return res.status(201).json({
       success: true,
@@ -819,13 +820,14 @@ export const completeOnboarding = async (req, res) => {
 
     const { error: orgError } = await supabase
       .from('organizations')
-      .update({
+      .update(compactPayload({
+        name: company.name || undefined,
         industry: company.industry || null,
         size: company.size || null,
         country: company.country || 'India',
         city: company.city || null,
         logo_url: company.logo_url || null
-      })
+      }))
       .eq('id', orgId);
     if (orgError) throw orgError;
 

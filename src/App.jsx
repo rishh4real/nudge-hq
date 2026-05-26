@@ -712,7 +712,7 @@ function App() {
   const [selectedPlan, setSelectedPlan] = useState(() => window.localStorage.getItem('nudgehq_selected_plan') || '')
   const [paymentLoading, setPaymentLoading] = useState(false)
   const [onboardingStep, setOnboardingStep] = useState(1)
-  const [companyDetails, setCompanyDetails] = useState({ logo_url: '', industry: 'Tech', size: '1-10', country: 'India', city: '' })
+  const [companyDetails, setCompanyDetails] = useState({ name: '', logo_url: '', industry: 'Tech', size: '1-10', country: 'India', city: '' })
   const [onboardingDepartments, setOnboardingDepartments] = useState([{ name: '', description: '' }])
   const [inviteEmployees, setInviteEmployees] = useState([{ name: '', email: '', department: '', role: 'employee' }])
   const [csvPreview, setCsvPreview] = useState([])
@@ -879,8 +879,9 @@ function App() {
     else if (currentView === 'reset_password') targetPath = '/reset-password';
     else if (currentView === 'accept_invite') targetPath = '/set-password';
     
-    // Avoid overwriting query parameters during verification/reset/invite pages
-    if (currentPath !== targetPath && !['/verify-email', '/reset-password', '/accept-invite'].includes(currentPath)) {
+    // Avoid overwriting token query parameters only while those token views are active.
+    const shouldPreserveTokenUrl = ['verify_email', 'reset_password', 'accept_invite'].includes(currentView);
+    if (currentPath !== targetPath && !shouldPreserveTokenUrl) {
       window.history.pushState({}, '', targetPath);
     }
   }, [currentView]);
@@ -1045,6 +1046,31 @@ function App() {
     setTimeout(() => setStatusMessage(null), 5000);
   };
 
+  const getUserOrganization = (nextUser) => nextUser?.organizations || nextUser?.organization || null;
+
+  const hydrateCompanyDetails = (nextUser, fallbackName = '') => {
+    const organization = getUserOrganization(nextUser);
+    setCompanyDetails((current) => ({
+      ...current,
+      name: organization?.name || fallbackName || current.name,
+      logo_url: organization?.logo_url || current.logo_url,
+      industry: organization?.industry || current.industry,
+      size: organization?.size || current.size,
+      country: organization?.country || current.country || 'India',
+      city: organization?.city || current.city,
+    }));
+  };
+
+  const routeAfterAuth = (nextUser, fallbackCompanyName = '') => {
+    hydrateCompanyDetails(nextUser, fallbackCompanyName);
+    if (nextUser?.role === 'admin' && !nextUser?.onboarding_complete) {
+      setOnboardingStep(1);
+      setCurrentView('onboarding');
+      return;
+    }
+    navigateDashboard(nextUser?.role || 'admin');
+  };
+
   const enterSandboxDashboard = () => {
     const simulatedUser = emailInput === 'hr@nudgehq.com'
       ? { name: 'HR Operations', role: 'admin', email: 'hr@nudgehq.com' }
@@ -1102,7 +1128,7 @@ function App() {
       setUser(data.user);
       setToken(data.token);
       setAuthRole(data.user.role);
-      navigateDashboard(data.user.role);
+      routeAfterAuth(data.user);
       showToast(`Welcome back, ${data.user.name}!`, 'success');
     } catch (err) {
       const message = err.message || 'Incorrect email or password.';
@@ -1171,7 +1197,7 @@ function App() {
       setUser(data.user);
       setToken(data.token);
       setAuthRole(data.user.role);
-      navigateDashboard(data.user.role);
+      routeAfterAuth(data.user, signupCompany);
       showToast(`Workspace created for ${signupCompany}. Welcome, ${data.user.name}.`, 'success');
       setSignupCompany('');
       setSignupName('');
@@ -1913,6 +1939,7 @@ function App() {
           setUser={setUser}
           setToken={setToken}
           setAuthRole={setAuthRole}
+          routeAfterAuth={routeAfterAuth}
         />
       )}
 
@@ -2036,6 +2063,7 @@ function App() {
 
             {onboardingStep === 1 ? (
               <div className="mt-7 grid gap-5 sm:grid-cols-2">
+                <input className="rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD] sm:col-span-2" placeholder="Company name" value={companyDetails.name} onChange={(e) => setCompanyDetails({ ...companyDetails, name: e.target.value })} />
                 <input className="rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" placeholder="Company logo URL (optional)" value={companyDetails.logo_url} onChange={(e) => setCompanyDetails({ ...companyDetails, logo_url: e.target.value })} />
                 <select className="rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none" value={companyDetails.industry} onChange={(e) => setCompanyDetails({ ...companyDetails, industry: e.target.value })}>
                   {['Tech', 'Finance', 'Healthcare', 'Logistics', 'Retail', 'Manufacturing', 'Consulting', 'Education', 'Other'].map((item) => <option key={item}>{item}</option>)}
@@ -4203,7 +4231,7 @@ function SectionHeader({ eyebrow, title, copy }) {
   )
 }
 
-function VerifyEmailView({ queryParams, setCurrentView, showToast, verificationEmail, setVerificationEmail, setUser, setToken, setAuthRole }) {
+function VerifyEmailView({ queryParams, setCurrentView, showToast, verificationEmail, setVerificationEmail, setUser, setToken, setAuthRole, routeAfterAuth }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
@@ -4222,9 +4250,11 @@ function VerifyEmailView({ queryParams, setCurrentView, showToast, verificationE
           setUser(data.user);
           setToken(data.token);
           setAuthRole(data.user.role);
+          routeAfterAuth(data.user);
+        } else {
+          setCurrentView('choose_plan');
         }
         setSuccess(true);
-        setCurrentView('choose_plan');
         showToast(data.message || 'Email verified successfully!', 'success');
       } catch (err) {
         setError(err.message || 'Failed to verify email address.');

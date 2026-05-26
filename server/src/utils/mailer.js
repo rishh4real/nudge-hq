@@ -15,6 +15,9 @@ const transporter = hasSmtpConfig
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
+      connectionTimeout: Number(process.env.SMTP_CONNECTION_TIMEOUT || 5000),
+      greetingTimeout: Number(process.env.SMTP_GREETING_TIMEOUT || 5000),
+      socketTimeout: Number(process.env.SMTP_SOCKET_TIMEOUT || 8000),
     })
   : null;
 
@@ -26,7 +29,13 @@ const sendNudgeMail = async (mailOptions, fallbackLink) => {
     return { skipped: true, previewLink: fallbackLink };
   }
 
-  return transporter.sendMail(mailOptions);
+  try {
+    return await transporter.sendMail(mailOptions);
+  } catch (error) {
+    console.error(`[NudgeHQ mail failed] ${mailOptions.subject}: ${error.message}`);
+    console.info(`[NudgeHQ mail fallback] ${mailOptions.subject}: ${fallbackLink}`);
+    return { failed: true, previewLink: fallbackLink, error: error.message };
+  }
 };
 
 /**
