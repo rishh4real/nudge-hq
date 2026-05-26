@@ -288,7 +288,7 @@ export const login = async (req, res) => {
     // Fetch user details from database
     const { data: user, error: fetchError } = await supabase
       .from('users')
-      .select('id, name, email, password_hash, role, department_id, organization_id, company_id, onboarding_complete, is_verified, created_at, organizations(id, name, plan, trial_ends_at, plan_expires_at)')
+      .select('id, name, email, password_hash, role, department_id, organization_id, company_id, onboarding_complete, is_verified, created_at, organizations!users_company_id_fkey(id, name, plan, trial_ends_at, plan_expires_at)')
       .eq('email', normalizedEmail)
       .maybeSingle();
 
@@ -426,7 +426,7 @@ export const verifyEmail = async (req, res) => {
 
     const { data: verifiedUser } = await supabase
       .from('users')
-      .select('id, name, email, role, department_id, organization_id, company_id, onboarding_complete, organizations(id, name, plan, trial_ends_at, plan_expires_at)')
+      .select('id, name, email, role, department_id, organization_id, company_id, onboarding_complete, organizations!users_company_id_fkey(id, name, plan, trial_ends_at, plan_expires_at)')
       .eq('id', record.user_id)
       .single();
 
@@ -601,7 +601,7 @@ export const getInviteStatus = async (req, res) => {
 
     const { data: invitation, error } = await supabase
       .from('employee_invitations')
-      .select('id, email, name, role, department_id, organization_id, company_id, status, expires_at, organizations(name, logo_url)')
+      .select('id, email, name, role, department_id, organization_id, company_id, status, expires_at, organizations!employee_invitations_company_id_fkey(name, logo_url)')
       .eq('token', token)
       .maybeSingle();
 
