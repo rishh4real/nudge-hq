@@ -23,6 +23,20 @@ const transporter = hasSmtpConfig
 
 const APP_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 
+const brandHeader = `
+  <table role="presentation" cellspacing="0" cellpadding="0" style="margin-bottom:28px;">
+    <tr>
+      <td style="vertical-align:middle;">
+        <div style="height:46px;width:46px;border-radius:12px;background:#1A1035;color:#FFFFFF;font-weight:800;font-size:24px;line-height:46px;text-align:center;font-family:Arial,sans-serif;">N.</div>
+      </td>
+      <td style="vertical-align:middle;padding-left:12px;">
+        <div style="font-size:22px;font-weight:800;color:#3C3489;line-height:1.1;font-family:Arial,sans-serif;">NudgeHQ</div>
+        <div style="font-size:12px;font-weight:700;color:#5F5E5A;letter-spacing:0.08em;text-transform:uppercase;margin-top:3px;font-family:Arial,sans-serif;">Workspace onboarding</div>
+      </td>
+    </tr>
+  </table>
+`;
+
 const sendNudgeMail = async (mailOptions, fallbackLink) => {
   if (!transporter) {
     console.info(`[NudgeHQ mail skipped] ${mailOptions.subject}: ${fallbackLink}`);
@@ -49,18 +63,20 @@ export const sendVerificationEmail = async (email, name, token) => {
     to: email,
     subject: 'Verify your NudgeHQ account',
     html: `
-      <div style="font-family: sans-serif; padding: 20px; color: #2C2C2A;">
-        <div style="display:inline-flex;align-items:center;gap:10px;margin-bottom:16px;">
-          <div style="height:42px;width:42px;border-radius:10px;background:#1A1035;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;">N.</div>
-          <strong style="font-size:20px;color:#3C3489;">NudgeHQ</strong>
+      <div style="margin:0;background:#F7FAFF;padding:28px 12px;">
+        <div style="max-width:560px;margin:0 auto;background:#FFFFFF;border:1px solid #EEEDFE;border-radius:18px;padding:32px;color:#2C2C2A;font-family:Arial,sans-serif;">
+          ${brandHeader}
+          <h1 style="margin:0 0 12px;font-size:26px;line-height:1.25;color:#2C2C2A;">Verify your NudgeHQ account</h1>
+          <p style="margin:0 0 20px;font-size:15px;line-height:1.7;color:#5F5E5A;">Hi ${name}, welcome to NudgeHQ. Confirm this email address to activate your workspace and continue company setup.</p>
+          <p style="margin:26px 0;">
+            <a href="${verifyLink}" style="padding:14px 22px;background-color:#7F77DD;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:800;display:inline-block;font-size:14px;">Verify Email</a>
+          </p>
+          <p style="margin:0 0 8px;font-size:13px;color:#5F5E5A;">Button not working? Copy this link into your browser:</p>
+          <p style="margin:0;word-break:break-all;font-size:13px;line-height:1.6;color:#3C3489;">${verifyLink}</p>
+          <div style="margin-top:28px;border-top:1px solid #EEEDFE;padding-top:18px;font-size:12px;line-height:1.6;color:#7A7974;">
+            If this landed in Spam, mark it as "Not spam" so future NudgeHQ invites reach your inbox.
+          </div>
         </div>
-        <h2>Welcome to NudgeHQ, ${name}!</h2>
-        <p>Please click the button below to verify your email address and activate your workspace:</p>
-        <p style="margin: 24px 0;">
-          <a href="${verifyLink}" style="padding: 12px 24px; background-color: #7F77DD; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Verify Email</a>
-        </p>
-        <p>Or copy this link into your browser:</p>
-        <p style="color: #7F77DD;">${verifyLink}</p>
       </div>
     `,
   };
@@ -128,11 +144,8 @@ export const sendWorkspaceInviteEmail = async ({ email, adminName, companyName, 
     to: email,
     subject: `${adminName} invited you to NudgeHQ`,
     html: `
-      <div style="font-family: sans-serif; padding: 20px; color: #2C2C2A;">
-        <div style="display:inline-flex;align-items:center;gap:10px;margin-bottom:16px;">
-          <div style="height:42px;width:42px;border-radius:10px;background:#1A1035;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;">N.</div>
-          <strong style="font-size:20px;color:#3C3489;">NudgeHQ</strong>
-        </div>
+      <div style="font-family:Arial,sans-serif;padding:24px;color:#2C2C2A;">
+        ${brandHeader}
         <h2>Join ${companyName} workspace</h2>
         <p>${adminName} invited you to join <strong>${companyName}</strong> on NudgeHQ.</p>
         <p style="margin: 24px 0;">

@@ -4304,6 +4304,9 @@ function VerifyEmailView({ queryParams, setCurrentView, showToast, verificationE
           <p className="mt-3 text-sm leading-6 text-[#5F5E5A]">
             We sent a NudgeHQ verification link to <strong>{verificationEmail || 'your work email'}</strong>.
           </p>
+          <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm leading-6 text-amber-800">
+            Can&apos;t find it? Please check <strong>Spam</strong> or <strong>Promotions</strong>, then mark the email as <strong>Not spam</strong> so future NudgeHQ emails reach your inbox.
+          </div>
           <div className="mt-7 grid gap-3">
             <button type="button" onClick={resend} className="rounded-md bg-[#7F77DD] px-5 py-3 text-sm font-bold text-white hover:bg-[#3C3489]">
               Resend verification email
