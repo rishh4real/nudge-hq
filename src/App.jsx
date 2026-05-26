@@ -626,6 +626,7 @@ const getInitialView = () => {
   if (path.startsWith('/join/')) return 'join_workspace';
   if (path === '/forgot-password') return 'forgot_password';
   if (path === '/reset-password') return 'reset_password';
+  if (path === '/oauth/callback') return 'oauth_callback';
   if (path === '/accept-invite' || path === '/set-password') return 'accept_invite';
   if (path === '/signup') return 'signup';
   if (path === '/login' || path === '/signin') return 'signin';
@@ -700,6 +701,7 @@ function App() {
   const [passwordInput, setPasswordInput] = useState('')
   const [loginError, setLoginError] = useState(null)
   const [loginLoading, setLoginLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [signupCompany, setSignupCompany] = useState('')
   const [signupName, setSignupName] = useState('')
   const [signupEmail, setSignupEmail] = useState('')
@@ -832,6 +834,8 @@ function App() {
         setCurrentView('forgot_password');
       } else if (path === '/reset-password') {
         setCurrentView('reset_password');
+      } else if (path === '/oauth/callback') {
+        setCurrentView('oauth_callback');
       } else if (path === '/accept-invite' || path === '/set-password') {
         setCurrentView('accept_invite');
       } else if (path === '/signup') {
@@ -877,10 +881,11 @@ function App() {
     else if (currentView === 'verify_email') targetPath = '/verify-email';
     else if (currentView === 'forgot_password') targetPath = '/forgot-password';
     else if (currentView === 'reset_password') targetPath = '/reset-password';
+    else if (currentView === 'oauth_callback') targetPath = '/oauth/callback';
     else if (currentView === 'accept_invite') targetPath = '/set-password';
     
     // Avoid overwriting token query parameters only while those token views are active.
-    const shouldPreserveTokenUrl = ['verify_email', 'reset_password', 'accept_invite'].includes(currentView);
+    const shouldPreserveTokenUrl = ['verify_email', 'reset_password', 'accept_invite', 'oauth_callback'].includes(currentView);
     if (currentPath !== targetPath && !shouldPreserveTokenUrl) {
       window.history.pushState({}, '', targetPath);
     }
@@ -1144,6 +1149,37 @@ function App() {
         : message);
     } finally {
       setLoginLoading(false);
+    }
+  };
+
+  const startGoogleAuth = async (intent) => {
+    setLoginError(null);
+    setSignupError(null);
+
+    if (intent === 'signup') {
+      if (!signupCompany.trim()) {
+        setSignupError('Add your company name before continuing with Google.');
+        return;
+      }
+      if (!signupAgree) {
+        setSignupError('Please agree to the Terms & Conditions to continue with Google.');
+        return;
+      }
+      window.localStorage.setItem('nudgehq_google_signup_company', signupCompany.trim());
+    } else {
+      window.localStorage.removeItem('nudgehq_google_signup_company');
+    }
+
+    setGoogleLoading(true);
+    try {
+      const { data } = await fetchApi(`/auth/oauth/google/url?intent=${intent}`, { method: 'GET' });
+      window.location.href = data.url;
+    } catch (error) {
+      const message = error.message || 'Could not start Google sign-in.';
+      if (intent === 'signup') setSignupError(message);
+      else setLoginError(message);
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -1855,7 +1891,7 @@ function App() {
             <span className="text-lg font-bold text-[#3C3489]">NudgeHQ</span>
           </a>
 
-          {['landing', 'signin', 'signup', 'privacy', 'terms', 'verify_email', 'choose_plan', 'payment', 'onboarding', 'accept_invite', 'join_workspace'].includes(currentView) ? (
+          {['landing', 'signin', 'signup', 'privacy', 'terms', 'verify_email', 'choose_plan', 'payment', 'onboarding', 'accept_invite', 'join_workspace', 'oauth_callback'].includes(currentView) ? (
             <>
               <div className="hidden items-center gap-8 text-sm font-medium text-[#5F5E5A] md:flex">
                 <a onClick={() => setCurrentView('landing')} className="transition hover:text-[#3C3489]" href="#features">Features</a>
@@ -1940,6 +1976,18 @@ function App() {
           setToken={setToken}
           setAuthRole={setAuthRole}
           routeAfterAuth={routeAfterAuth}
+        />
+      )}
+
+      {currentView === 'oauth_callback' && (
+        <GoogleOAuthCallback
+          queryParams={queryParams}
+          setUser={setUser}
+          setToken={setToken}
+          setAuthRole={setAuthRole}
+          routeAfterAuth={routeAfterAuth}
+          setCurrentView={setCurrentView}
+          showToast={showToast}
         />
       )}
 
@@ -2806,6 +2854,20 @@ function App() {
               </div>
 
               <form onSubmit={handleLoginSubmit} className="mt-7 grid gap-4">
+                <button
+                  type="button"
+                  onClick={() => startGoogleAuth('login')}
+                  disabled={googleLoading}
+                  className="inline-flex items-center justify-center gap-3 rounded-md border border-[#DAD7FB] bg-white px-5 py-3.5 text-sm font-extrabold text-[#2C2C2A] transition hover:border-[#7F77DD] hover:bg-[#FCFCFF] disabled:opacity-50"
+                >
+                  <span className="grid h-6 w-6 place-items-center rounded-full border border-[#EEEDFE] bg-white text-base font-black text-[#4285F4]">G</span>
+                  {googleLoading ? 'Connecting...' : 'Continue with Google'}
+                </button>
+                <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-[0.14em] text-[#A09F9A]">
+                  <span className="h-px flex-1 bg-[#EEEDFE]" />
+                  or use email
+                  <span className="h-px flex-1 bg-[#EEEDFE]" />
+                </div>
                 <div>
                   <label className="text-xs font-bold uppercase tracking-[0.14em] text-[#5F5E5A]">Email address</label>
                   <input
@@ -2961,6 +3023,22 @@ function App() {
                     .
                   </span>
                 </label>
+
+                <button
+                  type="button"
+                  onClick={() => startGoogleAuth('signup')}
+                  disabled={googleLoading}
+                  className="inline-flex items-center justify-center gap-3 rounded-md border border-[#DAD7FB] bg-white px-5 py-3.5 text-sm font-extrabold text-[#2C2C2A] transition hover:border-[#7F77DD] hover:bg-[#FCFCFF] disabled:opacity-50"
+                >
+                  <span className="grid h-6 w-6 place-items-center rounded-full border border-[#EEEDFE] bg-white text-base font-black text-[#4285F4]">G</span>
+                  {googleLoading ? 'Connecting...' : 'Continue with Google'}
+                </button>
+
+                <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-[0.14em] text-[#A09F9A]">
+                  <span className="h-px flex-1 bg-[#EEEDFE]" />
+                  or create with email
+                  <span className="h-px flex-1 bg-[#EEEDFE]" />
+                </div>
 
                 {signupError ? (
                   <p className="rounded-md border border-rose-100 bg-rose-50 p-3 text-sm font-medium text-rose-600">{signupError}</p>
@@ -4361,6 +4439,62 @@ function VerifyEmailView({ queryParams, setCurrentView, showToast, verificationE
               Back to Sign In
             </button>
           </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function GoogleOAuthCallback({ queryParams, setUser, setToken, setAuthRole, routeAfterAuth, setCurrentView, showToast }) {
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const completeGoogleAuth = async () => {
+      const code = queryParams.get('code');
+      if (!code) {
+        setError(queryParams.get('error_description') || 'Google did not return an authorization code.');
+        return;
+      }
+
+      try {
+        const companyName = window.localStorage.getItem('nudgehq_google_signup_company') || '';
+        const { data } = await fetchApi('/auth/oauth/google/callback', {
+          method: 'POST',
+          body: JSON.stringify({ code, company_name: companyName })
+        });
+
+        window.localStorage.removeItem('nudgehq_google_signup_company');
+        setUser(data.user);
+        setToken(data.token);
+        setAuthRole(data.user.role);
+        routeAfterAuth(data.user, companyName);
+        showToast('Google sign-in successful.', 'success');
+      } catch (err) {
+        setError(err.message || 'Could not complete Google sign-in.');
+      }
+    };
+
+    completeGoogleAuth();
+  }, [queryParams]);
+
+  return (
+    <div className="mx-auto max-w-md px-6 py-24 sm:py-32">
+      <div className="rounded-2xl border border-[#EEEDFE] bg-white p-8 text-center shadow-xl">
+        {error ? (
+          <>
+            <AlertCircle className="mx-auto h-14 w-14 text-rose-500" />
+            <h3 className="mt-4 text-xl font-extrabold text-rose-600">Google sign-in failed</h3>
+            <p className="mt-3 text-sm leading-6 text-[#5F5E5A]">{error}</p>
+            <button type="button" onClick={() => setCurrentView('signin')} className="mt-6 w-full rounded-md bg-[#7F77DD] px-5 py-3 text-sm font-bold text-white hover:bg-[#3C3489]">
+              Back to Sign In
+            </button>
+          </>
+        ) : (
+          <>
+            <RefreshCw className="mx-auto h-12 w-12 animate-spin text-[#7F77DD]" />
+            <h3 className="mt-4 text-xl font-extrabold text-[#2C2C2A]">Connecting Google account...</h3>
+            <p className="mt-3 text-sm leading-6 text-[#5F5E5A]">Please wait while NudgeHQ prepares your workspace.</p>
+          </>
         )}
       </div>
     </div>

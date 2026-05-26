@@ -275,6 +275,119 @@ export const companySignup = async (req, res) => {
   }
 };
 
+export const googleOAuthUrl = async (req, res) => {
+  try {
+    const redirectTo = `${CLIENT_URL}/oauth/callback`;
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent'
+        }
+      }
+    });
+
+    if (error) throw error;
+    return res.status(200).json({ success: true, url: data.url });
+  } catch (error) {
+    console.error('Google OAuth URL error:', error);
+    return res.status(500).json({ success: false, message: 'Could not start Google sign-in.', error: error.message });
+  }
+};
+
+export const googleOAuthCallback = async (req, res) => {
+  try {
+    const { code, company_name } = req.body;
+    if (!code) {
+      return res.status(400).json({ success: false, message: 'Google authorization code is required.' });
+    }
+
+    const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
+    if (sessionError) throw sessionError;
+
+    const googleUser = sessionData?.user;
+    const normalizedEmail = googleUser?.email?.toLowerCase().trim();
+    if (!googleUser || !normalizedEmail) {
+      return res.status(400).json({ success: false, message: 'Google account did not return an email address.' });
+    }
+
+    const displayName = googleUser.user_metadata?.full_name || googleUser.user_metadata?.name || normalizedEmail.split('@')[0];
+
+    const { data: existingUser, error: existingError } = await supabase
+      .from('users')
+      .select('id, name, email, password_hash, role, department_id, organization_id, company_id, onboarding_complete, is_verified, created_at, organizations!users_company_id_fkey(id, name, plan, trial_ends_at, plan_expires_at)')
+      .eq('email', normalizedEmail)
+      .maybeSingle();
+    if (existingError) throw existingError;
+
+    let user = existingUser;
+    if (user && !user.is_verified) {
+      await supabase.from('users').update({ is_verified: true }).eq('id', user.id);
+      user = { ...user, is_verified: true };
+    }
+
+    if (!user) {
+      const orgName = company_name?.trim() || `${displayName}'s Workspace`;
+      const { data: organization, error: orgError } = await supabase
+        .from('organizations')
+        .insert([{ name: orgName, plan: 'free_trial', trial_ends_at: addDays(14) }])
+        .select('id, name, plan, trial_ends_at, created_at')
+        .single();
+      if (orgError) throw orgError;
+
+      const passwordHash = await bcrypt.hash(`google-oauth:${googleUser.id}:${Date.now()}`, 10);
+      const inserted = await insertWithOptionalOrganization('users', {
+        id: googleUser.id,
+        name: displayName,
+        email: normalizedEmail,
+        password_hash: passwordHash,
+        role: 'admin',
+        department_id: null,
+        organization_id: organization.id,
+        company_id: organization.id,
+        onboarding_complete: false,
+        is_verified: true
+      });
+
+      await supabase.from('organizations').update({ owner_id: inserted.data.id }).eq('id', organization.id);
+      user = { ...inserted.data, organizations: organization };
+    }
+
+    const token = jwt.sign(
+      {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        department_id: user.department_id,
+        organization_id: user.organization_id
+      },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    const { password_hash, ...safeUserData } = user;
+    const redirectTo = safeUserData.role === 'admin' && !safeUserData.onboarding_complete
+      ? '/onboarding'
+      : safeUserData.role === 'employee'
+        ? '/dashboard/employee'
+        : '/dashboard/admin';
+
+    return res.status(200).json({
+      success: true,
+      message: 'Google authentication successful.',
+      token,
+      user: safeUserData,
+      redirect_to: redirectTo
+    });
+  } catch (error) {
+    console.error('Google OAuth callback error:', error);
+    return res.status(500).json({ success: false, message: 'Could not complete Google sign-in.', error: error.message });
+  }
+};
+
 /**
  * Login Controller: Authenticates user credentials and returns JWT (tenant isolated)
  */
