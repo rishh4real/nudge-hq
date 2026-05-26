@@ -441,14 +441,18 @@ export const verifyEmail = async (req, res) => {
       { expiresIn: JWT_EXPIRES_IN }
     ) : null;
 
+    const redirectTo = verifiedUser?.role === 'admin' && !verifiedUser?.onboarding_complete
+      ? '/onboarding'
+      : '/choose-plan';
+
     if (req.headers.accept?.includes('text/html')) {
-      return res.redirect(`${CLIENT_URL}/choose-plan?verified=1`);
+      return res.redirect(`${CLIENT_URL}${redirectTo}?verified=1`);
     }
 
     return res.status(200).json({
       success: true,
-      message: 'Email address verified successfully. You can now choose a plan.',
-      redirect_to: '/choose-plan',
+      message: 'Email address verified successfully. Continue setting up your workspace.',
+      redirect_to: redirectTo,
       token: jwtToken,
       user: verifiedUser
     });

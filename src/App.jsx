@@ -4244,6 +4244,17 @@ function VerifyEmailView({ queryParams, setCurrentView, showToast, verificationE
         setLoading(false);
         return;
       }
+
+      window.__nudgehqVerifyingTokens = window.__nudgehqVerifyingTokens || new Set();
+      window.__nudgehqVerifiedTokens = window.__nudgehqVerifiedTokens || new Set();
+
+      if (window.__nudgehqVerifiedTokens.has(token) || window.__nudgehqVerifyingTokens.has(token)) {
+        setSuccess(true);
+        setLoading(false);
+        return;
+      }
+
+      window.__nudgehqVerifyingTokens.add(token);
       try {
         const { data } = await fetchApi(`/auth/verify-email?token=${token}`, { method: 'GET' });
         if (data.token && data.user) {
@@ -4254,11 +4265,17 @@ function VerifyEmailView({ queryParams, setCurrentView, showToast, verificationE
         } else {
           setCurrentView('choose_plan');
         }
+        window.__nudgehqVerifiedTokens.add(token);
         setSuccess(true);
         showToast(data.message || 'Email verified successfully!', 'success');
       } catch (err) {
-        setError(err.message || 'Failed to verify email address.');
+        if (window.__nudgehqVerifiedTokens.has(token)) {
+          setSuccess(true);
+        } else {
+          setError(err.message || 'Failed to verify email address.');
+        }
       } finally {
+        window.__nudgehqVerifyingTokens.delete(token);
         setLoading(false);
       }
     };
