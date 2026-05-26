@@ -31,7 +31,7 @@ const isMissingOrgSchema = (error) => (
 const isMissingInviteLinkSchema = (error) => (
   error?.code === '42P01' ||
   error?.code === 'PGRST205' ||
-  /invite_links|schema cache|does not exist/i.test(error?.message || '')
+  /invite_links.*schema cache|invite_links.*does not exist/i.test(error?.message || '')
 );
 
 const insertWithOptionalOrganization = async (table, payload) => {
@@ -733,7 +733,7 @@ export const joinByInviteCode = async (req, res) => {
     const normalizedEmail = email.toLowerCase().trim();
     const { data: link, error: linkError } = await supabase
       .from('invite_links')
-      .select('id, code, company_id, organization_id, expires_at, max_uses, uses_count, is_active, organizations(name, logo_url)')
+      .select('id, code, company_id, organization_id, expires_at, max_uses, uses_count, is_active, organizations!invite_links_company_id_fkey(name, logo_url)')
       .eq('code', code)
       .maybeSingle();
 
@@ -795,7 +795,7 @@ export const getInviteLinkStatus = async (req, res) => {
 
     const { data: link, error } = await supabase
       .from('invite_links')
-      .select('code, expires_at, max_uses, uses_count, is_active, organizations(name, logo_url)')
+      .select('code, expires_at, max_uses, uses_count, is_active, organizations!invite_links_company_id_fkey(name, logo_url)')
       .eq('code', code)
       .maybeSingle();
 
