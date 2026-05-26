@@ -8,6 +8,15 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS organizations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(150) UNIQUE NOT NULL,
+    owner_id UUID,
+    industry VARCHAR(80),
+    size VARCHAR(30),
+    country VARCHAR(80) DEFAULT 'India',
+    city VARCHAR(120),
+    logo_url TEXT,
+    plan VARCHAR(40) DEFAULT 'free_trial',
+    trial_ends_at TIMESTAMPTZ,
+    plan_expires_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
@@ -24,11 +33,14 @@ CREATE TABLE IF NOT EXISTS departments (
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+    company_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'employee')) DEFAULT 'employee',
     department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+    avatar_url TEXT,
+    onboarding_complete BOOLEAN DEFAULT FALSE NOT NULL,
     is_verified BOOLEAN DEFAULT FALSE NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
@@ -82,12 +94,31 @@ CREATE TABLE IF NOT EXISTS reports (
 CREATE TABLE IF NOT EXISTS employee_invitations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+    company_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
     email VARCHAR(255) NOT NULL,
+    name VARCHAR(100),
+    role VARCHAR(20) DEFAULT 'employee' CHECK (role IN ('admin', 'employee')),
+    department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
     invited_by UUID REFERENCES users(id) ON DELETE SET NULL,
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     token TEXT,
     expires_at TIMESTAMPTZ,
-    status VARCHAR(20) NOT NULL CHECK (status IN ('pending', 'accepted', 'revoked')) DEFAULT 'pending',
+    status VARCHAR(20) NOT NULL CHECK (status IN ('pending', 'accepted', 'expired', 'revoked')) DEFAULT 'pending',
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    accepted_at TIMESTAMPTZ
+);
+
+-- Public magic invite links
+CREATE TABLE IF NOT EXISTS invite_links (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+    organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+    code TEXT UNIQUE NOT NULL,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    max_uses INTEGER NOT NULL DEFAULT 15,
+    uses_count INTEGER NOT NULL DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
@@ -168,13 +199,35 @@ CREATE TABLE IF NOT EXISTS deep_work_sessions (
 -- Backfill-safe migrations for existing Supabase projects
 ALTER TABLE departments ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_complete BOOLEAN DEFAULT FALSE NOT NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE NOT NULL;
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS owner_id UUID;
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS industry VARCHAR(80);
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS size VARCHAR(30);
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS country VARCHAR(80) DEFAULT 'India';
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS city VARCHAR(120);
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS logo_url TEXT;
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS plan VARCHAR(40) DEFAULT 'free_trial';
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ;
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS plan_expires_at TIMESTAMPTZ;
 ALTER TABLE progress_updates ADD COLUMN IF NOT EXISTS quality_score INTEGER CHECK (quality_score BETWEEN 1 AND 10);
 ALTER TABLE progress_updates ADD COLUMN IF NOT EXISTS quality_tip TEXT;
 ALTER TABLE reports ADD COLUMN IF NOT EXISTS report_month INTEGER;
 ALTER TABLE reports ADD COLUMN IF NOT EXISTS report_year INTEGER;
 ALTER TABLE employee_invitations ADD COLUMN IF NOT EXISTS token TEXT;
 ALTER TABLE employee_invitations ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
+ALTER TABLE employee_invitations ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE employee_invitations ADD COLUMN IF NOT EXISTS name VARCHAR(100);
+ALTER TABLE employee_invitations ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'employee';
+ALTER TABLE employee_invitations ADD COLUMN IF NOT EXISTS department_id UUID REFERENCES departments(id) ON DELETE SET NULL;
+ALTER TABLE employee_invitations ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMPTZ;
+
+ALTER TABLE organizations
+  DROP CONSTRAINT IF EXISTS organizations_owner_id_fkey;
+ALTER TABLE organizations
+  ADD CONSTRAINT organizations_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL;
 
 -- Keep demo accounts usable after email verification is enabled.
 UPDATE users
@@ -184,6 +237,7 @@ WHERE email IN ('hr@nudgehq.com', 'employee@nudgehq.com');
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_organization ON users(organization_id);
+CREATE INDEX IF NOT EXISTS idx_users_company ON users(company_id);
 CREATE INDEX IF NOT EXISTS idx_users_department ON users(department_id);
 CREATE INDEX IF NOT EXISTS idx_departments_organization ON departments(organization_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_assignee ON tasks(assignee_id);
@@ -194,7 +248,10 @@ CREATE INDEX IF NOT EXISTS idx_blocker_logs_task ON blocker_logs(task_id);
 CREATE INDEX IF NOT EXISTS idx_blocker_logs_resolved ON blocker_logs(resolved);
 CREATE INDEX IF NOT EXISTS idx_employee_invitations_email ON employee_invitations(email);
 CREATE INDEX IF NOT EXISTS idx_employee_invitations_organization ON employee_invitations(organization_id);
+CREATE INDEX IF NOT EXISTS idx_employee_invitations_company ON employee_invitations(company_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_employee_invitations_token ON employee_invitations(token);
+CREATE INDEX IF NOT EXISTS idx_invite_links_code ON invite_links(code);
+CREATE INDEX IF NOT EXISTS idx_invite_links_company ON invite_links(company_id);
 CREATE INDEX IF NOT EXISTS idx_email_verifications_token ON email_verifications(token);
 CREATE INDEX IF NOT EXISTS idx_email_verifications_user ON email_verifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_password_resets_token ON password_resets(token);

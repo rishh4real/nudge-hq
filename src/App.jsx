@@ -620,12 +620,16 @@ const getInitialView = () => {
   if (path === '/privacy') return 'privacy';
   if (path === '/terms') return 'terms';
   if (path === '/verify-email') return 'verify_email';
+  if (path === '/choose-plan') return 'choose_plan';
+  if (path === '/payment') return 'payment';
+  if (path === '/onboarding') return 'onboarding';
+  if (path.startsWith('/join/')) return 'join_workspace';
   if (path === '/forgot-password') return 'forgot_password';
   if (path === '/reset-password') return 'reset_password';
-  if (path === '/accept-invite') return 'accept_invite';
-  if (path === '/signup' || path === '/onboarding') return 'signup';
+  if (path === '/accept-invite' || path === '/set-password') return 'accept_invite';
+  if (path === '/signup') return 'signup';
   if (path === '/login' || path === '/signin') return 'signin';
-  if (path === '/dashboard') return 'signin';
+  if (path === '/dashboard' || path === '/dashboard/admin' || path === '/dashboard/employee') return 'signin';
   if (path === '/demo') return 'demo_console';
   return 'landing';
 }
@@ -680,7 +684,7 @@ const fetchApi = async (endpoint, options = {}, token = null) => {
 
 // --- MAIN APPLICATION ---
 function App() {
-  const [currentView, setCurrentView] = useState(getInitialView) // 'landing' | 'signin' | 'signup' | 'demo_console' | 'dashboard' | 'privacy' | 'terms'
+  const [currentView, setCurrentView] = useState(getInitialView)
   const [queryParams, setQueryParams] = useState(new URLSearchParams(window.location.search))
   const [authRole, setAuthRole] = useState(null) // 'admin' | 'employee'
   const [user, setUser] = useState(null)
@@ -701,8 +705,19 @@ function App() {
   const [signupEmail, setSignupEmail] = useState('')
   const [signupPassword, setSignupPassword] = useState('')
   const [signupConfirm, setSignupConfirm] = useState('')
+  const [signupAgree, setSignupAgree] = useState(false)
   const [signupError, setSignupError] = useState(null)
   const [signupLoading, setSignupLoading] = useState(false)
+  const [verificationEmail, setVerificationEmail] = useState(() => window.localStorage.getItem('nudgehq_pending_email') || '')
+  const [selectedPlan, setSelectedPlan] = useState(() => window.localStorage.getItem('nudgehq_selected_plan') || '')
+  const [paymentLoading, setPaymentLoading] = useState(false)
+  const [onboardingStep, setOnboardingStep] = useState(1)
+  const [companyDetails, setCompanyDetails] = useState({ logo_url: '', industry: 'Tech', size: '1-10', country: 'India', city: '' })
+  const [onboardingDepartments, setOnboardingDepartments] = useState([{ name: '', description: '' }])
+  const [inviteEmployees, setInviteEmployees] = useState([{ name: '', email: '', department: '', role: 'employee' }])
+  const [csvPreview, setCsvPreview] = useState([])
+  const [magicInviteLink, setMagicInviteLink] = useState('')
+  const [onboardingLoading, setOnboardingLoading] = useState(false)
 
   // --- DASHBOARD DATA STATES ---
   // Employee Workspace
@@ -805,17 +820,25 @@ function App() {
         setCurrentView('terms');
       } else if (path === '/verify-email') {
         setCurrentView('verify_email');
+      } else if (path === '/choose-plan') {
+        setCurrentView('choose_plan');
+      } else if (path === '/payment') {
+        setCurrentView('payment');
+      } else if (path === '/onboarding') {
+        setCurrentView('onboarding');
+      } else if (path.startsWith('/join/')) {
+        setCurrentView('join_workspace');
       } else if (path === '/forgot-password') {
         setCurrentView('forgot_password');
       } else if (path === '/reset-password') {
         setCurrentView('reset_password');
-      } else if (path === '/accept-invite') {
+      } else if (path === '/accept-invite' || path === '/set-password') {
         setCurrentView('accept_invite');
-      } else if (path === '/signup' || path === '/onboarding') {
+      } else if (path === '/signup') {
         setCurrentView('signup');
       } else if (path === '/login' || path === '/signin') {
         setCurrentView('signin');
-      } else if (path === '/dashboard') {
+      } else if (path === '/dashboard' || path === '/dashboard/admin' || path === '/dashboard/employee') {
         if (token) {
           setCurrentView('dashboard');
         } else {
@@ -845,12 +868,16 @@ function App() {
     else if (currentView === 'terms') targetPath = '/terms';
     else if (currentView === 'signin') targetPath = '/login';
     else if (currentView === 'signup') targetPath = '/signup';
+    else if (currentView === 'choose_plan') targetPath = '/choose-plan';
+    else if (currentView === 'payment') targetPath = '/payment';
+    else if (currentView === 'onboarding') targetPath = '/onboarding';
+    else if (currentView === 'join_workspace') targetPath = currentPath.startsWith('/join/') ? currentPath : '/join';
     else if (currentView === 'demo_console') targetPath = '/demo';
-    else if (currentView === 'dashboard') targetPath = '/dashboard';
+    else if (currentView === 'dashboard') targetPath = authRole === 'employee' ? '/dashboard/employee' : '/dashboard/admin';
     else if (currentView === 'verify_email') targetPath = '/verify-email';
     else if (currentView === 'forgot_password') targetPath = '/forgot-password';
     else if (currentView === 'reset_password') targetPath = '/reset-password';
-    else if (currentView === 'accept_invite') targetPath = '/accept-invite';
+    else if (currentView === 'accept_invite') targetPath = '/set-password';
     
     // Avoid overwriting query parameters during verification/reset/invite pages
     if (currentPath !== targetPath && !['/verify-email', '/reset-password', '/accept-invite'].includes(currentPath)) {
@@ -1029,8 +1056,7 @@ function App() {
     setUser(simulatedUser);
     setToken('sandbox-token-jwt');
     setAuthRole(simulatedUser.role);
-    window.history.pushState({}, '', '/dashboard');
-    setCurrentView('dashboard');
+    navigateDashboard(simulatedUser.role);
     setLoginError(null);
     showToast(`Using Sandbox Mode as ${simulatedUser.name}. Connect Supabase later for live data.`, 'info');
   };
@@ -1061,8 +1087,7 @@ function App() {
       setUser(simulatedUser);
       setToken('sandbox-token-jwt');
       setAuthRole(simulatedUser.role);
-      window.history.pushState({}, '', '/dashboard');
-      setCurrentView('dashboard');
+      navigateDashboard(simulatedUser.role);
       showToast(`Welcome! Logged into Sandbox Mode as ${simulatedUser.name}`, 'info');
       setLoginLoading(false);
       return;
@@ -1077,11 +1102,17 @@ function App() {
       setUser(data.user);
       setToken(data.token);
       setAuthRole(data.user.role);
-      window.history.pushState({}, '', '/dashboard');
-      setCurrentView('dashboard');
+      navigateDashboard(data.user.role);
       showToast(`Welcome back, ${data.user.name}!`, 'success');
     } catch (err) {
       const message = err.message || 'Incorrect email or password.';
+      if (/verify/i.test(message)) {
+        setVerificationEmail(emailInput);
+        window.localStorage.setItem('nudgehq_pending_email', emailInput);
+        setCurrentView('verify_email');
+        showToast('Please verify your email address before logging in.', 'info');
+        return;
+      }
       setLoginError(isBackendConnectionError(message)
         ? `${message} You can continue in Sandbox Mode for now.`
         : message);
@@ -1104,6 +1135,11 @@ function App() {
       return;
     }
 
+    if (!signupAgree) {
+      setSignupError('Please agree to the Terms & Conditions to continue.');
+      return;
+    }
+
     setSignupLoading(true);
 
     try {
@@ -1114,25 +1150,28 @@ function App() {
           admin_name: signupName,
           email: signupEmail,
           password: signupPassword,
+          agree_terms: signupAgree,
         })
       });
 
       if (!data.token) {
         showToast(data.message || 'Workspace registered. Please verify your email address before logging in.', 'success');
-        setCurrentView('signin');
+        setVerificationEmail(signupEmail);
+        window.localStorage.setItem('nudgehq_pending_email', signupEmail);
+        setCurrentView('verify_email');
         setSignupCompany('');
         setSignupName('');
         setSignupEmail('');
         setSignupPassword('');
         setSignupConfirm('');
+        setSignupAgree(false);
         return;
       }
 
       setUser(data.user);
       setToken(data.token);
       setAuthRole(data.user.role);
-      window.history.pushState({}, '', '/dashboard');
-      setCurrentView('dashboard');
+      navigateDashboard(data.user.role);
       showToast(`Workspace created for ${signupCompany}. Welcome, ${data.user.name}.`, 'success');
       setSignupCompany('');
       setSignupName('');
@@ -1608,6 +1647,98 @@ function App() {
     }
   };
 
+  const chooseStarterPlan = () => {
+    if (!token) {
+      showToast('Please verify your email and log in before activating Starter.', 'info');
+      setCurrentView('signin');
+      return;
+    }
+    setSelectedPlan('starter');
+    window.localStorage.setItem('nudgehq_selected_plan', 'starter');
+    setCurrentView('payment');
+  }
+
+  const activateStarterPlan = async () => {
+    setPaymentLoading(true);
+    try {
+      await fetchApi('/payment/create-order', { method: 'POST', body: JSON.stringify({ plan: 'starter' }) }, token);
+      const { data } = await fetchApi('/payment/verify', {
+        method: 'POST',
+        body: JSON.stringify({
+          razorpay_order_id: `order_test_${Date.now()}`,
+          razorpay_payment_id: `pay_test_${Date.now()}`,
+          razorpay_signature: 'test_signature'
+        })
+      }, token);
+      showToast(data.message || 'Starter plan activated.', 'success');
+      setCurrentView('onboarding');
+    } catch (error) {
+      showToast(error.message || 'Payment could not be completed.', 'error');
+    } finally {
+      setPaymentLoading(false);
+    }
+  }
+
+  const parseEmployeeCsv = (file) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const rows = String(reader.result || '')
+        .split(/\r?\n/)
+        .map((row) => row.trim())
+        .filter(Boolean)
+        .slice(1)
+        .map((row) => {
+          const [name, email, department, role] = row.split(',').map((cell) => cell?.trim() || '');
+          return { name, email, department, role: role || 'employee' };
+        })
+        .filter((row) => row.email);
+      setCsvPreview(rows);
+    };
+    reader.readAsText(file);
+  }
+
+  const downloadSampleCsv = () => {
+    const sample = 'Name,Email,Department,Role\nKunal Sharma,kunal@company.com,Sales Operations,employee\nPriya Mehta,priya@company.com,Engineering,employee\n';
+    const blob = new Blob([sample], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'nudgehq-employee-invite-sample.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const finishOnboarding = async () => {
+    setOnboardingLoading(true);
+    try {
+      const employees = [...inviteEmployees, ...csvPreview]
+        .filter((employee) => employee.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(employee.email));
+      const { data } = await fetchApi('/auth/onboarding/complete', {
+        method: 'POST',
+        body: JSON.stringify({
+          company: companyDetails,
+          departments: onboardingDepartments.filter((dept) => dept.name),
+          employees,
+          generate_invite_link: true
+        })
+      }, token);
+      if (data.invite_link?.url) setMagicInviteLink(data.invite_link.url);
+      setUser((current) => current ? { ...current, onboarding_complete: true } : current);
+      showToast('Company setup finished. Welcome to your admin dashboard.', 'success');
+      navigateDashboard('admin');
+    } catch (error) {
+      showToast(error.message || 'Could not finish onboarding.', 'error');
+    } finally {
+      setOnboardingLoading(false);
+    }
+  }
+
+  const navigateDashboard = (role = authRole) => {
+    const path = role === 'employee' ? '/dashboard/employee' : '/dashboard/admin';
+    window.history.pushState({}, '', path);
+    setCurrentView('dashboard');
+  }
+
   const openSignup = () => {
     setSignupError(null);
     setCurrentView('signup');
@@ -1698,7 +1829,7 @@ function App() {
             <span className="text-lg font-bold text-[#3C3489]">NudgeHQ</span>
           </a>
 
-          {['landing', 'signin', 'signup', 'privacy', 'terms'].includes(currentView) ? (
+          {['landing', 'signin', 'signup', 'privacy', 'terms', 'verify_email', 'choose_plan', 'payment', 'onboarding', 'accept_invite', 'join_workspace'].includes(currentView) ? (
             <>
               <div className="hidden items-center gap-8 text-sm font-medium text-[#5F5E5A] md:flex">
                 <a onClick={() => setCurrentView('landing')} className="transition hover:text-[#3C3489]" href="#features">Features</a>
@@ -1773,7 +1904,16 @@ function App() {
 
       {/* VIEW: EMAIL VERIFICATION */}
       {currentView === 'verify_email' && (
-        <VerifyEmailView queryParams={queryParams} setCurrentView={setCurrentView} showToast={showToast} />
+        <VerifyEmailView
+          queryParams={queryParams}
+          setCurrentView={setCurrentView}
+          showToast={showToast}
+          verificationEmail={verificationEmail}
+          setVerificationEmail={setVerificationEmail}
+          setUser={setUser}
+          setToken={setToken}
+          setAuthRole={setAuthRole}
+        />
       )}
 
       {/* VIEW: FORGOT PASSWORD */}
@@ -1796,6 +1936,175 @@ function App() {
           setAuthRole={setAuthRole}
           showToast={showToast}
         />
+      )}
+
+      {currentView === 'join_workspace' && (
+        <JoinWorkspaceView
+          setCurrentView={setCurrentView}
+          setUser={setUser}
+          setToken={setToken}
+          setAuthRole={setAuthRole}
+          showToast={showToast}
+        />
+      )}
+
+      {currentView === 'choose_plan' && (
+        <section className="relative isolate overflow-hidden bg-[#F7FAFF] px-5 py-16 sm:px-6 lg:px-8">
+          <div className="absolute inset-0 -z-20 bg-[radial-gradient(circle_at_14%_10%,#DFECFF_0,transparent_30%),radial-gradient(circle_at_86%_18%,#DCF8EF_0,transparent_28%),linear-gradient(180deg,#F8FBFF_0%,#FFFFFF_100%)]" />
+          <div className="mx-auto max-w-6xl">
+            <SectionHeader
+              eyebrow="Choose plan"
+              title="Start with the plan that matches your team."
+              copy="14-day free trial included with Starter. No credit card needed to start."
+            />
+            <div className="mt-12 grid gap-5 lg:grid-cols-3">
+              {[
+                ['Starter', 'Rs. 2,000/month', ['Up to 15 employees', 'All V1 features', 'NudgeAI basic', 'Email support'], 'Choose Starter'],
+                ['Custom', 'Contact us', ['15+ employees', 'Everything in Starter', 'Price based on team size', 'Priority support'], 'Contact Us'],
+                ['Enterprise', 'Custom contract', ['Unlimited employees', 'Full V2 features', 'Dedicated manager'], 'Contact Us']
+              ].map((plan, index) => (
+                <motion.article key={plan[0]} {...cardMotion} className={`rounded-2xl border p-7 shadow-xl ${index === 0 ? 'border-[#7F77DD] bg-[#3C3489] text-white shadow-[#3C3489]/20' : 'border-[#DAD7FB] bg-white text-[#2C2C2A] shadow-[#3C3489]/5'}`}>
+                  <h2 className="text-2xl font-extrabold">{plan[0]}</h2>
+                  <p className={`mt-3 text-3xl font-extrabold ${index === 0 ? 'text-white' : 'text-[#3C3489]'}`}>{plan[1]}</p>
+                  <ul className="mt-7 space-y-3">
+                    {plan[2].map((feature) => (
+                      <li key={feature} className={`flex gap-3 text-sm font-semibold ${index === 0 ? 'text-white/85' : 'text-[#5F5E5A]'}`}>
+                        <Check className={`h-5 w-5 shrink-0 ${index === 0 ? 'text-[#8DE4C3]' : 'text-[#1D9E75]'}`} />
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                  {index === 0 ? (
+                    <button type="button" onClick={chooseStarterPlan} className="mt-9 w-full rounded-md bg-white px-5 py-3 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]">
+                      Choose Starter
+                    </button>
+                  ) : (
+                    <a href="mailto:hello.nudgehq@gmail.com" className="mt-9 inline-flex w-full justify-center rounded-md bg-[#EEEDFE] px-5 py-3 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#7F77DD] hover:text-white">
+                      Contact Us
+                    </a>
+                  )}
+                </motion.article>
+              ))}
+            </div>
+            <p className="mx-auto mt-8 max-w-2xl rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-5 py-4 text-center text-sm font-bold text-[#92400E]">
+              14-day free trial included with Starter. No credit card needed to start.
+            </p>
+          </div>
+        </section>
+      )}
+
+      {currentView === 'payment' && (
+        <section className="mx-auto max-w-2xl px-5 py-20">
+          <div className="rounded-2xl border border-[#DAD7FB] bg-white p-8 shadow-2xl shadow-[#3C3489]/10">
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#1D9E75]">Payment</p>
+            <h1 className="mt-3 text-3xl font-extrabold text-[#2C2C2A]">{selectedPlan === 'starter' ? 'Starter Plan' : 'Starter Plan'} - Rs. 2,000/month</h1>
+            <div className="mt-8 rounded-lg bg-[#FCFCFF] p-5">
+              <div className="flex items-center justify-between border-b border-[#EEEDFE] pb-4">
+                <span className="font-bold text-[#2C2C2A]">Starter Plan</span>
+                <span className="font-extrabold text-[#3C3489]">Rs. 2,000/month</span>
+              </div>
+              <div className="flex items-center justify-between pt-4 text-sm font-bold text-[#1D9E75]">
+                <span>First 14 days</span>
+                <span>Free</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={activateStarterPlan}
+              disabled={paymentLoading}
+              className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-md bg-[#7F77DD] px-5 py-3.5 text-sm font-extrabold text-white transition hover:bg-[#3C3489] disabled:opacity-50"
+            >
+              {paymentLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+              Pay with Razorpay Test
+            </button>
+          </div>
+        </section>
+      )}
+
+      {currentView === 'onboarding' && (
+        <section className="relative isolate overflow-hidden bg-[#F7FAFF] px-5 py-12 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-5xl rounded-2xl border border-[#DAD7FB] bg-white p-7 shadow-2xl shadow-[#3C3489]/10">
+            <div className="flex flex-col gap-3 border-b border-[#EEEDFE] pb-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#1D9E75]">Step {onboardingStep} of 3</p>
+                <h1 className="mt-2 text-3xl font-extrabold text-[#2C2C2A]">Set up your company workspace</h1>
+              </div>
+              <div className="h-2 w-full max-w-xs rounded-full bg-[#EEEDFE]">
+                <div className="h-2 rounded-full bg-[#7F77DD]" style={{ width: `${(onboardingStep / 3) * 100}%` }} />
+              </div>
+            </div>
+
+            {onboardingStep === 1 ? (
+              <div className="mt-7 grid gap-5 sm:grid-cols-2">
+                <input className="rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" placeholder="Company logo URL (optional)" value={companyDetails.logo_url} onChange={(e) => setCompanyDetails({ ...companyDetails, logo_url: e.target.value })} />
+                <select className="rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none" value={companyDetails.industry} onChange={(e) => setCompanyDetails({ ...companyDetails, industry: e.target.value })}>
+                  {['Tech', 'Finance', 'Healthcare', 'Logistics', 'Retail', 'Manufacturing', 'Consulting', 'Education', 'Other'].map((item) => <option key={item}>{item}</option>)}
+                </select>
+                <select className="rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none" value={companyDetails.size} onChange={(e) => setCompanyDetails({ ...companyDetails, size: e.target.value })}>
+                  {['1-10', '11-50', '51-200', '200+'].map((item) => <option key={item}>{item}</option>)}
+                </select>
+                <input className="rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" placeholder="Country" value={companyDetails.country} onChange={(e) => setCompanyDetails({ ...companyDetails, country: e.target.value })} />
+                <input className="rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD] sm:col-span-2" placeholder="City" value={companyDetails.city} onChange={(e) => setCompanyDetails({ ...companyDetails, city: e.target.value })} />
+                <button type="button" onClick={() => setOnboardingStep(2)} className="rounded-md bg-[#7F77DD] px-5 py-3 text-sm font-bold text-white sm:col-span-2">Continue</button>
+              </div>
+            ) : null}
+
+            {onboardingStep === 2 ? (
+              <div className="mt-7 space-y-4">
+                {onboardingDepartments.map((dept, index) => (
+                  <div key={`dept-${index}`} className="grid gap-3 sm:grid-cols-2">
+                    <input className="rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" placeholder="Department name" value={dept.name} onChange={(e) => setOnboardingDepartments((items) => items.map((item, i) => i === index ? { ...item, name: e.target.value } : item))} />
+                    <input className="rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" placeholder="Description" value={dept.description} onChange={(e) => setOnboardingDepartments((items) => items.map((item, i) => i === index ? { ...item, description: e.target.value } : item))} />
+                  </div>
+                ))}
+                <div className="flex flex-wrap gap-3">
+                  <button type="button" disabled={onboardingDepartments.length >= 5} onClick={() => setOnboardingDepartments((items) => [...items, { name: '', description: '' }])} className="rounded-md border border-[#DAD7FB] px-4 py-2 text-sm font-bold text-[#3C3489]">+ Add another department</button>
+                  <button type="button" onClick={() => setOnboardingStep(3)} className="rounded-md px-4 py-2 text-sm font-bold text-[#5F5E5A]">Skip for now</button>
+                  <button type="button" onClick={() => setOnboardingStep(3)} className="ml-auto rounded-md bg-[#7F77DD] px-5 py-2 text-sm font-bold text-white">Continue</button>
+                </div>
+              </div>
+            ) : null}
+
+            {onboardingStep === 3 ? (
+              <div className="mt-7 space-y-7">
+                <div className="rounded-lg border border-[#DAD7FB] bg-[#FCFCFF] p-4">
+                  <p className="font-bold text-[#2C2C2A]">Your Starter plan allows up to 15 employees</p>
+                  <p className="mt-1 text-sm font-semibold text-[#3C3489]">{inviteEmployees.filter((employee) => employee.email).length + csvPreview.length} of 15 employees added</p>
+                </div>
+                <div>
+                  <h3 className="font-bold text-[#2C2C2A]">Way 1 - Manual invite</h3>
+                  <div className="mt-3 space-y-3">
+                    {inviteEmployees.map((employee, index) => (
+                      <div key={`emp-${index}`} className="grid gap-2 lg:grid-cols-4">
+                        {['name', 'email', 'department', 'role'].map((field) => (
+                          <input key={field} className="rounded-md border border-[#DAD7FB] px-3 py-2 text-sm outline-none focus:border-[#7F77DD]" placeholder={field === 'email' ? 'Email' : field[0].toUpperCase() + field.slice(1)} value={employee[field]} onChange={(e) => setInviteEmployees((items) => items.map((item, i) => i === index ? { ...item, [field]: e.target.value } : item))} />
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                  <button type="button" onClick={() => setInviteEmployees((items) => [...items, { name: '', email: '', department: '', role: 'employee' }])} className="mt-3 rounded-md border border-[#DAD7FB] px-4 py-2 text-sm font-bold text-[#3C3489]">+ Add another employee</button>
+                </div>
+                <div>
+                  <h3 className="font-bold text-[#2C2C2A]">Way 2 - CSV upload</h3>
+                  <div className="mt-3 rounded-lg border border-dashed border-[#7F77DD] bg-[#F4F3FF] p-5">
+                    <p className="text-sm font-semibold text-[#3C3489]">Expected format: Name, Email, Department, Role</p>
+                    <input type="file" accept=".csv" className="mt-3 text-sm" onChange={(e) => e.target.files?.[0] && parseEmployeeCsv(e.target.files[0])} />
+                    <button type="button" onClick={downloadSampleCsv} className="ml-0 mt-3 rounded-md bg-white px-3 py-2 text-xs font-bold text-[#3C3489] sm:ml-3">Download sample CSV</button>
+                  </div>
+                  {csvPreview.length ? <p className="mt-2 text-sm font-bold text-[#1D9E75]">{csvPreview.length} CSV employees ready to invite.</p> : null}
+                </div>
+                <div className="rounded-lg border border-[#EEEDFE] bg-white p-4">
+                  <h3 className="font-bold text-[#2C2C2A]">Way 3 - Magic invite link</h3>
+                  <p className="mt-1 text-sm text-[#5F5E5A]">Auto-generated after setup. Share it in your company WhatsApp or email.</p>
+                  {magicInviteLink ? <p className="mt-3 rounded-md bg-[#EEEDFE] p-3 text-sm font-bold text-[#3C3489]">{magicInviteLink}</p> : null}
+                </div>
+                <button type="button" disabled={onboardingLoading} onClick={finishOnboarding} className="w-full rounded-md bg-[#7F77DD] px-5 py-3.5 text-sm font-extrabold text-white hover:bg-[#3C3489] disabled:opacity-50">
+                  {onboardingLoading ? 'Finishing setup...' : 'Finish setup'}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </section>
       )}
 
       {/* VIEW 1: LANDING PAGE */}
@@ -2511,9 +2820,9 @@ function App() {
               </form>
 
               <p className="mt-6 text-center text-sm text-[#5F5E5A]">
-                New company?{' '}
+                Don&apos;t have an account?{' '}
                 <button type="button" onClick={openSignup} className="font-bold text-[#3C3489] hover:text-[#7F77DD]">
-                  Create a workspace
+                  Start free trial
                 </button>
               </p>
             </motion.div>
@@ -2607,6 +2916,23 @@ function App() {
                     placeholder="Repeat password"
                   />
                 </div>
+
+                <label className="flex items-start gap-3 rounded-md border border-[#EEEDFE] bg-[#FCFCFF] p-3 text-sm text-[#5F5E5A]">
+                  <input
+                    type="checkbox"
+                    checked={signupAgree}
+                    onChange={(e) => setSignupAgree(e.target.checked)}
+                    className="mt-1 h-4 w-4 accent-[#7F77DD]"
+                    required
+                  />
+                  <span>
+                    I agree to the NudgeHQ{' '}
+                    <button type="button" onClick={() => setCurrentView('terms')} className="font-bold text-[#3C3489] hover:text-[#7F77DD]">
+                      Terms & Conditions
+                    </button>
+                    .
+                  </span>
+                </label>
 
                 {signupError ? (
                   <p className="rounded-md border border-rose-100 bg-rose-50 p-3 text-sm font-medium text-rose-600">{signupError}</p>
@@ -2736,6 +3062,16 @@ function App() {
       {currentView === 'dashboard' && (
         <section className="relative mx-auto max-w-[92rem] px-5 py-10 sm:px-6 lg:px-8">
           <div className="dot-grid absolute inset-x-0 top-0 -z-10 h-72 opacity-30" />
+          {authRole === 'admin' && user?.organizations?.plan === 'free_trial' ? (
+            <div className="mb-6 flex flex-col gap-3 rounded-xl border border-[#FDE68A] bg-[#FFFBEB] px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm font-extrabold text-[#92400E]">
+                Your free trial ends in {Math.max(0, Math.ceil((new Date(user.organizations.trial_ends_at).getTime() - Date.now()) / 86400000)) || 14} days - Upgrade to keep access
+              </p>
+              <button type="button" onClick={() => setCurrentView('choose_plan')} className="rounded-md bg-[#3C3489] px-4 py-2 text-sm font-bold text-white hover:bg-[#7F77DD]">
+                Upgrade now
+              </button>
+            </div>
+          ) : null}
           
           {/* Welcome User Header */}
           <div className="overflow-hidden rounded-lg border border-[#DAD7FB] bg-white p-7 shadow-xl shadow-[#3C3489]/10 sm:p-8">
@@ -3867,7 +4203,7 @@ function SectionHeader({ eyebrow, title, copy }) {
   )
 }
 
-function VerifyEmailView({ queryParams, setCurrentView, showToast }) {
+function VerifyEmailView({ queryParams, setCurrentView, showToast, verificationEmail, setVerificationEmail, setUser, setToken, setAuthRole }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
@@ -3876,13 +4212,19 @@ function VerifyEmailView({ queryParams, setCurrentView, showToast }) {
     const verify = async () => {
       const token = queryParams.get('token');
       if (!token) {
-        setError('No verification token provided in URL.');
+        setError(null);
         setLoading(false);
         return;
       }
       try {
         const { data } = await fetchApi(`/auth/verify-email?token=${token}`, { method: 'GET' });
+        if (data.token && data.user) {
+          setUser(data.user);
+          setToken(data.token);
+          setAuthRole(data.user.role);
+        }
         setSuccess(true);
+        setCurrentView('choose_plan');
         showToast(data.message || 'Email verified successfully!', 'success');
       } catch (err) {
         setError(err.message || 'Failed to verify email address.');
@@ -3892,6 +4234,49 @@ function VerifyEmailView({ queryParams, setCurrentView, showToast }) {
     };
     verify();
   }, [queryParams]);
+
+  const resend = async () => {
+    if (!verificationEmail) return;
+    try {
+      const { data } = await fetchApi('/auth/resend-verification', {
+        method: 'POST',
+        body: JSON.stringify({ email: verificationEmail })
+      });
+      showToast(data.message || 'Verification email sent.', 'success');
+    } catch (err) {
+      showToast(err.message || 'Could not resend verification email.', 'error');
+    }
+  };
+
+  if (!queryParams.get('token')) {
+    return (
+      <div className="mx-auto max-w-lg px-6 py-24 sm:py-32">
+        <div className="rounded-2xl border border-[#EEEDFE] bg-white p-8 text-center shadow-xl">
+          <Mail className="mx-auto h-14 w-14 text-[#7F77DD]" />
+          <h3 className="mt-4 text-2xl font-extrabold text-[#2C2C2A]">Check your inbox</h3>
+          <p className="mt-3 text-sm leading-6 text-[#5F5E5A]">
+            We sent a NudgeHQ verification link to <strong>{verificationEmail || 'your work email'}</strong>.
+          </p>
+          <div className="mt-7 grid gap-3">
+            <button type="button" onClick={resend} className="rounded-md bg-[#7F77DD] px-5 py-3 text-sm font-bold text-white hover:bg-[#3C3489]">
+              Resend verification email
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setVerificationEmail('');
+                window.localStorage.removeItem('nudgehq_pending_email');
+                setCurrentView('signup');
+              }}
+              className="text-sm font-bold text-[#3C3489] hover:text-[#7F77DD]"
+            >
+              Wrong email? Go back
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="mx-auto max-w-md px-6 py-24 sm:py-32">
@@ -3906,12 +4291,12 @@ function VerifyEmailView({ queryParams, setCurrentView, showToast }) {
           <div className="flex flex-col items-center justify-center py-6">
             <CheckCircle2 className="h-16 w-16 text-[#1D9E75] mb-4" />
             <h3 className="text-xl font-bold text-[#2C2C2A]">Email Verified!</h3>
-            <p className="mt-2 text-sm text-[#5F5E5A] mb-8">Your account has been verified successfully. You can now access your workspace.</p>
+            <p className="mt-2 text-sm text-[#5F5E5A] mb-8">Your account has been verified successfully. Choose a plan to continue.</p>
             <button
-              onClick={() => setCurrentView('signin')}
+              onClick={() => setCurrentView('choose_plan')}
               className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-[#7F77DD] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#3C3489]"
             >
-              Go to Sign In
+              Choose Plan
             </button>
           </div>
         ) : (
@@ -4135,6 +4520,7 @@ function AcceptInviteView({ queryParams, setCurrentView, setUser, setToken, setA
       try {
         const { data } = await fetchApi(`/auth/invite-status?token=${token}`, { method: 'GET' });
         setInvitation(data.invitation);
+        if (data.invitation?.name) setName(data.invitation.name);
       } catch (err) {
         setError(err.message || 'Invitation is invalid or has expired.');
       } finally {
@@ -4164,6 +4550,7 @@ function AcceptInviteView({ queryParams, setCurrentView, setUser, setToken, setA
       setUser(data.user);
       setToken(data.token);
       setAuthRole(data.user.role);
+      window.history.pushState({}, '', '/dashboard/employee');
       setCurrentView('dashboard');
       showToast(`Welcome to NudgeHQ, ${data.user.name}!`, 'success');
     } catch (err) {
@@ -4253,6 +4640,98 @@ function AcceptInviteView({ queryParams, setCurrentView, setUser, setToken, setA
             </button>
           </form>
         )}
+      </div>
+    </div>
+  );
+}
+
+function JoinWorkspaceView({ setCurrentView, setUser, setToken, setAuthRole, showToast }) {
+  const [invite, setInvite] = useState(null);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [checking, setChecking] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const code = window.location.pathname.split('/join/')[1] || '';
+
+  useEffect(() => {
+    const loadInvite = async () => {
+      try {
+        const { data } = await fetchApi(`/auth/join-status?code=${encodeURIComponent(code)}`, { method: 'GET' });
+        setInvite(data.invite);
+      } catch (err) {
+        setError(err.message || 'This invite link has expired. Ask your admin for a new one.');
+      } finally {
+        setChecking(false);
+      }
+    };
+    loadInvite();
+  }, [code]);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    if (password !== confirm) {
+      setError('Passwords do not match.');
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const { data } = await fetchApi('/auth/join', {
+        method: 'POST',
+        body: JSON.stringify({ code, name, email, password })
+      });
+      setUser(data.user);
+      setToken(data.token);
+      setAuthRole(data.user.role);
+      window.history.pushState({}, '', '/dashboard/employee');
+      setCurrentView('dashboard');
+      showToast(`Welcome to ${invite?.organizations?.name || 'NudgeHQ'}!`, 'success');
+    } catch (err) {
+      setError(err.message || 'Could not join workspace.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (checking) {
+    return (
+      <div className="mx-auto max-w-md px-6 py-24 text-center">
+        <RefreshCw className="mx-auto h-10 w-10 animate-spin text-[#7F77DD]" />
+        <p className="mt-4 font-bold text-[#2C2C2A]">Checking invite link...</p>
+      </div>
+    );
+  }
+
+  if (error && !invite) {
+    return (
+      <div className="mx-auto max-w-md px-6 py-24">
+        <div className="rounded-2xl border border-rose-100 bg-white p-8 text-center shadow-xl">
+          <AlertCircle className="mx-auto h-14 w-14 text-rose-500" />
+          <h1 className="mt-4 text-2xl font-extrabold text-[#2C2C2A]">Invite expired</h1>
+          <p className="mt-3 text-sm text-[#5F5E5A]">This invite link has expired. Ask your admin for a new one.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-md px-6 py-20">
+      <div className="rounded-2xl border border-[#DAD7FB] bg-white p-8 shadow-2xl shadow-[#3C3489]/10">
+        {invite?.organizations?.logo_url ? <img src={invite.organizations.logo_url} alt="" className="mx-auto h-14 w-14 rounded-xl object-cover" /> : <img src="/brand/nudgehq-icon.svg" alt="" className="mx-auto h-14 w-14 rounded-xl" />}
+        <h1 className="mt-4 text-center text-2xl font-extrabold text-[#2C2C2A]">Join {invite?.organizations?.name || 'Company'} on NudgeHQ</h1>
+        <form onSubmit={submit} className="mt-7 space-y-4">
+          <input className="block w-full rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} required />
+          <input className="block w-full rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" placeholder="Work email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <PasswordField label="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <PasswordField label="Confirm password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Repeat password" />
+          {error ? <p className="rounded-md bg-rose-50 p-3 text-sm font-semibold text-rose-600">{error}</p> : null}
+          <button disabled={submitting} className="w-full rounded-md bg-[#7F77DD] px-5 py-3 text-sm font-extrabold text-white hover:bg-[#3C3489] disabled:opacity-50">
+            {submitting ? 'Joining...' : 'Join workspace'}
+          </button>
+        </form>
       </div>
     </div>
   );

@@ -5,10 +5,14 @@ import {
   login,
   getProfile,
   verifyEmail,
+  resendVerification,
   forgotPassword,
   resetPassword,
   getInviteStatus,
-  acceptInvite
+  acceptInvite,
+  getInviteLinkStatus,
+  joinByInviteCode,
+  completeOnboarding
 } from '../controllers/auth.controller.js';
 import { authenticate } from '../middleware/auth.js';
 import { validateBody } from '../middleware/validate.js';
@@ -22,12 +26,17 @@ router.post('/login', validateBody(['email', 'password']), login);
 
 // Email verification & reset password routes
 router.get('/verify-email', verifyEmail);
+router.post('/resend-verification', validateBody(['email']), resendVerification);
 router.post('/forgot-password', validateBody(['email']), forgotPassword);
 router.post('/reset-password', validateBody(['token', 'newPassword']), resetPassword);
 
 // Employee invitation acceptance routes
 router.get('/invite-status', getInviteStatus);
 router.post('/accept-invite', validateBody(['token', 'name', 'password']), acceptInvite);
+router.post('/set-password', validateBody(['token', 'name', 'password']), acceptInvite);
+router.get('/join-status', getInviteLinkStatus);
+router.post('/join', validateBody(['code', 'name', 'email', 'password']), joinByInviteCode);
+router.post('/onboarding/complete', authenticate, completeOnboarding);
 
 // Protected profile routes
 router.get('/me', authenticate, getProfile);

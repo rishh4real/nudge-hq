@@ -2,13 +2,20 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { supabase } from '../config/supabase.js';
-import { sendVerificationEmail, sendResetPasswordEmail } from '../utils/mailer.js';
+import { sendVerificationEmail, sendResetPasswordEmail, sendWorkspaceInviteEmail } from '../utils/mailer.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_nudgehq_jwt_key_change_me_in_production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+
+const addDays = (days) => {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString();
+};
 
 const isSupabaseConnectionError = (error) => (
   error?.message?.includes('fetch failed') ||
@@ -19,6 +26,12 @@ const isMissingOrgSchema = (error) => (
   error?.code === '42P01' ||
   error?.code === '42703' ||
   /organizations|organization_id|schema cache|does not exist/i.test(error?.message || '')
+);
+
+const isMissingInviteLinkSchema = (error) => (
+  error?.code === '42P01' ||
+  error?.code === 'PGRST205' ||
+  /invite_links|schema cache|does not exist/i.test(error?.message || '')
 );
 
 const insertWithOptionalOrganization = async (table, payload) => {
@@ -147,8 +160,13 @@ export const signup = async (req, res) => {
  */
 export const companySignup = async (req, res) => {
   try {
-    const { company_name, admin_name, email, password } = req.body;
+    const { company_name, admin_name, name, email, password, agree_terms } = req.body;
+    const adminName = admin_name || name;
     const normalizedEmail = email.toLowerCase().trim();
+
+    if (agree_terms === false) {
+      return res.status(400).json({ success: false, message: 'Please agree to the Terms & Conditions before creating a workspace.' });
+    }
 
     const { data: existingUser, error: checkError } = await supabase
       .from('users')
@@ -168,10 +186,29 @@ export const companySignup = async (req, res) => {
     let organization = null;
     let organizationSchemaReady = true;
 
+    let authUserId = null;
+    try {
+      const authResult = await supabase.auth.admin.createUser({
+        email: normalizedEmail,
+        password,
+        email_confirm: false,
+        user_metadata: { name: adminName, company_name }
+      });
+      authUserId = authResult.data?.user?.id || null;
+    } catch (authError) {
+      console.warn('Supabase Auth createUser skipped/fallback:', authError.message);
+    }
+
+    const orgInsert = {
+      name: company_name,
+      plan: 'free_trial',
+      trial_ends_at: addDays(14)
+    };
+
     const { data: orgData, error: orgError } = await supabase
       .from('organizations')
-      .insert([{ name: company_name }])
-      .select('id, name, created_at')
+      .insert([orgInsert])
+      .select('id, name, plan, trial_ends_at, created_at')
       .single();
 
     if (orgError) {
@@ -189,24 +226,35 @@ export const companySignup = async (req, res) => {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const { data: adminUser } = await insertWithOptionalOrganization('users', {
-      name: admin_name,
+      id: authUserId || undefined,
+      name: adminName,
       email: normalizedEmail,
       password_hash: passwordHash,
       role: 'admin',
       department_id: null,
       organization_id: organization?.id,
+      company_id: organization?.id,
+      onboarding_complete: false,
       is_verified: false
     });
 
+    if (organization?.id) {
+      await supabase
+        .from('organizations')
+        .update({ owner_id: adminUser.id })
+        .eq('id', organization.id);
+    }
+
     // Create verification token and send email
     const verificationToken = await createVerificationToken(adminUser.id);
-    await sendVerificationEmail(normalizedEmail, admin_name, verificationToken);
+    await sendVerificationEmail(normalizedEmail, adminName, verificationToken);
 
     return res.status(201).json({
       success: true,
       message: organizationSchemaReady
         ? 'Company workspace registered. Please check your email to verify and activate your account.'
         : 'Admin account created. Run schema migrations to enable company isolation records.',
+      verification_email: normalizedEmail,
       organization,
       default_department: department,
       user: {
@@ -240,7 +288,7 @@ export const login = async (req, res) => {
     // Fetch user details from database
     const { data: user, error: fetchError } = await supabase
       .from('users')
-      .select('id, name, email, password_hash, role, department_id, organization_id, is_verified, created_at')
+      .select('id, name, email, password_hash, role, department_id, organization_id, company_id, onboarding_complete, is_verified, created_at, organizations(id, name, plan, trial_ends_at, plan_expires_at)')
       .eq('email', normalizedEmail)
       .maybeSingle();
 
@@ -286,12 +334,14 @@ export const login = async (req, res) => {
 
     // Remove password_hash from return response
     const { password_hash, ...safeUserData } = user;
+    const dashboardPath = user.role === 'admin' ? '/dashboard/admin' : '/dashboard/employee';
 
     return res.status(200).json({
       success: true,
       message: 'Authentication successful.',
       token,
-      user: safeUserData
+      user: safeUserData,
+      redirect_to: dashboardPath
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -374,13 +424,62 @@ export const verifyEmail = async (req, res) => {
     // Delete token record so it cannot be reused
     await supabase.from('email_verifications').delete().eq('id', record.id);
 
+    const { data: verifiedUser } = await supabase
+      .from('users')
+      .select('id, name, email, role, department_id, organization_id, company_id, onboarding_complete, organizations(id, name, plan, trial_ends_at, plan_expires_at)')
+      .eq('id', record.user_id)
+      .single();
+
+    const jwtToken = verifiedUser ? jwt.sign(
+      {
+        id: verifiedUser.id,
+        name: verifiedUser.name,
+        email: verifiedUser.email,
+        role: verifiedUser.role,
+        department_id: verifiedUser.department_id,
+        organization_id: verifiedUser.organization_id
+      },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    ) : null;
+
+    if (req.headers.accept?.includes('text/html')) {
+      return res.redirect(`${CLIENT_URL}/choose-plan?verified=1`);
+    }
+
     return res.status(200).json({
       success: true,
-      message: 'Email address verified successfully. You can now log in.'
+      message: 'Email address verified successfully. You can now choose a plan.',
+      redirect_to: '/choose-plan',
+      token: jwtToken,
+      user: verifiedUser
     });
   } catch (error) {
     console.error('Email verification error:', error);
     return res.status(500).json({ success: false, message: 'Failed to verify email.' });
+  }
+};
+
+export const resendVerification = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const normalizedEmail = email.toLowerCase().trim();
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, name, email, is_verified')
+      .eq('email', normalizedEmail)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!user) return res.status(200).json({ success: true, message: 'If this email exists, a verification email has been sent.' });
+    if (user.is_verified) return res.status(200).json({ success: true, message: 'This email is already verified.' });
+
+    const verificationToken = await createVerificationToken(user.id);
+    await sendVerificationEmail(user.email, user.name, verificationToken);
+    return res.status(200).json({ success: true, message: 'Verification email sent.' });
+  } catch (error) {
+    console.error('Resend verification error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to resend verification email.' });
   }
 };
 
@@ -502,7 +601,7 @@ export const getInviteStatus = async (req, res) => {
 
     const { data: invitation, error } = await supabase
       .from('employee_invitations')
-      .select('id, email, organization_id, status, expires_at, organizations(name)')
+      .select('id, email, name, role, department_id, organization_id, company_id, status, expires_at, organizations(name, logo_url)')
       .eq('token', token)
       .maybeSingle();
 
@@ -540,7 +639,7 @@ export const acceptInvite = async (req, res) => {
     // Fetch invitation
     const { data: invitation, error: inviteError } = await supabase
       .from('employee_invitations')
-      .select('id, email, organization_id, status, expires_at')
+      .select('id, email, name, role, department_id, organization_id, company_id, status, expires_at')
       .eq('token', token)
       .maybeSingle();
 
@@ -553,6 +652,19 @@ export const acceptInvite = async (req, res) => {
       });
     }
 
+    let authUserId = null;
+    try {
+      const authResult = await supabase.auth.admin.createUser({
+        email: invitation.email,
+        password,
+        email_confirm: true,
+        user_metadata: { name }
+      });
+      authUserId = authResult.data?.user?.id || null;
+    } catch (authError) {
+      console.warn('Supabase Auth invited user create skipped/fallback:', authError.message);
+    }
+
     // Hash user password
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
@@ -562,15 +674,19 @@ export const acceptInvite = async (req, res) => {
       .from('users')
       .insert([
         {
+          id: authUserId || undefined,
           name,
           email: invitation.email,
           password_hash: passwordHash,
-          role: 'employee',
-          organization_id: invitation.organization_id,
+          role: invitation.role || 'employee',
+          organization_id: invitation.organization_id || invitation.company_id,
+          company_id: invitation.company_id || invitation.organization_id,
+          department_id: invitation.department_id || null,
+          onboarding_complete: true,
           is_verified: true // Magic link serves as verification
         }
       ])
-      .select('id, name, email, role, organization_id, department_id')
+      .select('id, name, email, role, organization_id, company_id, department_id')
       .single();
 
     if (userError) throw userError;
@@ -578,7 +694,7 @@ export const acceptInvite = async (req, res) => {
     // Set invitation status to accepted
     await supabase
       .from('employee_invitations')
-      .update({ status: 'accepted', user_id: newUser.id })
+      .update({ status: 'accepted', user_id: newUser.id, accepted_at: new Date().toISOString() })
       .eq('id', invitation.id);
 
     // Generate login token directly
@@ -604,5 +720,177 @@ export const acceptInvite = async (req, res) => {
   } catch (error) {
     console.error('Accept invite error:', error);
     return res.status(500).json({ success: false, message: 'Failed to accept invitation.' });
+  }
+};
+
+export const joinByInviteCode = async (req, res) => {
+  try {
+    const { code, name, email, password } = req.body;
+    if (!code) {
+      return res.status(400).json({ success: false, message: 'Invite code is required.' });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const { data: link, error: linkError } = await supabase
+      .from('invite_links')
+      .select('id, code, company_id, organization_id, expires_at, max_uses, uses_count, is_active, organizations(name, logo_url)')
+      .eq('code', code)
+      .maybeSingle();
+
+    if (linkError) throw linkError;
+    if (!link || !link.is_active || new Date() > new Date(link.expires_at) || link.uses_count >= link.max_uses) {
+      return res.status(400).json({ success: false, message: 'This invite link has expired. Ask your admin for a new one.' });
+    }
+
+    let authUserId = null;
+    try {
+      const authResult = await supabase.auth.admin.createUser({
+        email: normalizedEmail,
+        password,
+        email_confirm: true,
+        user_metadata: { name }
+      });
+      authUserId = authResult.data?.user?.id || null;
+    } catch (authError) {
+      console.warn('Supabase Auth join user create skipped/fallback:', authError.message);
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const companyId = link.company_id || link.organization_id;
+    const { data: newUser, error: userError } = await supabase
+      .from('users')
+      .insert([{ id: authUserId || undefined, name, email: normalizedEmail, password_hash: passwordHash, role: 'employee', organization_id: companyId, company_id: companyId, is_verified: true, onboarding_complete: true }])
+      .select('id, name, email, role, organization_id, company_id, department_id')
+      .single();
+
+    if (userError) throw userError;
+
+    await supabase
+      .from('invite_links')
+      .update({ uses_count: link.uses_count + 1 })
+      .eq('id', link.id);
+
+    const jwtToken = jwt.sign(
+      { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role, department_id: newUser.department_id || null, organization_id: newUser.organization_id },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    return res.status(201).json({ success: true, token: jwtToken, user: newUser, redirect_to: '/dashboard/employee' });
+  } catch (error) {
+    console.error('Join by invite code error:', error);
+    if (isMissingInviteLinkSchema(error)) {
+      return res.status(503).json({ success: false, message: 'Magic invite links are not configured yet. Please run the latest Supabase schema.' });
+    }
+    return res.status(500).json({ success: false, message: 'Failed to join workspace.', error: error.message });
+  }
+};
+
+export const getInviteLinkStatus = async (req, res) => {
+  try {
+    const { code } = req.query;
+    if (!code) {
+      return res.status(400).json({ success: false, message: 'Invite code is required.' });
+    }
+
+    const { data: link, error } = await supabase
+      .from('invite_links')
+      .select('code, expires_at, max_uses, uses_count, is_active, organizations(name, logo_url)')
+      .eq('code', code)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!link || !link.is_active || new Date() > new Date(link.expires_at) || link.uses_count >= link.max_uses) {
+      return res.status(400).json({ success: false, message: 'This invite link has expired. Ask your admin for a new one.' });
+    }
+
+    return res.status(200).json({ success: true, invite: link });
+  } catch (error) {
+    console.error('Invite code status error:', error);
+    if (isMissingInviteLinkSchema(error)) {
+      return res.status(503).json({ success: false, message: 'Magic invite links are not configured yet. Please run the latest Supabase schema.' });
+    }
+    return res.status(500).json({ success: false, message: 'Failed to check invite link.' });
+  }
+};
+
+export const completeOnboarding = async (req, res) => {
+  try {
+    const orgId = req.user.organization_id;
+    const adminId = req.user.id;
+    const { company = {}, departments = [], employees = [], generate_invite_link = true } = req.body;
+
+    const { error: orgError } = await supabase
+      .from('organizations')
+      .update({
+        industry: company.industry || null,
+        size: company.size || null,
+        country: company.country || 'India',
+        city: company.city || null,
+        logo_url: company.logo_url || null
+      })
+      .eq('id', orgId);
+    if (orgError) throw orgError;
+
+    const departmentRows = departments
+      .filter((dept) => dept.name)
+      .slice(0, 5)
+      .map((dept) => ({ name: dept.name, description: dept.description || null, organization_id: orgId }));
+    let createdDepartments = [];
+    if (departmentRows.length) {
+      const { data, error } = await supabase.from('departments').insert(departmentRows).select('id, name');
+      if (error) throw error;
+      createdDepartments = data || [];
+    }
+
+    const { data: adminUser } = await supabase.from('users').select('name').eq('id', adminId).single();
+    const { data: org } = await supabase.from('organizations').select('name').eq('id', orgId).single();
+    const deptByName = new Map(createdDepartments.map((dept) => [dept.name.toLowerCase(), dept.id]));
+
+    const inviteRows = [];
+    for (const employee of employees.slice(0, 15)) {
+      if (!employee.email) continue;
+      const inviteToken = crypto.randomBytes(32).toString('hex');
+      const deptId = employee.department_id || deptByName.get(String(employee.department || '').toLowerCase()) || null;
+      inviteRows.push({
+        organization_id: orgId,
+        company_id: orgId,
+        email: employee.email.toLowerCase().trim(),
+        name: employee.name || null,
+        role: employee.role || 'employee',
+        department_id: deptId,
+        invited_by: adminId,
+        token: inviteToken,
+        expires_at: addDays(7),
+        status: 'pending'
+      });
+      await sendWorkspaceInviteEmail({ email: employee.email, adminName: adminUser?.name || 'Your admin', companyName: org?.name || 'your company', token: inviteToken });
+    }
+
+    let invitations = [];
+    if (inviteRows.length) {
+      const { data, error } = await supabase.from('employee_invitations').insert(inviteRows).select();
+      if (error) throw error;
+      invitations = data || [];
+    }
+
+    let inviteLink = null;
+    if (generate_invite_link) {
+      const code = crypto.randomBytes(6).toString('hex');
+      const { data, error } = await supabase
+        .from('invite_links')
+        .insert([{ company_id: orgId, organization_id: orgId, code, created_by: adminId, expires_at: addDays(7), max_uses: 15, uses_count: 0 }])
+        .select()
+        .single();
+      if (error) throw error;
+      inviteLink = { ...data, url: `${CLIENT_URL}/join/${code}` };
+    }
+
+    await supabase.from('users').update({ onboarding_complete: true }).eq('id', adminId);
+
+    return res.status(200).json({ success: true, departments: createdDepartments, invitations, invite_link: inviteLink, redirect_to: '/dashboard/admin' });
+  } catch (error) {
+    console.error('Complete onboarding error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to complete onboarding.', error: error.message });
   }
 };

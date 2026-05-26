@@ -38,9 +38,13 @@ export const sendVerificationEmail = async (email, name, token) => {
   const mailOptions = {
     from: `"NudgeHQ Onboarding" <${FROM_EMAIL}>`,
     to: email,
-    subject: 'Verify your NudgeHQ Workspace Account',
+    subject: 'Verify your NudgeHQ account',
     html: `
       <div style="font-family: sans-serif; padding: 20px; color: #2C2C2A;">
+        <div style="display:inline-flex;align-items:center;gap:10px;margin-bottom:16px;">
+          <div style="height:42px;width:42px;border-radius:10px;background:#1A1035;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;">N.</div>
+          <strong style="font-size:20px;color:#3C3489;">NudgeHQ</strong>
+        </div>
         <h2>Welcome to NudgeHQ, ${name}!</h2>
         <p>Please click the button below to verify your email address and activate your workspace:</p>
         <p style="margin: 24px 0;">
@@ -85,7 +89,7 @@ export const sendResetPasswordEmail = async (email, token) => {
  * Send employee magic link invitation email
  */
 export const sendEmployeeInviteEmail = async (email, companyName, token) => {
-  const inviteLink = `${APP_URL}/accept-invite?token=${token}`;
+  const inviteLink = `${APP_URL}/set-password?token=${token}`;
 
   const mailOptions = {
     from: `"NudgeHQ Workspaces" <${FROM_EMAIL}>`,
@@ -100,6 +104,33 @@ export const sendEmployeeInviteEmail = async (email, companyName, token) => {
           <a href="${inviteLink}" style="padding: 12px 24px; background-color: #1D9E75; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Accept Invitation</a>
         </p>
         <p>This link is valid for 7 days.</p>
+      </div>
+    `,
+  };
+
+  return sendNudgeMail(mailOptions, inviteLink);
+};
+
+export const sendWorkspaceInviteEmail = async ({ email, adminName, companyName, token }) => {
+  const inviteLink = `${APP_URL}/set-password?token=${token}`;
+
+  const mailOptions = {
+    from: `"NudgeHQ Workspaces" <${FROM_EMAIL}>`,
+    to: email,
+    subject: `${adminName} invited you to NudgeHQ`,
+    html: `
+      <div style="font-family: sans-serif; padding: 20px; color: #2C2C2A;">
+        <div style="display:inline-flex;align-items:center;gap:10px;margin-bottom:16px;">
+          <div style="height:42px;width:42px;border-radius:10px;background:#1A1035;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;">N.</div>
+          <strong style="font-size:20px;color:#3C3489;">NudgeHQ</strong>
+        </div>
+        <h2>Join ${companyName} workspace</h2>
+        <p>${adminName} invited you to join <strong>${companyName}</strong> on NudgeHQ.</p>
+        <p style="margin: 24px 0;">
+          <a href="${inviteLink}" style="padding: 12px 24px; background-color: #7F77DD; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Accept invite & set password</a>
+        </p>
+        <p>This invite link is valid for 7 days.</p>
+        <p style="color:#7F77DD;">${inviteLink}</p>
       </div>
     `,
   };

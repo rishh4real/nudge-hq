@@ -16,6 +16,7 @@ import focusRoutes from './routes/focus.routes.js';
 import checkinRoutes from './routes/checkin.routes.js';
 import deepworkRoutes from './routes/deepwork.routes.js';
 import reportRoutes from './routes/report.routes.js';
+import paymentRoutes from './routes/payment.routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -37,6 +38,7 @@ app.use('/api/focus', focusRoutes);
 app.use('/api/checkin', checkinRoutes);
 app.use('/api/deepwork', deepworkRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/payment', paymentRoutes);
 
 // Base Health Check endpoint
 app.get('/health', (req, res) => {
