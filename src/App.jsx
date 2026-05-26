@@ -695,9 +695,9 @@ function App() {
   const [isSandbox, setIsSandbox] = useState(false)
   const [statusMessage, setStatusMessage] = useState(null)
 
-  // Demo Sign-in States
-  const [emailInput, setEmailInput] = useState('hr@nudgehq.com')
-  const [passwordInput, setPasswordInput] = useState('nudgehq123')
+  // Sign-in States
+  const [emailInput, setEmailInput] = useState('')
+  const [passwordInput, setPasswordInput] = useState('')
   const [loginError, setLoginError] = useState(null)
   const [loginLoading, setLoginLoading] = useState(false)
   const [signupCompany, setSignupCompany] = useState('')
