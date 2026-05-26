@@ -218,12 +218,6 @@ export const companySignup = async (req, res) => {
       organization = orgData;
     }
 
-    const { data: department } = await insertWithOptionalOrganization('departments', {
-      name: `${company_name} Operations`,
-      description: 'Default workspace created during company onboarding.',
-      organization_id: organization?.id
-    });
-
     const passwordHash = await bcrypt.hash(password, 10);
     const { data: adminUser } = await insertWithOptionalOrganization('users', {
       id: authUserId || undefined,
@@ -256,7 +250,6 @@ export const companySignup = async (req, res) => {
         : 'Admin account created. Run schema migrations to enable company isolation records.',
       verification_email: normalizedEmail,
       organization,
-      default_department: department,
       user: {
         id: adminUser.id,
         name: adminUser.name,

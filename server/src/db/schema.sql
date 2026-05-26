@@ -7,7 +7,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- 1. Organizations Table
 CREATE TABLE IF NOT EXISTS organizations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(150) UNIQUE NOT NULL,
+    name VARCHAR(150) NOT NULL,
     owner_id UUID,
     industry VARCHAR(80),
     size VARCHAR(30),
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS organizations (
 CREATE TABLE IF NOT EXISTS departments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
-    name VARCHAR(100) UNIQUE NOT NULL,
+    name VARCHAR(100) NOT NULL,
     description TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
@@ -212,6 +212,7 @@ ALTER TABLE organizations ADD COLUMN IF NOT EXISTS logo_url TEXT;
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS plan VARCHAR(40) DEFAULT 'free_trial';
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ;
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS plan_expires_at TIMESTAMPTZ;
+ALTER TABLE organizations DROP CONSTRAINT IF EXISTS organizations_name_key;
 ALTER TABLE progress_updates ADD COLUMN IF NOT EXISTS quality_score INTEGER CHECK (quality_score BETWEEN 1 AND 10);
 ALTER TABLE progress_updates ADD COLUMN IF NOT EXISTS quality_tip TEXT;
 ALTER TABLE reports ADD COLUMN IF NOT EXISTS report_month INTEGER;
@@ -223,6 +224,7 @@ ALTER TABLE employee_invitations ADD COLUMN IF NOT EXISTS name VARCHAR(100);
 ALTER TABLE employee_invitations ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'employee';
 ALTER TABLE employee_invitations ADD COLUMN IF NOT EXISTS department_id UUID REFERENCES departments(id) ON DELETE SET NULL;
 ALTER TABLE employee_invitations ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMPTZ;
+ALTER TABLE departments DROP CONSTRAINT IF EXISTS departments_name_key;
 
 ALTER TABLE organizations
   DROP CONSTRAINT IF EXISTS organizations_owner_id_fkey;
@@ -240,6 +242,7 @@ CREATE INDEX IF NOT EXISTS idx_users_organization ON users(organization_id);
 CREATE INDEX IF NOT EXISTS idx_users_company ON users(company_id);
 CREATE INDEX IF NOT EXISTS idx_users_department ON users(department_id);
 CREATE INDEX IF NOT EXISTS idx_departments_organization ON departments(organization_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_departments_org_name ON departments(organization_id, name);
 CREATE INDEX IF NOT EXISTS idx_tasks_assignee ON tasks(assignee_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_progress_updates_user ON progress_updates(user_id);
