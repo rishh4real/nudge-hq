@@ -299,15 +299,21 @@ export const googleOAuthUrl = async (req, res) => {
 
 export const googleOAuthCallback = async (req, res) => {
   try {
-    const { code, company_name } = req.body;
-    if (!code) {
-      return res.status(400).json({ success: false, message: 'Google authorization code is required.' });
+    const { code, access_token, company_name } = req.body;
+    if (!code && !access_token) {
+      return res.status(400).json({ success: false, message: 'Google authorization response is required.' });
     }
 
-    const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
-    if (sessionError) throw sessionError;
-
-    const googleUser = sessionData?.user;
+    let googleUser = null;
+    if (access_token) {
+      const { data: userData, error: userError } = await supabase.auth.getUser(access_token);
+      if (userError) throw userError;
+      googleUser = userData?.user;
+    } else {
+      const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
+      if (sessionError) throw sessionError;
+      googleUser = sessionData?.user;
+    }
     const normalizedEmail = googleUser?.email?.toLowerCase().trim();
     if (!googleUser || !normalizedEmail) {
       return res.status(400).json({ success: false, message: 'Google account did not return an email address.' });

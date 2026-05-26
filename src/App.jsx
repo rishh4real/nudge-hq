@@ -4451,8 +4451,12 @@ function GoogleOAuthCallback({ queryParams, setUser, setToken, setAuthRole, rout
   useEffect(() => {
     const completeGoogleAuth = async () => {
       const code = queryParams.get('code');
-      if (!code) {
-        setError(queryParams.get('error_description') || 'Google did not return an authorization code.');
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      const accessToken = hashParams.get('access_token');
+      const oauthError = queryParams.get('error_description') || hashParams.get('error_description');
+
+      if (!code && !accessToken) {
+        setError(oauthError || 'Google did not return a valid sign-in response.');
         return;
       }
 
@@ -4460,9 +4464,10 @@ function GoogleOAuthCallback({ queryParams, setUser, setToken, setAuthRole, rout
         const companyName = window.localStorage.getItem('nudgehq_google_signup_company') || '';
         const { data } = await fetchApi('/auth/oauth/google/callback', {
           method: 'POST',
-          body: JSON.stringify({ code, company_name: companyName })
+          body: JSON.stringify({ code, access_token: accessToken, company_name: companyName })
         });
 
+        window.history.replaceState({}, '', '/oauth/callback');
         window.localStorage.removeItem('nudgehq_google_signup_company');
         setUser(data.user);
         setToken(data.token);
