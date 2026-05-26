@@ -34,10 +34,14 @@ const isMissingInviteLinkSchema = (error) => (
   /invite_links.*schema cache|invite_links.*does not exist/i.test(error?.message || '')
 );
 
+const compactPayload = (payload) => Object.fromEntries(
+  Object.entries(payload).filter(([, value]) => value !== undefined)
+);
+
 const insertWithOptionalOrganization = async (table, payload) => {
   const { data, error } = await supabase
     .from(table)
-    .insert([payload])
+    .insert([compactPayload(payload)])
     .select()
     .single();
 
@@ -50,7 +54,7 @@ const insertWithOptionalOrganization = async (table, payload) => {
   const { organization_id, ...fallbackPayload } = payload;
   const fallback = await supabase
     .from(table)
-    .insert([fallbackPayload])
+    .insert([compactPayload(fallbackPayload)])
     .select()
     .single();
 
@@ -666,7 +670,7 @@ export const acceptInvite = async (req, res) => {
     const { data: newUser, error: userError } = await supabase
       .from('users')
       .insert([
-        {
+        compactPayload({
           id: authUserId || undefined,
           name,
           email: invitation.email,
@@ -677,7 +681,7 @@ export const acceptInvite = async (req, res) => {
           department_id: invitation.department_id || null,
           onboarding_complete: true,
           is_verified: true // Magic link serves as verification
-        }
+        })
       ])
       .select('id, name, email, role, organization_id, company_id, department_id')
       .single();
@@ -752,7 +756,7 @@ export const joinByInviteCode = async (req, res) => {
     const companyId = link.company_id || link.organization_id;
     const { data: newUser, error: userError } = await supabase
       .from('users')
-      .insert([{ id: authUserId || undefined, name, email: normalizedEmail, password_hash: passwordHash, role: 'employee', organization_id: companyId, company_id: companyId, is_verified: true, onboarding_complete: true }])
+      .insert([compactPayload({ id: authUserId || undefined, name, email: normalizedEmail, password_hash: passwordHash, role: 'employee', organization_id: companyId, company_id: companyId, is_verified: true, onboarding_complete: true })])
       .select('id, name, email, role, organization_id, company_id, department_id')
       .single();
 
