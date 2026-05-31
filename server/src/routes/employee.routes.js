@@ -15,14 +15,14 @@ const router = Router();
 router.use(authenticate);
 
 // Submit update (either Employee or Admin acting as Employee)
-router.post('/updates', authorize('employee', 'admin'), validateBody(['progress_text']), submitProgressUpdate);
+router.post('/updates', authorize('employee', 'manager', 'hr', 'admin'), validateBody(['progress_text']), submitProgressUpdate);
 
 // Get my personal update history
-router.get('/updates', authorize('employee', 'admin'), getMyProgressHistory);
+router.get('/updates', authorize('employee', 'manager', 'hr', 'admin'), getMyProgressHistory);
 
 // Get employee dashboard quick stats
-router.get('/dashboard', authorize('employee'), getMyDashboardStats);
-router.get('/notifications', authorize('employee'), getMyNotifications);
-router.get('/growth-summary', authorize('employee'), getGrowthSummary);
+router.get('/dashboard', authorize('employee', 'manager', 'hr', 'admin'), getMyDashboardStats);
+router.get('/notifications', authorize('employee', 'manager', 'hr', 'admin'), getMyNotifications);
+router.get('/growth-summary', authorize('employee', 'manager', 'hr', 'admin'), getGrowthSummary);
 
 export default router;

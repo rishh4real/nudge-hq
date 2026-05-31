@@ -56,16 +56,20 @@ export const getDeepWorkTeam = async (req, res) => {
 
     const { data, error } = await supabase
       .from('deep_work_sessions')
-      .select('id, start_time, end_time, focus_declared, output_logged, duration_minutes, user:users(id, name, email, departments(name))')
+      .select('id, start_time, end_time, focus_declared, output_logged, duration_minutes, user:users(id, name, email, department_id, departments(name))')
       .gte('start_time', monthStart.toISOString())
       .order('start_time', { ascending: false })
       .limit(100);
 
     if (error) throw error;
 
-    const active = (data || []).filter((session) => new Date(session.end_time) > new Date() && !session.output_logged);
+    const scopedDepartmentId = req.user.role === 'manager' ? req.user.department_id : req.query.department_id;
+    const scopedSessions = scopedDepartmentId
+      ? (data || []).filter((session) => session.user?.department_id === scopedDepartmentId)
+      : (data || []);
+    const active = scopedSessions.filter((session) => new Date(session.end_time) > new Date() && !session.output_logged);
     const minutesByUser = {};
-    (data || []).forEach((session) => {
+    scopedSessions.forEach((session) => {
       const name = session.user?.name || 'Employee';
       minutesByUser[name] = (minutesByUser[name] || 0) + (session.duration_minutes || 0);
     });

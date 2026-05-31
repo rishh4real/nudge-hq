@@ -20,7 +20,7 @@ export const createTask = async (req, res) => {
     if (assignee_id) {
       const { data: assignee, error: userError } = await supabase
         .from('users')
-        .select('id')
+        .select('id, department_id, organization_id')
         .eq('id', assignee_id)
         .maybeSingle();
 
@@ -30,6 +30,12 @@ export const createTask = async (req, res) => {
           success: false,
           message: `Assignee user with ID ${assignee_id} does not exist.`
         });
+      }
+      if (assignee.organization_id !== req.user.organization_id) {
+        return res.status(403).json({ success: false, message: 'Assignee must belong to your organization.' });
+      }
+      if (req.user.role === 'manager' && assignee.department_id !== req.user.department_id) {
+        return res.status(403).json({ success: false, message: 'Managers can assign tasks only to employees in their own department.' });
       }
     }
 
@@ -98,8 +104,9 @@ export const getTasks = async (req, res) => {
 
     // In-memory filter for department_id since it belongs to nested assignee resource
     let filteredTasks = tasks;
-    if (department_id) {
-      filteredTasks = tasks.filter(t => t.assignee && t.assignee.department_id === department_id);
+    const scopedDepartmentId = req.user.role === 'manager' ? req.user.department_id : department_id;
+    if (scopedDepartmentId) {
+      filteredTasks = tasks.filter(t => t.assignee && t.assignee.department_id === scopedDepartmentId);
     }
 
     return res.status(200).json({
@@ -139,7 +146,7 @@ export const updateTaskStatus = async (req, res) => {
     // Fetch original task
     const { data: task, error: fetchError } = await supabase
       .from('tasks')
-      .select('id, status, assignee_id')
+      .select('id, status, assignee_id, assignee:users(department_id)')
       .eq('id', taskId)
       .eq('organization_id', orgId)
       .maybeSingle();
@@ -157,6 +164,12 @@ export const updateTaskStatus = async (req, res) => {
       return res.status(403).json({
         success: false,
         message: 'Access denied. You can only update tasks assigned to you.'
+      });
+    }
+    if (req.user.role === 'manager' && task.assignee?.department_id !== req.user.department_id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Managers can only resolve blockers and update tasks in their department.'
       });
     }
 
@@ -238,7 +251,7 @@ export const updateTask = async (req, res) => {
     // Fetch original task
     const { data: task, error: fetchError } = await supabase
       .from('tasks')
-      .select('id')
+      .select('id, assignee:users(department_id)')
       .eq('id', taskId)
       .eq('organization_id', orgId)
       .maybeSingle();
@@ -249,6 +262,22 @@ export const updateTask = async (req, res) => {
         success: false,
         message: `Task with ID ${taskId} not found.`
       });
+    }
+
+    if (req.user.role === 'manager' && task.assignee?.department_id !== req.user.department_id) {
+      return res.status(403).json({ success: false, message: 'Managers can edit tasks only in their department.' });
+    }
+
+    if (req.user.role === 'manager' && assignee_id) {
+      const { data: nextAssignee, error: nextAssigneeError } = await supabase
+        .from('users')
+        .select('id, department_id, organization_id')
+        .eq('id', assignee_id)
+        .maybeSingle();
+      if (nextAssigneeError) throw nextAssigneeError;
+      if (!nextAssignee || nextAssignee.organization_id !== orgId || nextAssignee.department_id !== req.user.department_id) {
+        return res.status(403).json({ success: false, message: 'Managers can reassign tasks only inside their department.' });
+      }
     }
 
     // Build update object

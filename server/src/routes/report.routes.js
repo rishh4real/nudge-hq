@@ -5,6 +5,6 @@ import { authenticate, authorize } from '../middleware/auth.js';
 const router = Router();
 
 router.use(authenticate);
-router.post('/board-pack', authorize('admin'), generateBoardPack);
+router.post('/board-pack', authorize('admin', 'hr'), generateBoardPack);
 
 export default router;

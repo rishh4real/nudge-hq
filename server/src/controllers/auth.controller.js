@@ -10,6 +10,14 @@ dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_nudgehq_jwt_key_change_me_in_production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+const VALID_ROLES = ['employee', 'manager', 'hr', 'admin'];
+
+const dashboardPathForRole = (role) => ({
+  admin: '/dashboard/admin',
+  hr: '/dashboard/hr',
+  manager: '/dashboard/manager',
+  employee: '/dashboard/employee'
+}[role] || '/dashboard/employee');
 
 const addDays = (days) => {
   const date = new Date();
@@ -87,10 +95,10 @@ export const signup = async (req, res) => {
 
     // Validate role
     const userRole = role || 'employee';
-    if (!['admin', 'employee'].includes(userRole)) {
+    if (!VALID_ROLES.includes(userRole)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid role. Role must be admin or employee.'
+        message: 'Invalid role. Role must be employee, manager, hr, or admin.'
       });
     }
 
@@ -375,11 +383,9 @@ export const googleOAuthCallback = async (req, res) => {
     );
 
     const { password_hash, ...safeUserData } = user;
-    const redirectTo = safeUserData.role === 'admin' && !safeUserData.onboarding_complete
+    const redirectTo = ['admin', 'hr'].includes(safeUserData.role) && !safeUserData.onboarding_complete
       ? '/onboarding'
-      : safeUserData.role === 'employee'
-        ? '/dashboard/employee'
-        : '/dashboard/admin';
+      : dashboardPathForRole(safeUserData.role);
 
     return res.status(200).json({
       success: true,
@@ -451,7 +457,7 @@ export const login = async (req, res) => {
 
     // Remove password_hash from return response
     const { password_hash, ...safeUserData } = user;
-    const dashboardPath = user.role === 'admin' ? '/dashboard/admin' : '/dashboard/employee';
+    const dashboardPath = dashboardPathForRole(user.role);
 
     return res.status(200).json({
       success: true,
@@ -560,7 +566,7 @@ export const verifyEmail = async (req, res) => {
       { expiresIn: JWT_EXPIRES_IN }
     ) : null;
 
-    const redirectTo = verifiedUser?.role === 'admin' && !verifiedUser?.onboarding_complete
+    const redirectTo = ['admin', 'hr'].includes(verifiedUser?.role) && !verifiedUser?.onboarding_complete
       ? '/onboarding'
       : '/choose-plan';
 
@@ -836,7 +842,8 @@ export const acceptInvite = async (req, res) => {
       success: true,
       message: 'Invitation accepted. Welcome to the company workspace.',
       token: jwtToken,
-      user: newUser
+      user: newUser,
+      redirect_to: dashboardPathForRole(newUser.role)
     });
   } catch (error) {
     console.error('Accept invite error:', error);
@@ -974,12 +981,13 @@ export const completeOnboarding = async (req, res) => {
       if (!employee.email) continue;
       const inviteToken = crypto.randomBytes(32).toString('hex');
       const deptId = employee.department_id || deptByName.get(String(employee.department || '').toLowerCase()) || null;
+      const employeeRole = VALID_ROLES.includes(employee.role) ? employee.role : 'employee';
       inviteRows.push({
         organization_id: orgId,
         company_id: orgId,
         email: employee.email.toLowerCase().trim(),
         name: employee.name || null,
-        role: employee.role || 'employee',
+        role: employeeRole,
         department_id: deptId,
         invited_by: adminId,
         token: inviteToken,

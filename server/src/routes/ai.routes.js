@@ -22,17 +22,15 @@ router.use(authenticate);
 
 router.post('/score-update', scoreUpdate);
 
-// Secure admin NudgeAI paths to Admins only
-router.use(authorize('admin'));
-router.get('/summary/daily', generateDailySummary);
-router.get('/delays', detectDelayedTasks);
-router.get('/inactivity', identifyInactiveEmployees);
-router.post('/burnout-check', burnoutCheck);
-router.post('/sprint-forecast', sprintForecast);
-router.post('/standup-brief', standupBrief);
-router.post('/anomaly-check', anomalyCheck);
-router.post('/appreciation', appreciation);
-router.get('/skill-gap-analysis', skillGapAnalysis);
-router.post('/skill-gap-analysis', skillGapAnalysis);
+router.get('/summary/daily', authorize('admin', 'manager'), generateDailySummary);
+router.get('/delays', authorize('admin', 'manager'), detectDelayedTasks);
+router.get('/inactivity', authorize('admin', 'hr'), identifyInactiveEmployees);
+router.post('/burnout-check', authorize('admin', 'hr'), burnoutCheck);
+router.post('/sprint-forecast', authorize('admin', 'manager'), sprintForecast);
+router.post('/standup-brief', authorize('admin', 'manager'), standupBrief);
+router.post('/anomaly-check', authorize('admin', 'hr'), anomalyCheck);
+router.post('/appreciation', authorize('admin', 'manager'), appreciation);
+router.get('/skill-gap-analysis', authorize('admin', 'hr'), skillGapAnalysis);
+router.post('/skill-gap-analysis', authorize('admin', 'hr'), skillGapAnalysis);
 
 export default router;

@@ -81,14 +81,37 @@ const getCachedAiOutput = async (featureType, entityId) => {
   return data;
 };
 
-const getEmployees = async () => {
-  const { data, error } = await supabase
+const getScopedDepartmentId = (req) => (
+  req?.user?.role === 'manager'
+    ? req.user.department_id
+    : req?.body?.department_id || req?.query?.department_id || null
+);
+
+const getEmployees = async (req = null) => {
+  let query = supabase
     .from('users')
     .select('id, name, email, role, department_id, departments(name)')
     .eq('role', 'employee');
 
+  const departmentId = getScopedDepartmentId(req);
+  if (req?.user?.organization_id) query = query.eq('organization_id', req.user.organization_id);
+  if (departmentId) query = query.eq('department_id', departmentId);
+
+  const { data, error } = await query;
   if (error) throw error;
   return data || [];
+};
+
+const scopeUpdates = (updates = [], req = null) => {
+  const departmentId = getScopedDepartmentId(req);
+  return departmentId
+    ? updates.filter((update) => update.user?.department_id === departmentId)
+    : updates;
+};
+
+const aiEntityKey = (req, fallback = 'company') => {
+  const departmentId = getScopedDepartmentId(req);
+  return departmentId ? `department:${departmentId}` : fallback;
 };
 
 const assistantFallback = (message = '', context = 'public') => {
@@ -172,14 +195,14 @@ export const assistantChat = async (req, res) => {
 const getRecentUpdates = async (fromDate) => {
   const { data, error } = await supabase
     .from('progress_updates')
-    .select('id, user_id, task_id, progress_text, quality_score, quality_tip, created_at, user:users(id, name, email, departments(name)), tasks(id, title, status)')
+    .select('id, user_id, task_id, progress_text, quality_score, quality_tip, created_at, user:users(id, name, email, department_id, departments(name)), tasks(id, title, status)')
     .gte('created_at', fromDate.toISOString())
     .order('created_at', { ascending: false });
 
   if (error && /quality_score|quality_tip|schema cache/i.test(error.message || '')) {
     const fallback = await supabase
       .from('progress_updates')
-      .select('id, user_id, task_id, progress_text, created_at, user:users(id, name, email, departments(name)), tasks(id, title, status)')
+      .select('id, user_id, task_id, progress_text, created_at, user:users(id, name, email, department_id, departments(name)), tasks(id, title, status)')
       .gte('created_at', fromDate.toISOString())
       .order('created_at', { ascending: false });
 
@@ -224,12 +247,13 @@ export const generateDailySummary = async (req, res) => {
     today.setHours(0, 0, 0, 0);
 
     // Fetch progress updates since midnight
-    const { data: updates, error } = await supabase
+    const { data: rawUpdates, error } = await supabase
       .from('progress_updates')
-      .select('progress_text, created_at, user:users(name, email, departments(name)), task:tasks(title, status)')
+      .select('progress_text, created_at, user:users(name, email, department_id, departments(name)), task:tasks(title, status)')
       .gte('created_at', today.toISOString());
 
     if (error) throw error;
+    const updates = scopeUpdates(rawUpdates || [], req);
 
     if (!updates || updates.length === 0) {
       return res.status(200).json({
@@ -333,12 +357,16 @@ export const detectDelayedTasks = async (req, res) => {
     const now = new Date().toISOString();
 
     // Query tasks that are overdue (due_date < now and status != completed) OR are blocked
-    const { data: atRiskTasks, error } = await supabase
+    const { data: atRiskTasksRaw, error } = await supabase
       .from('tasks')
-      .select('id, title, description, status, due_date, created_at, assignee:users(name, email, departments(name))')
+      .select('id, title, description, status, due_date, created_at, assignee:users(name, email, department_id, departments(name))')
       .neq('status', 'completed');
 
     if (error) throw error;
+    const scopedDepartmentId = getScopedDepartmentId(req);
+    const atRiskTasks = scopedDepartmentId
+      ? (atRiskTasksRaw || []).filter((task) => task.assignee?.department_id === scopedDepartmentId)
+      : (atRiskTasksRaw || []);
 
     // Filter tasks that are actually overdue or currently blocked
     const filteredAtRisk = atRiskTasks.filter(task => {
@@ -544,8 +572,8 @@ export const burnoutCheck = async (req, res) => {
       if (cached) return res.status(200).json({ success: true, cached: true, data: cached.output_json });
     }
 
-    const employees = await getEmployees();
-    const updates = await getRecentUpdates(daysAgo(14));
+    const employees = await getEmployees(req);
+    const updates = scopeUpdates(await getRecentUpdates(daysAgo(14)), req);
 
     const results = await Promise.all(employees.map(async (employee) => {
       const employeeUpdates = updates.filter((update) => update.user_id === employee.id);
@@ -601,23 +629,27 @@ export const burnoutCheck = async (req, res) => {
 export const sprintForecast = async (req, res) => {
   try {
     const { refresh = false } = req.body || {};
+    const entityKey = aiEntityKey(req);
     if (!refresh) {
-      const cached = await getCachedAiOutput('sprint-forecast', 'admin');
+      const cached = await getCachedAiOutput('sprint-forecast', entityKey);
       if (cached) return res.status(200).json({ success: true, cached: true, data: cached.output_json });
     }
 
     const [employees, updatesResult, tasksResult, blockersResult] = await Promise.all([
-      getEmployees(),
-      getRecentUpdates(daysAgo(14)),
-      supabase.from('tasks').select('id, title, description, status, due_date, assignee:users(id, name, email)').neq('status', 'completed'),
+      getEmployees(req),
+      scopeUpdates(await getRecentUpdates(daysAgo(14)), req),
+      supabase.from('tasks').select('id, title, description, status, due_date, assignee:users(id, name, email, department_id)').neq('status', 'completed'),
       supabase.from('blocker_logs').select('id, task_id, reporter_id, blocker_text, resolved, created_at').eq('resolved', false)
     ]);
 
     if (tasksResult.error) throw tasksResult.error;
     if (blockersResult.error) throw blockersResult.error;
 
+    const scopedTasks = (tasksResult.data || []).filter((task) => !getScopedDepartmentId(req) || task.assignee?.department_id === getScopedDepartmentId(req));
+    const scopedBlockers = (blockersResult.data || []).filter((blocker) => scopedTasks.some((task) => task.id === blocker.task_id));
+
     const completionByEmployee = employees.map((employee) => {
-      const assignedOpen = (tasksResult.data || []).filter((task) => task.assignee?.id === employee.id).length;
+      const assignedOpen = scopedTasks.filter((task) => task.assignee?.id === employee.id).length;
       const submitted = updatesResult.filter((update) => update.user_id === employee.id).length;
       return {
         id: employee.id,
@@ -629,16 +661,16 @@ export const sprintForecast = async (req, res) => {
     });
 
     const payload = {
-      open_tasks: tasksResult.data || [],
+      open_tasks: scopedTasks,
       completion_by_employee: completionByEmployee,
-      active_blockers: blockersResult.data || [],
+      active_blockers: scopedBlockers,
       team_capacity: employees.length
     };
 
-    const fallbackPercent = Math.max(35, Math.min(92, 85 - ((blockersResult.data || []).length * 8)));
+    const fallbackPercent = Math.max(35, Math.min(92, 85 - (scopedBlockers.length * 8)));
     const fallback = {
       forecast_percent: fallbackPercent,
-      tasks_at_risk: (tasksResult.data || []).slice(0, 3).map((task) => ({
+      tasks_at_risk: scopedTasks.slice(0, 3).map((task) => ({
         task_id: task.id,
         title: task.title,
         reason: task.status === 'blocked' ? 'Task is currently blocked.' : 'Open task needs owner review.'
@@ -653,7 +685,7 @@ export const sprintForecast = async (req, res) => {
     });
 
     const output = { ...fallback, ...data, generated_at: new Date().toISOString(), powered_by: 'NudgeAI', unavailable };
-    await saveAiOutput('sprint-forecast', 'admin', output, 24);
+    await saveAiOutput('sprint-forecast', entityKey, output, 24);
     return res.status(200).json({ success: true, data: output });
   } catch (error) {
     console.error('NudgeAI sprint forecast error:', error);
@@ -664,8 +696,9 @@ export const sprintForecast = async (req, res) => {
 export const standupBrief = async (req, res) => {
   try {
     const { refresh = false } = req.body || {};
+    const entityKey = aiEntityKey(req);
     if (!refresh) {
-      const cached = await getCachedAiOutput('standup-brief', 'admin');
+      const cached = await getCachedAiOutput('standup-brief', entityKey);
       if (cached) return res.status(200).json({ success: true, cached: true, data: cached.output_json });
     }
 
@@ -673,7 +706,7 @@ export const standupBrief = async (req, res) => {
     since.setDate(since.getDate() - 1);
     since.setHours(9, 0, 0, 0);
 
-    const updates = await getRecentUpdates(since);
+    const updates = scopeUpdates(await getRecentUpdates(since), req);
     const fallback = {
       brief: updates.length
         ? `What got done: ${updates.length} team updates were submitted. What is in progress: teams continue moving assigned work forward. What is blocked: review any blocked tasks in the dashboard. What needs manager attention today: follow up on unclear or delayed updates.`
@@ -694,7 +727,7 @@ export const standupBrief = async (req, res) => {
     });
 
     const output = { ...fallback, ...data, generated_at: new Date().toISOString(), powered_by: 'NudgeAI', unavailable };
-    await saveAiOutput('standup-brief', 'admin', output, 18);
+    await saveAiOutput('standup-brief', entityKey, output, 18);
     return res.status(200).json({ success: true, data: output });
   } catch (error) {
     console.error('NudgeAI standup brief error:', error);
@@ -727,8 +760,8 @@ export const anomalyCheck = async (req, res) => {
       if (cached) return res.status(200).json({ success: true, cached: true, data: cached.output_json });
     }
 
-    const employees = await getEmployees();
-    const updates = await getRecentUpdates(daysAgo(14));
+    const employees = await getEmployees(req);
+    const updates = scopeUpdates(await getRecentUpdates(daysAgo(14)), req);
 
     const alerts = await Promise.all(employees.map(async (employee) => {
       const employeeUpdates = updates.filter((update) => update.user_id === employee.id);
@@ -781,8 +814,20 @@ export const anomalyCheck = async (req, res) => {
 export const appreciation = async (req, res) => {
   try {
     const { send = false, employee_id, message, refresh = true } = req.body || {};
+    const entityKey = aiEntityKey(req);
 
     if (send && employee_id && message) {
+      if (req.user.role === 'manager') {
+        const { data: employee, error: employeeError } = await supabase
+          .from('users')
+          .select('id, department_id, organization_id')
+          .eq('id', employee_id)
+          .maybeSingle();
+        if (employeeError) throw employeeError;
+        if (!employee || employee.organization_id !== req.user.organization_id || employee.department_id !== req.user.department_id) {
+          return res.status(403).json({ success: false, message: 'Managers can send appreciation only to their own department.' });
+        }
+      }
       const { error } = await supabase
         .from('employee_notifications')
         .insert([{ user_id: employee_id, type: 'recognition', message }]);
@@ -792,12 +837,12 @@ export const appreciation = async (req, res) => {
     }
 
     if (!refresh) {
-      const cached = await getCachedAiOutput('appreciation', 'admin');
+      const cached = await getCachedAiOutput('appreciation', entityKey);
       if (cached) return res.status(200).json({ success: true, cached: true, data: cached.output_json });
     }
 
-    const employees = await getEmployees();
-    const updates = await getRecentUpdates(daysAgo(7));
+    const employees = await getEmployees(req);
+    const updates = scopeUpdates(await getRecentUpdates(daysAgo(7)), req);
     const suggestions = await Promise.all(employees.slice(0, 6).map(async (employee) => {
       const employeeUpdates = updates.filter((update) => update.user_id === employee.id);
       const completedCount = employeeUpdates.filter((update) => update.tasks?.status === 'completed').length;
@@ -825,7 +870,7 @@ export const appreciation = async (req, res) => {
     }));
 
     const output = { generated_at: new Date().toISOString(), powered_by: 'NudgeAI', suggestions };
-    await saveAiOutput('appreciation', 'admin', output, 24);
+    await saveAiOutput('appreciation', entityKey, output, 24);
     return res.status(200).json({ success: true, data: output });
   } catch (error) {
     console.error('NudgeAI appreciation error:', error);

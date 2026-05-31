@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(100) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'employee')) DEFAULT 'employee',
+    role VARCHAR(20) NOT NULL CHECK (role IN ('employee', 'manager', 'hr', 'admin')) DEFAULT 'employee',
     department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
     avatar_url TEXT,
     onboarding_complete BOOLEAN DEFAULT FALSE NOT NULL,
@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS employee_invitations (
     company_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
     email VARCHAR(255) NOT NULL,
     name VARCHAR(100),
-    role VARCHAR(20) DEFAULT 'employee' CHECK (role IN ('admin', 'employee')),
+    role VARCHAR(20) DEFAULT 'employee' CHECK (role IN ('employee', 'manager', 'hr', 'admin')),
     department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
     invited_by UUID REFERENCES users(id) ON DELETE SET NULL,
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -226,6 +226,13 @@ ALTER TABLE employee_invitations ADD COLUMN IF NOT EXISTS department_id UUID REF
 ALTER TABLE employee_invitations ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMPTZ;
 ALTER TABLE departments DROP CONSTRAINT IF EXISTS departments_name_key;
 
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+ALTER TABLE users
+  ADD CONSTRAINT users_role_check CHECK (role IN ('employee', 'manager', 'hr', 'admin'));
+ALTER TABLE employee_invitations DROP CONSTRAINT IF EXISTS employee_invitations_role_check;
+ALTER TABLE employee_invitations
+  ADD CONSTRAINT employee_invitations_role_check CHECK (role IN ('employee', 'manager', 'hr', 'admin'));
+
 ALTER TABLE organizations
   DROP CONSTRAINT IF EXISTS organizations_owner_id_fkey;
 ALTER TABLE organizations
@@ -234,7 +241,7 @@ ALTER TABLE organizations
 -- Keep demo accounts usable after email verification is enabled.
 UPDATE users
 SET is_verified = TRUE
-WHERE email IN ('hr@nudgehq.com', 'employee@nudgehq.com');
+WHERE email IN ('admin@nudgehq.com', 'hr@nudgehq.com', 'manager@nudgehq.com', 'employee@nudgehq.com');
 
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);

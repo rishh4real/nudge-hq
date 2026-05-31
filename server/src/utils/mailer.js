@@ -23,6 +23,13 @@ const transporter = hasSmtpConfig
 
 const APP_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 
+const escapeHtml = (value) => String(value || '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#039;');
+
 const brandHeader = `
   <table role="presentation" cellspacing="0" cellpadding="0" style="margin-bottom:28px;">
     <tr>
@@ -158,4 +165,46 @@ export const sendWorkspaceInviteEmail = async ({ email, adminName, companyName, 
   };
 
   return sendNudgeMail(mailOptions, inviteLink);
+};
+
+export const sendContactQueryEmail = async ({ name, email, queryType, message }) => {
+  const safeName = escapeHtml(String(name || '').trim());
+  const safeEmail = escapeHtml(String(email || '').trim());
+  const safeQueryType = escapeHtml(String(queryType || 'General query').trim());
+  const safeMessage = escapeHtml(String(message || '').trim());
+
+  const mailOptions = {
+    from: `"NudgeHQ Contact" <${FROM_EMAIL}>`,
+    to: FROM_EMAIL,
+    replyTo: safeEmail,
+    subject: `NudgeHQ query: ${safeQueryType} from ${safeName}`,
+    html: `
+      <div style="margin:0;background:#F7FAFF;padding:28px 12px;">
+        <div style="max-width:620px;margin:0 auto;background:#FFFFFF;border:1px solid #EEEDFE;border-radius:18px;padding:32px;color:#2C2C2A;font-family:Arial,sans-serif;">
+          ${brandHeader}
+          <h1 style="margin:0 0 12px;font-size:24px;line-height:1.25;color:#2C2C2A;">New Connect With Us query</h1>
+          <table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;margin:20px 0;border-collapse:collapse;">
+            <tr>
+              <td style="padding:10px 0;border-bottom:1px solid #EEEDFE;color:#5F5E5A;font-size:13px;font-weight:700;width:140px;">Name</td>
+              <td style="padding:10px 0;border-bottom:1px solid #EEEDFE;color:#2C2C2A;font-size:14px;">${safeName}</td>
+            </tr>
+            <tr>
+              <td style="padding:10px 0;border-bottom:1px solid #EEEDFE;color:#5F5E5A;font-size:13px;font-weight:700;">Email</td>
+              <td style="padding:10px 0;border-bottom:1px solid #EEEDFE;color:#3C3489;font-size:14px;">${safeEmail}</td>
+            </tr>
+            <tr>
+              <td style="padding:10px 0;border-bottom:1px solid #EEEDFE;color:#5F5E5A;font-size:13px;font-weight:700;">Query type</td>
+              <td style="padding:10px 0;border-bottom:1px solid #EEEDFE;color:#2C2C2A;font-size:14px;">${safeQueryType}</td>
+            </tr>
+          </table>
+          <div style="margin-top:18px;border:1px solid #EEEDFE;border-radius:12px;background:#FCFCFF;padding:18px;">
+            <div style="font-size:12px;font-weight:800;color:#3C3489;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Message</div>
+            <div style="font-size:15px;line-height:1.7;color:#2C2C2A;white-space:pre-wrap;">${safeMessage}</div>
+          </div>
+        </div>
+      </div>
+    `,
+  };
+
+  return sendNudgeMail(mailOptions, 'contact-query');
 };

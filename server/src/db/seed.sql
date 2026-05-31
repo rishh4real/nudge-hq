@@ -26,11 +26,29 @@ INSERT INTO users (id, name, email, password_hash, role, department_id, is_verif
 VALUES
   (
     'c3333333-3333-3333-3333-333333333333', 
-    'HR Operations', 
-    'hr@nudgehq.com', 
+    'Admin Operations', 
+    'admin@nudgehq.com', 
     '$2a$10$iNcWZbbWXE9NpcvR9dX6KO6.3B7Wwo6E8NRtrRdnhl6juBfx/iMDi', 
     'admin', 
     NULL,
+    TRUE
+  ),
+  (
+    'c3333333-3333-3333-3333-333333333334',
+    'HR Operations',
+    'hr@nudgehq.com',
+    '$2a$10$iNcWZbbWXE9NpcvR9dX6KO6.3B7Wwo6E8NRtrRdnhl6juBfx/iMDi',
+    'hr',
+    NULL,
+    TRUE
+  ),
+  (
+    'c3333333-3333-3333-3333-333333333335',
+    'Sales Manager',
+    'manager@nudgehq.com',
+    '$2a$10$iNcWZbbWXE9NpcvR9dX6KO6.3B7Wwo6E8NRtrRdnhl6juBfx/iMDi',
+    'manager',
+    'a1111111-1111-1111-1111-111111111111',
     TRUE
   ),
   (
@@ -50,6 +68,8 @@ SET
   is_verified = TRUE
 WHERE id IN (
   'c3333333-3333-3333-3333-333333333333',
+  'c3333333-3333-3333-3333-333333333334',
+  'c3333333-3333-3333-3333-333333333335',
   'd4444444-4444-4444-4444-444444444444'
 );
 

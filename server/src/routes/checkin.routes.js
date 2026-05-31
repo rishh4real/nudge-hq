@@ -5,7 +5,7 @@ import { authenticate, authorize } from '../middleware/auth.js';
 const router = Router();
 
 router.use(authenticate);
-router.post('/daily', authorize('employee', 'admin'), submitDailyCheckin);
-router.get('/team', authorize('admin'), getTeamPresence);
+router.post('/daily', authorize('employee', 'manager', 'hr', 'admin'), submitDailyCheckin);
+router.get('/team', authorize('manager', 'hr', 'admin'), getTeamPresence);
 
 export default router;

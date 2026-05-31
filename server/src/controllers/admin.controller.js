@@ -4,6 +4,7 @@ import { supabase } from '../config/supabase.js';
 import { sendEmployeeInviteEmail } from '../utils/mailer.js';
 
 const TEMP_PASSWORD = 'nudgehq123';
+const VALID_INVITE_ROLES = ['employee', 'manager', 'hr', 'admin'];
 
 const isMissingSchema = (error) => (
   error?.code === '42P01' ||
@@ -19,6 +20,7 @@ export const getAllEmployeeUpdates = async (req, res) => {
   try {
     const { department_id, user_id, start_date, end_date, limit = 50, offset = 0 } = req.query;
     const orgId = req.user.organization_id;
+    const scopedDepartmentId = req.user.role === 'manager' ? req.user.department_id : department_id;
 
     let query = supabase
       .from('progress_updates')
@@ -56,13 +58,13 @@ export const getAllEmployeeUpdates = async (req, res) => {
 
       const fallback = await fallbackQuery;
       if (fallback.error) throw fallback.error;
-      const filtered = department_id
-        ? fallback.data.filter(u => u.user && u.user.department_id === department_id)
+      const filtered = scopedDepartmentId
+        ? fallback.data.filter(u => u.user && u.user.department_id === scopedDepartmentId)
         : fallback.data;
 
       return res.status(200).json({
         success: true,
-        count: department_id ? filtered.length : fallback.count,
+        count: scopedDepartmentId ? filtered.length : fallback.count,
         limit: Number(limit),
         offset: Number(offset),
         updates: filtered
@@ -72,13 +74,13 @@ export const getAllEmployeeUpdates = async (req, res) => {
 
     // Filter by department in-memory if requested
     let finalUpdates = updates;
-    if (department_id) {
-      finalUpdates = updates.filter(u => u.user && u.user.department_id === department_id);
+    if (scopedDepartmentId) {
+      finalUpdates = updates.filter(u => u.user && u.user.department_id === scopedDepartmentId);
     }
 
     return res.status(200).json({
       success: true,
-      count: department_id ? finalUpdates.length : count,
+      count: scopedDepartmentId ? finalUpdates.length : count,
       limit: Number(limit),
       offset: Number(offset),
       updates: finalUpdates
@@ -246,9 +248,10 @@ export const deleteDepartment = async (req, res) => {
  */
 export const inviteEmployee = async (req, res) => {
   try {
-    const { email, department_id } = req.body;
+    const { name, email, department_id, role = 'employee' } = req.body;
     const normalizedEmail = email.toLowerCase().trim();
     const adminOrgId = req.user.organization_id;
+    const inviteRole = VALID_INVITE_ROLES.includes(role) ? role : 'employee';
 
     // Check if user already exists
     const { data: existingUser, error: checkError } = await supabase
@@ -292,7 +295,11 @@ export const inviteEmployee = async (req, res) => {
       .insert([
         {
           organization_id: adminOrgId,
+          company_id: adminOrgId,
           email: normalizedEmail,
+          name: name || null,
+          role: inviteRole,
+          department_id: department_id || null,
           invited_by: req.user.id,
           token,
           expires_at: expiresAt,
@@ -310,7 +317,15 @@ export const inviteEmployee = async (req, res) => {
     return res.status(201).json({
       success: true,
       message: 'Invitation sent successfully. Magic link emailed to employee.',
-      invitation
+      invitation,
+      employee: {
+        id: invitation.id,
+        name: invitation.name || name || normalizedEmail.split('@')[0],
+        email: invitation.email,
+        role: invitation.role,
+        department_id: invitation.department_id
+      },
+      temporary_password: TEMP_PASSWORD
     });
   } catch (error) {
     console.error('Invite employee error:', error);

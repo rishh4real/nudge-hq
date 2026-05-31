@@ -36,18 +36,22 @@ export const getTeamPresence = async (req, res) => {
     const today = new Date().toISOString().slice(0, 10);
     const { data, error } = await supabase
       .from('daily_checkins')
-      .select('id, location, goals_json, energy_level, date, completion_summary, created_at, user:users(id, name, email, departments(name))')
+      .select('id, location, goals_json, energy_level, date, completion_summary, created_at, user:users(id, name, email, department_id, departments(name))')
       .eq('date', today)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
-    const withGoals = (data || []).filter((checkin) => (checkin.goals_json || []).length > 0).length;
+    const scopedDepartmentId = req.user.role === 'manager' ? req.user.department_id : req.query.department_id;
+    const scopedPresence = scopedDepartmentId
+      ? (data || []).filter((checkin) => checkin.user?.department_id === scopedDepartmentId)
+      : (data || []);
+    const withGoals = scopedPresence.filter((checkin) => (checkin.goals_json || []).length > 0).length;
     const insight = withGoals
       ? `Your team performs better when they declare goals in the morning. ${withGoals} people set goals today.`
       : 'No team goals declared yet today. Encourage a lightweight morning check-in.';
 
-    return res.status(200).json({ success: true, presence: data || [], insight, powered_by: 'NudgeAI' });
+    return res.status(200).json({ success: true, presence: scopedPresence, insight, powered_by: 'NudgeAI' });
   } catch (error) {
     if (missingSchema(error)) return res.status(200).json({ success: true, presence: [], insight: 'Smart Presence schema is not ready yet.', powered_by: 'NudgeAI' });
     console.error('Team presence error:', error);

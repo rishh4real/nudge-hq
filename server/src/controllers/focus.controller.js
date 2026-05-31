@@ -28,21 +28,26 @@ export const getTeamFocus = async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('focus_sessions')
-      .select('id, focus_text, eta, status, created_at, last_updated, user:users(id, name, email, departments(name))')
+      .select('id, focus_text, eta, status, created_at, last_updated, user:users(id, name, email, department_id, departments(name))')
       .order('last_updated', { ascending: false })
       .limit(100);
 
     if (error) throw error;
 
+    const scopedDepartmentId = req.user.role === 'manager' ? req.user.department_id : req.query.department_id;
+    const scopedData = scopedDepartmentId
+      ? (data || []).filter((session) => session.user?.department_id === scopedDepartmentId)
+      : (data || []);
+
     const latestByUser = new Map();
-    (data || []).forEach((session) => {
+    scopedData.forEach((session) => {
       const id = session.user?.id || session.user_id;
       if (id && !latestByUser.has(id)) latestByUser.set(id, session);
     });
 
     const today = new Date().toISOString().slice(0, 10);
     const switchCounts = {};
-    (data || [])
+    scopedData
       .filter((session) => session.last_updated?.slice(0, 10) === today && session.status === 'switched')
       .forEach((session) => {
         const id = session.user?.id;

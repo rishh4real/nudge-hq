@@ -15,9 +15,9 @@ const router = Router();
 router.use(authenticate);
 
 // CRUD Tasks
-router.post('/', authorize('admin'), validateBody(['title']), createTask);
+router.post('/', authorize('admin', 'manager'), validateBody(['title']), createTask);
 router.get('/', getTasks);
-router.put('/:id', authorize('admin'), updateTask);
+router.put('/:id', authorize('admin', 'manager'), updateTask);
 router.delete('/:id', authorize('admin'), deleteTask);
 
 // Status transition (Both employee and admin can update status)
