@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Activity,
   ArrowRight,
-  BellRing,
   Building2,
   Check,
   CheckCircle2,
@@ -21,7 +20,6 @@ import {
   Mail,
   MessageSquareText,
   ShieldCheck,
-  Smartphone,
   Sparkles,
   UserCheck,
   UsersRound,
@@ -114,18 +112,48 @@ const painPoints = [
   },
 ]
 
-const employeeFeatures = [
-  ['Quick daily check-ins', Smartphone],
-  ['Task progress nudges', BellRing],
-  ['Blocker notes in seconds', MessageSquareText],
-  ['Personal completion view', CheckCircle2],
+const roleFeatureCards = [
+  {
+    role: 'Employee',
+    title: 'Own work, check-ins, and growth',
+    copy: 'Employees see their tasks, submit daily progress, log blockers, use focus tools, and track their personal wins.',
+    icon: User,
+    accent: '#7F77DD',
+    points: ['Daily check-ins', 'Assigned tasks', 'Growth portal'],
+  },
+  {
+    role: 'Manager',
+    title: 'Team execution without chasing',
+    copy: 'Managers see only their department, assign work, resolve blockers, and use NudgeAI standups for their team.',
+    icon: ListTodo,
+    accent: '#1D9E75',
+    points: ['Team task board', 'Blocker alerts', 'Sprint forecast'],
+  },
+  {
+    role: 'HR',
+    title: 'People health and performance signals',
+    copy: 'HR gets company-wide people analytics, burnout signals, attendance patterns, reports, and skill-gap insights.',
+    icon: ShieldCheck,
+    accent: '#F59E0B',
+    points: ['Burnout risk', 'Skill gaps', 'HR reports'],
+  },
+  {
+    role: 'Admin',
+    title: 'Full workspace command center',
+    copy: 'Admins manage billing, invites, departments, all dashboards, exports, settings, and the full NudgeAI suite.',
+    icon: LayoutDashboard,
+    accent: '#3C3489',
+    points: ['All roles', 'Billing', 'Company settings'],
+  },
 ]
 
-const adminFeatures = [
-  ['Live team dashboard', LayoutDashboard],
-  ['Department progress trends', LineChart],
-  ['Attendance and task visibility', UserCheck],
-  ['Export-ready HR summaries', ClipboardCheck],
+const platformFeatureRail = [
+  ['NudgeAI summaries', Sparkles],
+  ['Focus Pulse', Activity],
+  ['Smart Presence', UserCheck],
+  ['Deep Work Mode', Clock3],
+  ['Board Pack reports', FileCheck2],
+  ['Role-gated dashboards', Shield],
 ]
 
 const steps = [
@@ -148,31 +176,105 @@ const steps = [
 
 const pricing = [
   {
-    name: 'Free',
-    price: 'Rs.0',
-    description: 'For small teams piloting progress visibility.',
-    features: ['Free trial for 40 employees', 'Basic check-ins', 'Team progress board'],
+    name: 'Free Trial',
+    price: 'Rs. 0',
+    description: '14 days · Up to 20 employees',
+    features: ['Full platform access', 'NudgeAI basic summary', 'Daily check-ins', 'Task tracking', 'Admin dashboard'],
+    button: 'Start Free Trial',
   },
   {
     name: 'Starter',
-    price: 'Rs.2000',
-    description: 'For growing teams replacing manual follow-ups.',
-    features: ['Up to 10 employees', 'Automated nudges', 'Weekly reports'],
+    price: 'Rs. 2,000/month',
+    description: 'Entry plan · Up to 15 employees',
+    features: ['Everything in Free Trial', 'Unlimited check-ins', 'NudgeAI daily summary', 'Blocker detection', 'Weekly reports', 'Email support'],
+    button: 'Get Started',
+    entry: true,
   },
   {
     name: 'Growth',
-    price: 'Rs.6000',
-    description: 'For companies that need cross-team clarity.',
-    features: ['Up to 40 employees', 'Admin analytics', 'Exports and roles'],
+    price: 'Rs. 6,000/month',
+    description: 'Most Popular · Up to 45 employees',
+    features: ['Everything in Starter', 'NudgeAI full suite', 'Burnout predictor', 'Sprint forecast', 'Department analytics', 'WhatsApp notifications', 'Priority support'],
+    button: 'Get Started',
     highlighted: true,
   },
   {
     name: 'Enterprise',
     price: 'Custom',
-    description: 'For larger organizations with custom workflows.',
-    features: ['Unlimited teams', 'Custom integrations', 'Priority support'],
+    description: 'Unlimited employees',
+    features: ['Everything in Growth', 'Custom AI models', 'SSO login', 'Dedicated account manager', 'Custom integrations', 'SLA guarantee'],
+    button: 'Contact Us',
+    contact: true,
   },
 ]
+
+const hypeSlides = [
+  {
+    title: 'Real-time team pulse',
+    copy: 'A clean command view where leaders can see today’s work, blockers, focus, and check-ins without chasing updates.',
+    stat: 'Live',
+    accent: '#7F77DD',
+  },
+  {
+    title: 'NudgeAI as the wow factor',
+    copy: 'Daily briefs, sprint forecasts, burnout signals, appreciation ideas, and skill-gap insights sit inside the product.',
+    stat: 'AI-first',
+    accent: '#1D9E75',
+  },
+  {
+    title: 'Four role dashboards',
+    copy: 'Employee, Manager, HR, and Admin each get a separate workspace with the right controls and data boundaries.',
+    stat: '4 roles',
+    accent: '#3C3489',
+  },
+  {
+    title: 'Built for Indian teams',
+    copy: 'Simple onboarding, practical pricing, WhatsApp-ready thinking, and a workflow designed around fast-moving teams.',
+    stat: 'India-ready',
+    accent: '#F59E0B',
+  },
+  {
+    title: 'From idea to SaaS',
+    copy: 'Landing page, auth, onboarding, dashboards, backend APIs, Supabase schema, emails, and NudgeAI are coming together.',
+    stat: 'Building',
+    accent: '#5B7CFA',
+  },
+]
+
+const faqs = [
+  {
+    category: 'Basics',
+    question: 'What is NudgeHQ?',
+    answer: 'NudgeHQ is a B2B SaaS platform for workforce progress tracking. Teams can share check-ins, task updates, blockers, focus signals, and leadership summaries in one place.',
+  },
+  {
+    category: 'Basics',
+    question: 'Who is NudgeHQ built for?',
+    answer: 'It is built for startups, HR teams, operations teams, managers, and growing Indian companies that want visibility without constantly chasing employees for updates.',
+  },
+  {
+    category: 'NudgeAI',
+    question: 'What does NudgeAI do?',
+    answer: 'NudgeAI turns team updates into useful insights like daily summaries, blocker alerts, sprint forecasts, burnout signals, skill gaps, and appreciation suggestions.',
+  },
+  {
+    category: 'Roles',
+    question: 'Can managers see everyone in the company?',
+    answer: 'No. Managers are designed to see only their own department. HR sees people-health signals, Admin sees everything, and Employees only see their own workspace.',
+  },
+  {
+    category: 'Pricing',
+    question: 'Is the pricing final?',
+    answer: 'No. Pricing is currently temporary while NudgeHQ is being built and tested. Plans may change as the product grows.',
+  },
+  {
+    category: 'Support',
+    question: 'How can I contact NudgeHQ?',
+    answer: 'You can email hello.nudgehq@gmail.com or connect with us on Instagram at @hello.nudgehq.',
+  },
+]
+
+const faqCategories = ['All Inquiries', 'Basics', 'NudgeAI', 'Roles', 'Pricing', 'Support']
 
 function PasswordField({ label, value, onChange, placeholder = 'Enter password', className = '', labelClassName = '', required = true }) {
   const [visible, setVisible] = useState(false)
@@ -837,6 +939,7 @@ const getInitialView = () => {
   if (path === '/privacy') return 'privacy';
   if (path === '/terms') return 'terms';
   if (path === '/contact') return 'contact';
+  if (path === '/faq') return 'faq';
   if (path === '/nudgeai') return 'nudgeai';
   if (path === '/verify-email') return 'verify_email';
   if (path === '/choose-plan') return 'choose_plan';
@@ -934,6 +1037,8 @@ function App() {
   const [contactMessage, setContactMessage] = useState('')
   const [contactLoading, setContactLoading] = useState(false)
   const [contactSuccess, setContactSuccess] = useState(false)
+  const [faqSearch, setFaqSearch] = useState('')
+  const [faqCategory, setFaqCategory] = useState('All Inquiries')
   const [verificationEmail, setVerificationEmail] = useState(() => window.localStorage.getItem('nudgehq_pending_email') || '')
   const [selectedPlan, setSelectedPlan] = useState(() => window.localStorage.getItem('nudgehq_selected_plan') || '')
   const [paymentLoading, setPaymentLoading] = useState(false)
@@ -1047,6 +1152,8 @@ function App() {
         setCurrentView('terms');
       } else if (path === '/contact') {
         setCurrentView('contact');
+      } else if (path === '/faq') {
+        setCurrentView('faq');
       } else if (path === '/nudgeai') {
         setCurrentView('nudgeai');
       } else if (path === '/verify-email') {
@@ -1100,6 +1207,7 @@ function App() {
     else if (currentView === 'privacy') targetPath = '/privacy';
     else if (currentView === 'terms') targetPath = '/terms';
     else if (currentView === 'contact') targetPath = '/contact';
+    else if (currentView === 'faq') targetPath = '/faq';
     else if (currentView === 'nudgeai') targetPath = '/nudgeai';
     else if (currentView === 'signin') targetPath = '/login';
     else if (currentView === 'signup') targetPath = '/signup';
@@ -1252,15 +1360,12 @@ function App() {
         const { data: deptRes } = await fetchApi('/admin/departments', { method: 'GET' }, token);
         setDepartments(deptRes.departments || []);
 
-        // Fetch tasks to extract assignees/users list (Helper)
+        const { data: employeeRes } = await fetchApi(`/admin/employees${departmentScope}`, { method: 'GET' }, token);
+        setAdminUsers(employeeRes.employees || []);
+
+        // Fetch scoped tasks for leader dashboards
         const { data: taskRes } = await fetchApi(`/tasks${departmentScope}`, { method: 'GET' }, token);
-        const uniqueUsers = [];
-        taskRes.tasks.forEach(t => {
-          if (t.assignee && !uniqueUsers.some(u => u.id === t.assignee.id)) {
-            uniqueUsers.push(t.assignee);
-          }
-        });
-        setAdminUsers(uniqueUsers);
+        setEmpTasks(taskRes.tasks || []);
 
         const { data: focusRes } = await fetchApi(`/focus/team${departmentScope}`, { method: 'GET' }, token);
         setTeamFocus(focusRes.focus_feed || []);
@@ -2218,6 +2323,53 @@ function App() {
             ['Deep Work', 'Declare focused time without noisy nudges.', Clock3, '#3C3489'],
             ['Growth Portal', 'Build your personal performance summary.', LineChart, '#F59E0B']
           ];
+  const leaderTaskCount = empTasks.length;
+  const leaderCompletedTasks = empTasks.filter((task) => task.status === 'completed').length;
+  const leaderBlockedTasks = empTasks.filter((task) => task.status === 'blocked').length;
+  const leaderOpenTasks = empTasks.filter((task) => task.status !== 'completed').length;
+  const leaderCompletionRate = leaderTaskCount ? Math.round((leaderCompletedTasks / leaderTaskCount) * 100) : analytics?.summary?.completionRate || 0;
+  const todayIsoDate = new Date().toDateString();
+  const todayUpdatesCount = allUpdates.filter((update) => new Date(update.created_at).toDateString() === todayIsoDate).length;
+  const lowEnergyCount = teamPresence.filter((item) => item.energy_level === 'low').length;
+  const averageQuality = (() => {
+    const scores = allUpdates.map((update) => Number(update.quality_score)).filter(Boolean);
+    if (!scores.length) return '—';
+    return `${Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)}/10`;
+  })();
+  const leaderSummaryCards = authRole === 'manager'
+    ? [
+        ['Team Members', adminUsers.length, UsersRound, 'People in your department'],
+        ['Open Tasks', leaderOpenTasks, ListTodo, 'Only your team scope'],
+        ['Blocked Work', leaderBlockedTasks, AlertCircle, 'Needs manager action'],
+        ['Completion', `${leaderCompletionRate}%`, CheckCircle2, 'Department task rate']
+      ]
+    : authRole === 'hr'
+      ? [
+          ['People Tracked', analytics?.summary?.totalEmployees ?? adminUsers.length, UsersRound, 'Across the company'],
+          ['Low Energy Today', lowEnergyCount, Activity, 'Check-in health signal'],
+          ['Avg Update Quality', averageQuality, Sparkles, 'Clarity trend'],
+          ['Today Updates', todayUpdatesCount || analytics?.summary?.checkinRate || 0, ClipboardCheck, 'Fresh people signals']
+        ]
+      : authRole === 'admin'
+        ? [
+            ['Total Staff', analytics?.summary?.totalEmployees ?? adminUsers.length, UsersRound, 'All roles in workspace'],
+            ['Completion Rate', `${analytics?.summary?.completionRate ?? leaderCompletionRate}%`, CheckCircle2, 'Company task rate'],
+            ['Active Blockers', analytics?.summary?.blockersCount ?? leaderBlockedTasks, AlertCircle, 'Company-wide risks'],
+            ['Today Updates', `${analytics?.summary?.checkinRate ?? todayUpdatesCount}${analytics?.summary?.checkinRate ? '%' : ''}`, Sparkles, 'Live workforce pulse']
+          ]
+        : [];
+  const filteredFaqs = faqs.filter((faq) => {
+    const matchesCategory = faqCategory === 'All Inquiries' || faq.category === faqCategory;
+    const searchText = `${faq.question} ${faq.answer} ${faq.category}`.toLowerCase();
+    return matchesCategory && searchText.includes(faqSearch.trim().toLowerCase());
+  });
+  const managerBlockedTasks = empTasks.filter((task) => task.status === 'blocked').slice(0, 4);
+  const managerUnassignedTasks = empTasks.filter((task) => !task.assignee).slice(0, 4);
+  const hrPeopleSignals = [
+    ['Low energy check-ins', lowEnergyCount, lowEnergyCount ? 'Review these teams with care.' : 'No low-energy check-ins yet.'],
+    ['Recent update quality', averageQuality, averageQuality === '—' ? 'Waiting for scored updates.' : 'Use this for coaching, not pressure.'],
+    ['Deep work active', deepWorkTeam?.active?.length || 0, 'Healthy focus signal for the company.']
+  ];
 
   return (
     <main className="min-h-screen overflow-x-clip bg-white text-[#2C2C2A] font-sans">
@@ -2266,7 +2418,7 @@ function App() {
             <span className="text-lg font-bold text-[#3C3489]">NudgeHQ</span>
           </a>
 
-          {['landing', 'signin', 'signup', 'privacy', 'terms', 'contact', 'nudgeai', 'verify_email', 'choose_plan', 'payment', 'onboarding', 'accept_invite', 'join_workspace', 'oauth_callback'].includes(currentView) ? (
+          {['landing', 'signin', 'signup', 'privacy', 'terms', 'contact', 'faq', 'nudgeai', 'verify_email', 'choose_plan', 'payment', 'onboarding', 'accept_invite', 'join_workspace', 'oauth_callback'].includes(currentView) ? (
             <>
               <div className="hidden items-center gap-8 text-sm font-medium text-[#5F5E5A] md:flex">
                 <a onClick={() => setCurrentView('landing')} className="transition hover:text-[#3C3489]" href="#features">Features</a>
@@ -2282,6 +2434,16 @@ function App() {
                 >
                   <MessageSquareText className="h-4 w-4" aria-hidden="true" />
                   Connect with us
+                </a>
+                <a
+                  className="transition hover:text-[#3C3489]"
+                  href="/faq"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setCurrentView('faq');
+                  }}
+                >
+                  FAQ
                 </a>
               </div>
               <div className="flex items-center gap-2 sm:gap-3">
@@ -2348,6 +2510,123 @@ function App() {
 
       {currentView === 'terms' && (
         <LegalPage pageKey="terms" setCurrentView={setCurrentView} />
+      )}
+
+      {currentView === 'faq' && (
+        <section className="relative isolate min-h-[calc(100svh-5rem)] overflow-hidden bg-[#FCFCFF] px-5 py-16 text-[#2C2C2A] sm:px-6 lg:px-8">
+          <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_10%,#EEEDFE_0%,transparent_34%),radial-gradient(circle_at_82%_18%,#E8F7F1_0%,transparent_30%),linear-gradient(135deg,#FFFFFF_0%,#F7FAFF_54%,#F3F1FF_100%)]" />
+          <div className="soft-grid absolute inset-0 -z-10 opacity-35" />
+          <div className="mx-auto max-w-7xl">
+            <div className="mb-12 flex flex-col gap-4 border-b border-[#DAD7FB] pb-8 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[0.26em] text-[#1D9E75]">NudgeHQ FAQ</p>
+                <h1 className="mt-4 max-w-3xl text-4xl font-extrabold leading-tight text-[#2C2C2A] sm:text-6xl">
+                  Answers without making the landing page endless.
+                </h1>
+              </div>
+              <button
+                type="button"
+                onClick={openSignup}
+                className="inline-flex w-fit items-center gap-2 rounded-full bg-[#3C3489] px-6 py-3 text-sm font-extrabold uppercase tracking-[0.14em] text-white shadow-lg shadow-[#3C3489]/20 transition hover:bg-[#7F77DD]"
+              >
+                Get Started
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="grid gap-10 lg:grid-cols-[20rem_1fr]">
+              <aside className="space-y-8">
+                <div>
+                  <label className="text-xs font-extrabold uppercase tracking-[0.22em] text-[#3C3489]">Interactive Search</label>
+                  <div className="mt-4 flex items-center gap-3 rounded-2xl border border-[#DAD7FB] bg-white px-4 py-4 shadow-sm">
+                    <Search className="h-5 w-5 text-[#7F77DD]" />
+                    <input
+                      value={faqSearch}
+                      onChange={(event) => setFaqSearch(event.target.value)}
+                      placeholder="Filter inquiries..."
+                      className="min-w-0 flex-1 bg-transparent text-sm text-[#2C2C2A] outline-none placeholder:text-[#9B9A96]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-[#3C3489]">Category Directory</p>
+                  <div className="mt-4 grid gap-3">
+                    {faqCategories.map((category) => (
+                      <button
+                        key={category}
+                        type="button"
+                        onClick={() => setFaqCategory(category)}
+                        className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm font-extrabold transition ${
+                          faqCategory === category
+                            ? 'border-[#7F77DD] bg-[#EEEDFE] text-[#3C3489] shadow-sm'
+                            : 'border-[#EEEDFE] bg-white text-[#5F5E5A] hover:border-[#DAD7FB] hover:text-[#3C3489]'
+                        }`}
+                      >
+                        {category}
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-3xl border border-[#DAD7FB] bg-white p-6 shadow-lg shadow-[#3C3489]/8">
+                  <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-[#7F77DD]">Direct Channel</p>
+                  <h2 className="mt-5 text-2xl font-extrabold leading-tight text-[#2C2C2A]">Still have a complex question?</h2>
+                  <p className="mt-4 text-sm leading-6 text-[#5F5E5A]">
+                    Ask us about setup, pricing, teams, NudgeAI, or early access.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentView('contact')}
+                    className="mt-6 inline-flex items-center gap-2 text-sm font-extrabold uppercase tracking-[0.14em] text-[#1D9E75]"
+                  >
+                    Connect with us
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </aside>
+
+              <div className="rounded-[2rem] border border-[#DAD7FB] bg-white/90 p-5 shadow-xl shadow-[#3C3489]/10 backdrop-blur md:p-8">
+                <div className="mb-6 flex items-center justify-between gap-4">
+                  <p className="text-sm font-extrabold uppercase tracking-[0.22em] text-[#7F77DD]">
+                    {filteredFaqs.length} inquiries
+                  </p>
+                  <span className="rounded-full border border-[#DAD7FB] bg-[#EEEDFE] px-3 py-1 text-xs font-bold text-[#3C3489]">
+                    {faqCategory}
+                  </span>
+                </div>
+
+                <div className="divide-y divide-[#EEEDFE]">
+                  {filteredFaqs.length ? filteredFaqs.map(({ question, answer, category }, index) => (
+                    <motion.details
+                      key={question}
+                      open={index === 0}
+                      {...cardMotion}
+                      transition={{ duration: 0.45, delay: index * 0.04, ease: 'easeOut' }}
+                      className="group py-7"
+                    >
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-6">
+                        <span>
+                          <span className="block text-xs font-extrabold uppercase tracking-[0.2em] text-[#1D9E75]">{category}</span>
+                          <span className="mt-2 block text-2xl font-extrabold leading-tight text-[#2C2C2A]">{question}</span>
+                        </span>
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#DAD7FB] bg-[#EEEDFE] text-[#3C3489] transition group-open:rotate-45">
+                          <Plus className="h-5 w-5" />
+                        </span>
+                      </summary>
+                      <p className="mt-5 max-w-3xl text-base leading-8 text-[#5F5E5A]">{answer}</p>
+                    </motion.details>
+                  )) : (
+                    <div className="rounded-2xl border border-[#DAD7FB] bg-[#FCFCFF] p-6 text-sm font-semibold text-[#5F5E5A]">
+                      No FAQ matched that search yet. Try another keyword or connect with us.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
       )}
 
       {currentView === 'contact' && (
@@ -3059,49 +3338,67 @@ function App() {
             <div className="mx-auto max-w-7xl">
               <SectionHeader
                 eyebrow="Features"
-                title="Built for employees and the teams that support them."
-                copy="The employee side stays lightweight. The admin side turns every update into a clear operational signal."
+                title="One product, four clear workspaces."
+                copy="NudgeHQ keeps every role focused on the data they actually need: employees update fast, managers unblock work, HR understands people health, and admins control the full company workspace."
               />
-              <div className="mt-14 grid gap-6 lg:grid-cols-2">
-                <motion.div {...cardMotion} className="rounded-lg border border-[#EEEDFE] bg-white p-7 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-md bg-[#EEEDFE] text-[#3C3489]">
-                      <UsersRound className="h-5 w-5" aria-hidden="true" />
+              <div className="mt-14 grid gap-5 lg:grid-cols-4">
+                {roleFeatureCards.map(({ role, title, copy, icon: Icon, accent, points }, index) => (
+                  <motion.article
+                    key={role}
+                    {...cardMotion}
+                    transition={{ duration: 0.45, delay: index * 0.05, ease: 'easeOut' }}
+                    className="metric-lift rounded-[1.25rem] border border-[#EEEDFE] bg-white p-6 shadow-lg shadow-[#3C3489]/6"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="rounded-full bg-[#FCFCFF] px-3 py-1 text-xs font-extrabold uppercase tracking-[0.16em] text-[#5F5E5A]">
+                        {role}
+                      </span>
+                      <span
+                        className="flex h-11 w-11 items-center justify-center rounded-2xl text-white shadow-lg"
+                        style={{ backgroundColor: accent }}
+                      >
+                        <Icon className="h-5 w-5" aria-hidden="true" />
+                      </span>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#1D9E75]">Employee side</p>
-                      <h3 className="text-2xl font-bold text-[#2C2C2A]">Fast progress sharing</h3>
+                    <h3 className="mt-6 text-xl font-extrabold leading-tight text-[#2C2C2A]">{title}</h3>
+                    <p className="mt-3 text-sm leading-6 text-[#5F5E5A]">{copy}</p>
+                    <div className="mt-6 grid gap-2">
+                      {points.map((point) => (
+                        <div key={point} className="flex items-center gap-2 text-sm font-bold text-[#2C2C2A]">
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-[#1D9E75]" aria-hidden="true" />
+                          {point}
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                  <div className="mt-7 grid gap-4 sm:grid-cols-2">
-                    {employeeFeatures.map(([feature, Icon]) => (
-                      <div key={feature} className="flex items-center gap-3 rounded-md border border-[#EEEDFE] bg-[#FCFCFF] p-4">
-                        <Icon className="h-5 w-5 shrink-0 text-[#7F77DD]" aria-hidden="true" />
-                        <span className="font-medium text-[#2C2C2A]">{feature}</span>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
+                  </motion.article>
+                ))}
+              </div>
 
-                <motion.div {...cardMotion} className="rounded-lg border border-[#EEEDFE] bg-white p-7 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-md bg-[#E8F7F1] text-[#1D9E75]">
-                      <Building2 className="h-5 w-5" aria-hidden="true" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#1D9E75]">Admin and HR side</p>
-                      <h3 className="text-2xl font-bold text-[#2C2C2A]">Live workforce visibility</h3>
-                    </div>
+              <div className="mt-8 rounded-[1.5rem] border border-[#DAD7FB] bg-[linear-gradient(135deg,#FFFFFF_0%,#F5F4FF_52%,#EAF8F2_100%)] p-5 shadow-xl shadow-[#3C3489]/8">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#7F77DD]">Platform layer</p>
+                    <h3 className="mt-2 text-2xl font-extrabold text-[#2C2C2A]">NudgeAI and workflow tools sit across every dashboard.</h3>
                   </div>
-                  <div className="mt-7 grid gap-4 sm:grid-cols-2">
-                    {adminFeatures.map(([feature, Icon]) => (
-                      <div key={feature} className="flex items-center gap-3 rounded-md border border-[#EEEDFE] bg-[#FCFCFF] p-4">
-                        <Icon className="h-5 w-5 shrink-0 text-[#1D9E75]" aria-hidden="true" />
-                        <span className="font-medium text-[#2C2C2A]">{feature}</span>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentView('demo_console')}
+                    className="inline-flex w-fit items-center gap-2 rounded-full bg-[#3C3489] px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#7F77DD]"
+                  >
+                    Preview dashboards
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {platformFeatureRail.map(([feature, Icon]) => (
+                    <div key={feature} className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/80 p-4 shadow-sm">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EEEDFE] text-[#3C3489]">
+                        <Icon className="h-5 w-5" aria-hidden="true" />
+                      </span>
+                      <span className="font-bold text-[#2C2C2A]">{feature}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </section>
@@ -3196,7 +3493,7 @@ function App() {
               <SectionHeader
                 eyebrow="Pricing"
                 title="Start simple. Scale when visibility becomes company-wide."
-                copy="Choose a plan that matches your current team size and progress tracking needs."
+                copy="Simple pricing. No hidden costs. Cancel anytime."
               />
               <div className="mx-auto mt-7 max-w-3xl rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-5 py-4 text-center shadow-sm">
                 <p className="text-sm font-extrabold uppercase tracking-[0.12em] text-[#92400E]">Temporary pricing</p>
@@ -3205,7 +3502,7 @@ function App() {
                 </p>
               </div>
               <div className="mt-14 grid gap-5 lg:grid-cols-4">
-                {pricing.map(({ name, price, description, features, highlighted }, index) => (
+                {pricing.map(({ name, price, description, features, highlighted, entry, button, contact }, index) => (
                   <motion.article
                     key={name}
                     {...cardMotion}
@@ -3219,7 +3516,9 @@ function App() {
                     <div className="flex items-center justify-between">
                       <h3 className="text-xl font-bold">{name}</h3>
                       {highlighted ? (
-                        <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white">Popular</span>
+                        <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white">Most Popular</span>
+                      ) : entry ? (
+                        <span className="rounded-full bg-[#E8F7F1] px-3 py-1 text-xs font-semibold text-[#1D9E75]">Entry Plan</span>
                       ) : null}
                     </div>
                     <p className={`mt-4 text-3xl font-extrabold ${highlighted ? 'text-white' : 'text-[#3C3489]'}`}>
@@ -3238,17 +3537,90 @@ function App() {
                     </ul>
                     <button
                       type="button"
-                      onClick={openSignup}
+                      onClick={() => {
+                        if (contact) {
+                          window.location.href = 'mailto:hello.nudgehq@gmail.com?subject=NudgeHQ Enterprise Plan';
+                          return;
+                        }
+                        openSignup();
+                      }}
                       className={`mt-8 inline-flex w-full items-center justify-center rounded-md px-4 py-3 text-sm font-semibold transition ${
                         highlighted
                           ? 'bg-white text-[#3C3489] hover:bg-[#EEEDFE]'
                           : 'bg-[#EEEDFE] text-[#3C3489] hover:bg-[#7F77DD] hover:text-white'
                       }`}
                     >
-                      Create workspace
+                      {button}
                     </button>
                   </motion.article>
                 ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="px-5 pb-20 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-7xl">
+              <div className="rounded-[1.75rem] border border-[#DAD7FB] bg-[linear-gradient(135deg,#FCFCFF_0%,#EEEDFE_48%,#FFFFFF_100%)] p-6 shadow-xl shadow-[#3C3489]/8 md:p-8">
+                <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                  <div>
+                    <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-[#7F77DD]">The Hype</p>
+                    <h2 className="mt-3 max-w-2xl text-3xl font-extrabold text-[#2C2C2A]">What makes NudgeHQ feel exciting.</h2>
+                    <p className="mt-3 max-w-2xl text-sm leading-6 text-[#5F5E5A]">
+                      A quick slide-style look at the product energy we are building: AI, roles, team clarity, and startup momentum.
+                    </p>
+                  </div>
+                  <span className="w-fit rounded-full bg-white px-4 py-2 text-xs font-extrabold uppercase tracking-[0.18em] text-[#3C3489] shadow-sm ring-1 ring-[#EEEDFE]">
+                    5 product slides
+                  </span>
+                </div>
+
+                <div className="mt-7 flex snap-x gap-4 overflow-x-auto pb-3">
+                  {hypeSlides.map((slide, index) => (
+                    <motion.article
+                      key={slide.title}
+                      {...cardMotion}
+                      transition={{ duration: 0.45, delay: index * 0.04, ease: 'easeOut' }}
+                      className="metric-lift min-w-[17rem] snap-start rounded-[1.35rem] border border-white/80 bg-white p-5 shadow-lg shadow-[#3C3489]/8 sm:min-w-[20rem]"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#5F5E5A]">Slide {index + 1}</span>
+                        <span className="rounded-full px-3 py-1 text-xs font-extrabold text-white" style={{ backgroundColor: slide.accent }}>
+                          {slide.stat}
+                        </span>
+                      </div>
+                      <div className="mt-8 flex h-24 items-center justify-center rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF]">
+                        <span className="flex h-14 w-14 items-center justify-center rounded-2xl text-2xl font-extrabold text-white shadow-lg" style={{ backgroundColor: slide.accent }}>
+                          N.
+                        </span>
+                      </div>
+                      <h3 className="mt-6 text-xl font-extrabold text-[#2C2C2A]">{slide.title}</h3>
+                      <p className="mt-3 text-sm leading-6 text-[#5F5E5A]">{slide.copy}</p>
+                    </motion.article>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="px-5 pb-20 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-7xl">
+              <div className="grid gap-6 rounded-[1.5rem] border border-[#EEEDFE] bg-white p-6 shadow-sm md:grid-cols-[1fr_auto] md:items-center">
+                <div className="flex items-center gap-4">
+                  <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#161238] text-2xl font-extrabold text-white">N.</span>
+                  <div>
+                    <p className="text-lg font-extrabold text-[#2C2C2A]">Instagram: @hello.nudgehq</p>
+                    <p className="text-sm font-semibold text-[#5F5E5A]">Follow product drops, UI previews, and build updates separately here.</p>
+                  </div>
+                </div>
+                <a
+                  href="https://www.instagram.com/hello.nudgehq/?__pwa=1"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#3C3489] px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#7F77DD]"
+                >
+                  Connect on Instagram
+                  <ArrowRight className="h-4 w-4" />
+                </a>
               </div>
             </div>
           </section>
@@ -3314,6 +3686,14 @@ function App() {
                 <p className="font-semibold text-[#2C2C2A]">Company</p>
                 <div className="mt-4 grid gap-3 text-sm font-medium text-[#5F5E5A]">
                   <a className="hover:text-[#3C3489]" href="mailto:hello.nudgehq@gmail.com">Contact</a>
+                  <a
+                    className="hover:text-[#3C3489]"
+                    href="https://www.instagram.com/hello.nudgehq/?__pwa=1"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Instagram
+                  </a>
                   <span className="inline-flex w-fit items-center gap-2 rounded-full bg-[#EEEDFE] px-3 py-1 text-xs font-bold text-[#3C3489]">
                     LinkedIn
                     <span className="text-[#5F5E5A]">Coming soon</span>
@@ -4381,25 +4761,91 @@ function App() {
                   onRegenerate={() => runNudgeAiFeature('standup', true)}
                 />
                 
-                {/* Metrics Stats Grid */}
-                {analytics && (
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                    {[
-                      ['Total Staff', analytics.summary.totalEmployees, UsersRound],
-                      ['Completion Rate', `${analytics.summary.completionRate}%`, CheckCircle2],
-                      ['Active Blockers', analytics.summary.blockersCount, AlertCircle],
-                      ['Today Updates Ratio', `${analytics.summary.checkinRate}%`, Sparkles]
-                    ].map(([label, val, Icon]) => (
-                      <div key={label} className="workspace-card-quiet metric-lift rounded-2xl p-5">
-                        <div className="flex items-center justify-between text-[#5F5E5A]">
-                          <span className="text-xs font-semibold">{label}</span>
-                          <Icon className="h-4 w-4 text-[#3C3489]" />
-                        </div>
-                        <p className="mt-2 text-2xl font-bold text-[#2C2C2A]">{val}</p>
+                {/* Role-specific command stats */}
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                  {leaderSummaryCards.map(([label, val, Icon, helper]) => (
+                    <div key={label} className="workspace-card-quiet metric-lift rounded-2xl p-5">
+                      <div className="flex items-center justify-between text-[#5F5E5A]">
+                        <span className="text-xs font-semibold">{label}</span>
+                        <Icon className="h-4 w-4" style={{ color: roleAccent }} />
                       </div>
-                    ))}
+                      <p className="mt-2 text-2xl font-bold text-[#2C2C2A]">{val}</p>
+                      <p className="mt-1 text-[11px] font-semibold text-[#5F5E5A]">{helper}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {authRole === 'manager' ? (
+                  <div className="grid gap-5 lg:grid-cols-2">
+                    <div className="workspace-card rounded-2xl p-6">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#1D9E75]">Manager Action Queue</p>
+                          <h3 className="mt-2 text-xl font-extrabold text-[#2C2C2A]">Blockers your team needs cleared.</h3>
+                        </div>
+                        <AlertCircle className="h-8 w-8 text-[#F59E0B]" />
+                      </div>
+                      <div className="mt-5 space-y-3">
+                        {managerBlockedTasks.length ? managerBlockedTasks.map((task) => (
+                          <div key={task.id} className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
+                            <p className="text-sm font-extrabold text-[#2C2C2A]">{task.title}</p>
+                            <p className="mt-1 text-xs font-semibold text-[#5F5E5A]">{task.assignee?.name || 'Unassigned'} · blocked</p>
+                          </div>
+                        )) : (
+                          <p className="rounded-2xl border border-[#E8F7F1] bg-[#E8F7F1] px-4 py-3 text-sm font-bold text-[#1D9E75]">
+                            No blocked team tasks right now.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="workspace-card rounded-2xl p-6">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#3C3489]">Team Load</p>
+                          <h3 className="mt-2 text-xl font-extrabold text-[#2C2C2A]">Assign work without leaving your scope.</h3>
+                        </div>
+                        <ListTodo className="h-8 w-8 text-[#7F77DD]" />
+                      </div>
+                      <div className="mt-5 space-y-3">
+                        {managerUnassignedTasks.length ? managerUnassignedTasks.map((task) => (
+                          <div key={task.id} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] px-4 py-3">
+                            <p className="text-sm font-extrabold text-[#2C2C2A]">{task.title}</p>
+                            <p className="mt-1 text-xs font-semibold text-[#5F5E5A]">Waiting for an owner</p>
+                          </div>
+                        )) : (
+                          <p className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] px-4 py-3 text-sm font-bold text-[#3C3489]">
+                            Every visible task has an owner.
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                )}
+                ) : null}
+
+                {authRole === 'hr' ? (
+                  <div className="workspace-card rounded-2xl p-6">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                      <div>
+                        <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#F59E0B]">HR People Signals</p>
+                        <h3 className="mt-2 text-2xl font-extrabold text-[#2C2C2A]">Company health without daily task noise.</h3>
+                        <p className="mt-2 max-w-2xl text-sm leading-6 text-[#5F5E5A]">
+                          HR sees patterns, risk signals, and coaching context. Manager task controls stay out of this view.
+                        </p>
+                      </div>
+                      <ShieldCheck className="h-10 w-10 text-[#F59E0B]" />
+                    </div>
+                    <div className="mt-5 grid gap-3 md:grid-cols-3">
+                      {hrPeopleSignals.map(([label, value, helper]) => (
+                        <div key={label} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                          <p className="text-xs font-bold uppercase tracking-wider text-[#5F5E5A]">{label}</p>
+                          <p className="mt-2 text-2xl font-extrabold text-[#2C2C2A]">{value}</p>
+                          <p className="mt-1 text-xs leading-5 text-[#5F5E5A]">{helper}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="grid gap-5 lg:grid-cols-3">
                   <div className="workspace-card-quiet metric-lift rounded-2xl p-5">

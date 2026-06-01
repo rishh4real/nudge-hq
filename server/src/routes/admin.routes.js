@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   getAllEmployeeUpdates,
   getDepartments,
+  getEmployees,
   createDepartment,
   updateDepartment,
   deleteDepartment,
@@ -23,6 +24,7 @@ router.put('/departments/:id', authorize('admin', 'hr'), updateDepartment);
 router.delete('/departments/:id', authorize('admin'), deleteDepartment);
 
 // Employee onboarding
+router.get('/employees', authorize('admin', 'hr', 'manager'), getEmployees);
 router.post('/employees/invite', authorize('admin', 'hr'), validateBody(['email']), inviteEmployee);
 
 // Admin queries and logs (Admin only)

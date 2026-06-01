@@ -126,6 +126,48 @@ export const getDepartments = async (req, res) => {
 };
 
 /**
+ * List organization users with role-aware department scope.
+ * GET /admin/employees
+ */
+export const getEmployees = async (req, res) => {
+  try {
+    const { role, department_id } = req.query;
+    const orgId = req.user.organization_id;
+    const scopedDepartmentId = req.user.role === 'manager' ? req.user.department_id : department_id;
+
+    let query = supabase
+      .from('users')
+      .select('id, name, email, role, department_id, created_at, departments(name)')
+      .eq('organization_id', orgId)
+      .order('name', { ascending: true });
+
+    if (role) {
+      query = query.eq('role', role);
+    }
+
+    if (scopedDepartmentId) {
+      query = query.eq('department_id', scopedDepartmentId);
+    }
+
+    const { data: employees, error } = await query;
+    if (error) throw error;
+
+    return res.status(200).json({
+      success: true,
+      count: employees.length,
+      employees
+    });
+  } catch (error) {
+    console.error('Get employees error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve employees.',
+      error: error.message
+    });
+  }
+};
+
+/**
  * Create a new department
  * POST /admin/departments
  */
