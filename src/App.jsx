@@ -3019,7 +3019,31 @@ function App() {
             <div className="absolute inset-0 -z-20 bg-[radial-gradient(circle_at_15%_10%,#DFECFF_0,transparent_34%),radial-gradient(circle_at_88%_18%,#DCF8EF_0,transparent_28%),linear-gradient(180deg,#F8FBFF_0%,#FFFFFF_100%)]" />
             <div className="absolute left-1/2 top-20 -z-10 h-80 w-[54rem] -translate-x-1/2 rounded-full bg-[#EEEDFE]/80 blur-3xl" />
             <div className="absolute bottom-8 left-1/2 -z-10 h-52 w-[42rem] -translate-x-1/2 rounded-full bg-[#E8F7F1]/80 blur-3xl" />
-            <div className="mx-auto flex max-w-7xl flex-col items-center px-5 pb-20 pt-52 text-center sm:px-6 lg:px-8 lg:pt-60">
+            <div className="pointer-events-none absolute inset-x-0 top-32 z-0 mx-auto hidden h-[34rem] max-w-7xl lg:block" aria-hidden="true">
+              <div className="nudge-3d-stage absolute left-2 top-16 h-72 w-72">
+                <span className="nudge-3d-block nudge-3d-block-lg absolute left-8 top-12" style={{ '--block-front': '#7F77DD', '--block-side': '#3C3489', '--block-top': '#B8B2FF', '--block-delay': '0s' }}>
+                  N.
+                </span>
+                <span className="nudge-3d-block nudge-3d-block-sm absolute left-48 top-2" style={{ '--block-front': '#1D9E75', '--block-side': '#0F6E55', '--block-top': '#8DE4C3', '--block-delay': '0.7s' }}>
+                  AI
+                </span>
+                <span className="nudge-3d-slab absolute left-36 top-44" style={{ '--slab-accent': '#3C3489', '--block-delay': '1.1s' }}>
+                  Pulse
+                </span>
+              </div>
+              <div className="nudge-3d-stage absolute right-0 top-4 h-80 w-80">
+                <span className="nudge-3d-block nudge-3d-block-md absolute right-24 top-4" style={{ '--block-front': '#3C3489', '--block-side': '#211A5B', '--block-top': '#7F77DD', '--block-delay': '0.35s' }}>
+                  HR
+                </span>
+                <span className="nudge-3d-slab nudge-3d-slab-wide absolute right-4 top-40" style={{ '--slab-accent': '#7F77DD', '--block-delay': '0.9s' }}>
+                  Manager
+                </span>
+                <span className="nudge-3d-block nudge-3d-block-sm absolute right-56 top-56" style={{ '--block-front': '#F59E0B', '--block-side': '#B45309', '--block-top': '#FCD34D', '--block-delay': '1.45s' }}>
+                  Ops
+                </span>
+              </div>
+            </div>
+            <div className="relative z-10 mx-auto flex max-w-7xl flex-col items-center px-5 pb-20 pt-52 text-center sm:px-6 lg:px-8 lg:pt-60">
               <motion.div
                 initial={{ opacity: 0, y: 18 }}
                 animate={{ opacity: 1, y: 0 }}

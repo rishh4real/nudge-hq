@@ -68,6 +68,113 @@ a {
   animation-play-state: paused;
 }
 
+.nudge-3d-stage {
+  perspective: 900px;
+  transform-style: preserve-3d;
+}
+
+.nudge-3d-block,
+.nudge-3d-slab {
+  --block-delay: 0s;
+  transform-style: preserve-3d;
+  animation: nudge-3d-float 8s ease-in-out infinite;
+  animation-delay: var(--block-delay);
+}
+
+.nudge-3d-block {
+  display: grid;
+  place-items: center;
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: 1.35rem;
+  color: #ffffff;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  background: linear-gradient(145deg, var(--block-top, #b8b2ff), var(--block-front, #7f77dd));
+  box-shadow:
+    20px 24px 42px rgba(60, 52, 137, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42);
+  transform: rotateX(58deg) rotateZ(-34deg);
+}
+
+.nudge-3d-block::before,
+.nudge-3d-block::after {
+  content: "";
+  position: absolute;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.nudge-3d-block::before {
+  inset: 0;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0));
+  transform: translateZ(14px);
+}
+
+.nudge-3d-block::after {
+  inset: 0;
+  background: var(--block-side, #3c3489);
+  filter: brightness(0.72);
+  transform: translate3d(18px, 18px, -20px);
+  z-index: -1;
+}
+
+.nudge-3d-block-lg {
+  width: 7rem;
+  height: 7rem;
+  font-size: 2.1rem;
+}
+
+.nudge-3d-block-md {
+  width: 6rem;
+  height: 6rem;
+  font-size: 1.45rem;
+}
+
+.nudge-3d-block-sm {
+  width: 4.7rem;
+  height: 4.7rem;
+  border-radius: 1.1rem;
+  font-size: 1rem;
+}
+
+.nudge-3d-slab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 8.5rem;
+  height: 4.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 1.25rem;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(238, 237, 254, 0.82)),
+    linear-gradient(90deg, var(--slab-accent, #7f77dd), transparent);
+  color: var(--slab-accent, #3c3489);
+  font-size: 0.86rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow:
+    18px 22px 42px rgba(60, 52, 137, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.86);
+  transform: rotateX(58deg) rotateZ(-34deg);
+}
+
+.nudge-3d-slab::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--slab-accent, #7f77dd);
+  opacity: 0.18;
+  transform: translate3d(16px, 16px, -18px);
+  z-index: -1;
+}
+
+.nudge-3d-slab-wide {
+  min-width: 11rem;
+}
+
 .workspace-surface {
   background:
     radial-gradient(circle at 18% 10%, var(--role-glow, rgba(127, 119, 221, 0.18)) 0, transparent 24rem),
@@ -213,6 +320,17 @@ a {
 
   to {
     transform: translateX(-50%);
+  }
+}
+
+@keyframes nudge-3d-float {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+
+  50% {
+    translate: 0 -14px;
   }
 }
 
