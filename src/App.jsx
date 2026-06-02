@@ -410,8 +410,8 @@ function NudgeAssistant({ context, role, page, dashboardSnapshot, onAsk }) {
     {
       from: 'assistant',
       text: context === 'dashboard'
-        ? 'Ask me about this workspace, tasks, blockers, NudgeAI reports, or what to do next.'
-        : 'Ask me anything about NudgeHQ, pricing, features, privacy, or how the platform works.',
+        ? 'Hi, I am NudgeAI. Ask me about this dashboard, or ask any general question: writing, planning, coding, ideas, explanations, anything.'
+        : 'Hi, I am NudgeAI. Ask me anything: NudgeHQ, writing, planning, coding, ideas, or quick explanations.',
     },
   ])
   const [loading, setLoading] = useState(false)
@@ -441,8 +441,8 @@ function NudgeAssistant({ context, role, page, dashboardSnapshot, onAsk }) {
   }
 
   const quickPrompts = context === 'dashboard'
-    ? ['What needs attention?', 'Explain my dashboard', 'What should I do next?']
-    : ['What is NudgeHQ?', 'How does NudgeAI help?', 'Is pricing fixed?']
+    ? ['What should I do next?', "Draft today's update", 'Explain any topic simply']
+    : ['What is NudgeHQ?', 'Write a short email', 'Explain any topic simply']
 
   return (
     <div className="fixed bottom-5 right-5 z-[70]">
@@ -556,17 +556,17 @@ function FullPageNudgeAi({ onAsk, setCurrentView }) {
   const [messages, setMessages] = useState([
     {
       from: 'assistant',
-      text: 'Hi, I am NudgeAI. Ask me about NudgeHQ features, pricing, onboarding, employee workflows, HR dashboards, or what to do next.',
+      text: 'Hi, I am NudgeAI. Ask me anything. I can help with NudgeHQ, writing, planning, coding, explanations, ideas, or whatever you are working through.',
     },
   ])
 
   const prompts = [
     'What is NudgeHQ?',
-    'How does NudgeAI help HR teams?',
-    'What features are available right now?',
-    'How does employee onboarding work?',
-    'Is pricing fixed?',
-    'How is NudgeHQ different from normal tracking tools?',
+    'Write a polite follow-up email',
+    'Explain AI in simple words',
+    'Plan my next 2 hours of work',
+    'Help me debug a React issue',
+    'Give me startup launch ideas',
   ]
 
   const submitQuestion = async (question = input) => {
@@ -605,26 +605,26 @@ function FullPageNudgeAi({ onAsk, setCurrentView }) {
             <img src="/brand/nudgehq-icon.svg" alt="" className="h-11 w-11 rounded-xl shadow-md shadow-[#3C3489]/10" />
             <div>
               <p className="text-lg font-extrabold text-[#2C2C2A]">NudgeAI</p>
-              <p className="text-xs font-semibold text-[#5F5E5A]">Product support desk</p>
+              <p className="text-xs font-semibold text-[#5F5E5A]">General AI helper</p>
             </div>
           </div>
 
           <button
             type="button"
-            onClick={() => setCurrentView('contact')}
+            onClick={() => setCurrentView('landing')}
             className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]"
           >
             <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-            Back to contact
+            Back to NudgeHQ
           </button>
 
           <div className="mt-6 rounded-2xl bg-[#161238] p-4 text-white">
             <p className="text-xs font-extrabold uppercase tracking-wider text-white/55">Can answer</p>
             <div className="mt-3 grid gap-2 text-sm font-semibold text-white/80">
-              <span>Features</span>
-              <span>Pricing</span>
-              <span>Onboarding</span>
-              <span>Dashboards</span>
+              <span>Anything</span>
+              <span>Writing</span>
+              <span>Coding</span>
+              <span>Planning</span>
               <span>NudgeAI</span>
             </div>
           </div>
@@ -636,7 +636,7 @@ function FullPageNudgeAi({ onAsk, setCurrentView }) {
               <div>
                 <span className="inline-flex items-center gap-2 rounded-full bg-[#EEEDFE] px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-wider text-[#3C3489]">
                   <Sparkles className="h-4 w-4" aria-hidden="true" />
-                  Instant NudgeHQ answers
+                  Instant answers
                 </span>
                 <h1 className="mt-3 text-3xl font-extrabold text-[#1E2737] sm:text-4xl">Ask NudgeAI anything.</h1>
               </div>
@@ -696,7 +696,7 @@ function FullPageNudgeAi({ onAsk, setCurrentView }) {
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 className="min-w-0 flex-1 bg-transparent px-4 py-3 text-sm outline-none"
-                placeholder="Ask about NudgeHQ, NudgeAI, pricing, onboarding..."
+                placeholder="Ask anything..."
               />
               <button
                 type="submit"
@@ -2224,7 +2224,13 @@ function App() {
       if (/feature|nudgeai|dashboard/i.test(payload.message)) {
         return 'NudgeHQ includes employee progress updates, task tracking, blockers, focus, smart presence, deep work, admin dashboards, reports, and NudgeAI insights.';
       }
-      return 'NudgeAI is unavailable right now. Try again in a moment.';
+      if (/write|email|caption|message|draft/i.test(payload.message)) {
+        return 'Sure. Tell me the tone, audience, and key points, and I can draft it for you. If you want a quick structure: start with the goal, add the important context, then end with the exact action you want from the reader.';
+      }
+      if (/plan|schedule|focus|prioriti/i.test(payload.message)) {
+        return 'A simple way to plan it: pick the one outcome that matters most, split it into 2-3 smaller actions, do the hardest one first, then leave 15 minutes at the end to review and send updates.';
+      }
+      return 'NudgeAI can answer general questions too, but the live AI service is unavailable right now. Try again in a moment, or ask me for a quick draft, plan, explanation, or NudgeHQ help.';
     }
   }
 
@@ -5186,7 +5192,11 @@ function App() {
                           </AnimatePresence>
                         </div>
                       </div>
-                      <button type="button" className="mt-5 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]">
+                      <button
+                        type="button"
+                        onClick={() => setCurrentView('nudgeai')}
+                        className="mt-5 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]"
+                      >
                         Open NudgeAI helper
                         <ArrowRight className="h-4 w-4" />
                       </button>

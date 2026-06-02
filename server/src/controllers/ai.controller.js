@@ -117,7 +117,7 @@ const aiEntityKey = (req, fallback = 'company') => {
 const assistantFallback = (message = '', context = 'public') => {
   const text = message.toLowerCase();
   if (/price|pricing|cost|plan/.test(text)) {
-    return 'NudgeHQ pricing is currently temporary. The landing page shows early estimates for Free, Starter, Growth, and Enterprise plans, but final pricing can change as the product grows.';
+    return 'NudgeHQ pricing is currently temporary. Current plans are Free Trial, Starter at Rs. 2,000/month for up to 15 employees, Growth at Rs. 6,000/month for up to 45 employees, and Enterprise custom.';
   }
   if (/feature|what.*do|nudgeai|ai/.test(text)) {
     return 'NudgeHQ tracks workforce progress through employee updates, task status, blockers, focus, daily check-ins, deep work, admin dashboards, reports, and NudgeAI summaries, forecasts, care alerts, skill gap analysis, and appreciation suggestions.';
@@ -129,9 +129,15 @@ const assistantFallback = (message = '', context = 'public') => {
     return 'NudgeHQ uses role-based access, secure authentication, protected Supabase-backed data, and structured privacy and terms pages. Admin and employee views are separated by role.';
   }
   if (context === 'dashboard') {
-    return 'Inside the dashboard, you can ask me about tasks, progress updates, blockers, employee check-ins, NudgeAI reports, focus sessions, deep work, and admin actions.';
+    return 'Inside the dashboard, you can ask me about tasks, progress updates, blockers, employee check-ins, NudgeAI reports, focus sessions, deep work, admin actions, or general questions like writing, planning, coding, and explanations.';
   }
-  return 'NudgeHQ helps teams stop chasing updates by giving employees simple progress check-ins and admins one clear dashboard for tasks, blockers, focus, goals, reports, and NudgeAI insights.';
+  if (/write|email|caption|message|draft/.test(text)) {
+    return 'I can help draft that. Share the audience, tone, and key points, and I will turn it into a clear message.';
+  }
+  if (/plan|schedule|focus|prioriti/.test(text)) {
+    return 'A practical plan is to pick one main outcome, split it into 2-3 actions, do the hardest action first, and end with a short review or update.';
+  }
+  return 'NudgeAI can answer general questions too, but the live AI service is unavailable right now. Try again in a moment for deeper answers, or ask about NudgeHQ, writing, planning, coding, or explanations.';
 };
 
 export const assistantChat = async (req, res) => {
@@ -163,7 +169,7 @@ export const assistantChat = async (req, res) => {
       : '';
 
     const { data, unavailable } = await callNudgeAIJson({
-      system: `You are NudgeAI, the helpful product assistant for NudgeHQ. Never mention Groq. Answer like a concise SaaS product expert. Known facts: NudgeHQ is a workforce progress tracking SaaS. It has employee updates, tasks, blockers, Focus Pulse, Smart Presence, Deep Work, Employee Growth, admin dashboards, reports, privacy/terms pages, and NudgeAI insights. Pricing is temporary only: Free, Starter Rs.2000 for 10 employees, Growth Rs.6000 for 40 employees, Enterprise custom. Never invent prices, customers, integrations, or policies. If dashboard context is provided, use it. Return only JSON with schema {"answer":"answer","suggestions":["short follow-up 1","short follow-up 2","short follow-up 3"]}.`,
+      system: `You are NudgeAI, a helpful general-purpose AI assistant inside NudgeHQ. Never mention Groq. You can answer general questions about writing, planning, coding, learning, ideas, explanations, and NudgeHQ product usage. Be concise, useful, and friendly. Known NudgeHQ facts: NudgeHQ is a workforce progress tracking SaaS. It has employee updates, tasks, blockers, Focus Pulse, Smart Presence, Deep Work, Employee Growth, admin dashboards, reports, privacy/terms pages, and NudgeAI insights. Current pricing: Free Trial Rs.0 for 14 days and up to 20 employees, Starter Rs.2,000/month for up to 15 employees, Growth Rs.6,000/month for up to 45 employees, Enterprise custom. Never invent NudgeHQ prices, customers, integrations, or policies. If dashboard context is provided, use it. For unrelated general questions, answer normally. Return only JSON with schema {"answer":"answer","suggestions":["short follow-up 1","short follow-up 2","short follow-up 3"]}.`,
       prompt: `User role: ${role}\nPage/context: ${page} / ${context}\nQuestion: ${message}${snapshotText}`,
       fallback,
       temperature: 0.2
