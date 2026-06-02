@@ -2101,18 +2101,46 @@ function App() {
     }
   };
 
-  const createSimplePdfBlob = (title, lines) => {
+  const createGrowthPdfBlob = () => {
     const escapePdfText = (text = '') => String(text)
       .replace(/[()\\]/g, '\\$&')
       .replace(/[^\x20-\x7E]/g, '')
       .slice(0, 3000);
-    const wrapLine = (line) => {
-      const words = String(line).split(' ');
+
+    const commands = [];
+    const fill = (hex) => {
+      const clean = hex.replace('#', '');
+      const r = parseInt(clean.slice(0, 2), 16) / 255;
+      const g = parseInt(clean.slice(2, 4), 16) / 255;
+      const b = parseInt(clean.slice(4, 6), 16) / 255;
+      commands.push(`${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} rg`);
+    };
+    const stroke = (hex) => {
+      const clean = hex.replace('#', '');
+      const r = parseInt(clean.slice(0, 2), 16) / 255;
+      const g = parseInt(clean.slice(2, 4), 16) / 255;
+      const b = parseInt(clean.slice(4, 6), 16) / 255;
+      commands.push(`${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} RG`);
+    };
+    const rect = (x, y, w, h, hex) => {
+      fill(hex);
+      commands.push(`${x} ${y} ${w} ${h} re f`);
+    };
+    const outline = (x, y, w, h, hex = '#EEEDFE') => {
+      stroke(hex);
+      commands.push(`1 w ${x} ${y} ${w} ${h} re S`);
+    };
+    const text = (value, x, y, size = 10, color = '#2C2C2A', font = 'F1') => {
+      fill(color);
+      commands.push(`BT /${font} ${size} Tf ${x} ${y} Td (${escapePdfText(value)}) Tj ET`);
+    };
+    const wrapText = (value, x, y, maxChars, lineHeight, size = 10, color = '#2C2C2A', font = 'F1') => {
+      const words = String(value).split(' ');
       const wrapped = [];
       let current = '';
       words.forEach((word) => {
         const next = current ? `${current} ${word}` : word;
-        if (next.length > 78) {
+        if (next.length > maxChars) {
           if (current) wrapped.push(current);
           current = word;
         } else {
@@ -2120,16 +2148,99 @@ function App() {
         }
       });
       if (current) wrapped.push(current);
-      return wrapped.length ? wrapped : [''];
+      (wrapped.length ? wrapped : ['']).forEach((line, index) => text(line, x, y - (index * lineHeight), size, color, font));
+      return y - ((wrapped.length || 1) * lineHeight);
     };
-    const textLines = [title, '', ...lines].flatMap(wrapLine).map(escapePdfText);
-    const content = `BT /F1 18 Tf 50 780 Td (${textLines[0]}) Tj /F1 10 Tf ${textLines.slice(1).map((line) => `0 -18 Td (${line}) Tj`).join(' ')} ET`;
+
+    rect(0, 0, 612, 792, '#F7F8FB');
+    rect(0, 672, 612, 120, '#3C3489');
+    rect(384, 672, 228, 120, '#7F77DD');
+    rect(48, 712, 42, 42, '#19113D');
+    text('N.', 60, 724, 22, '#FFFFFF', 'F2');
+    text('NudgeHQ', 104, 742, 15, '#FFFFFF', 'F2');
+    text('90-Day Growth Snapshot', 104, 716, 28, '#FFFFFF', 'F2');
+    text('Employee performance export powered by NudgeAI', 104, 696, 10, '#EEEDFE');
+    text('DEMO REPORT', 472, 742, 9, '#FFFFFF', 'F2');
+    text('2 Jun 2026', 472, 722, 12, '#FFFFFF', 'F2');
+
+    rect(48, 610, 516, 44, '#FFFFFF');
+    outline(48, 610, 516, 44, '#DAD7FB');
+    text('Employee', 70, 635, 8, '#8A8894', 'F2');
+    text('Kunal', 70, 618, 13, '#2C2C2A', 'F2');
+    text('Role', 210, 635, 8, '#8A8894', 'F2');
+    text('Employee', 210, 618, 13, '#2C2C2A', 'F2');
+    text('Report window', 360, 635, 8, '#8A8894', 'F2');
+    text('Last 90 days', 360, 618, 13, '#2C2C2A', 'F2');
+
+    const cards = [
+      ['30 DAYS', '18', 'tasks completed', '#EEEDFE', '#3C3489'],
+      ['60 DAYS', '39', 'tasks completed', '#E8F7F1', '#1D9E75'],
+      ['90 DAYS', '64', 'tasks completed', '#FFF3E0', '#F59E0B']
+    ];
+    cards.forEach(([label, value, sub, bg, color], index) => {
+      const x = 48 + index * 178;
+      rect(x, 500, 160, 88, bg);
+      outline(x, 500, 160, 88, '#DAD7FB');
+      text(label, x + 18, 560, 8, color, 'F2');
+      text(value, x + 18, 526, 30, '#2C2C2A', 'F2');
+      text(sub, x + 76, 527, 9, '#5F5E5A', 'F2');
+    });
+
+    text('Progress momentum', 48, 464, 16, '#2C2C2A', 'F2');
+    rect(48, 438, 516, 14, '#EEEDFE');
+    rect(48, 438, 410, 14, '#7F77DD');
+    text('64 tasks completed across 90 days', 48, 414, 10, '#5F5E5A', 'F2');
+    text('Strong consistency signal', 420, 414, 10, '#1D9E75', 'F2');
+
+    rect(48, 318, 516, 72, '#FFFFFF');
+    outline(48, 318, 516, 72, '#DAD7FB');
+    text('NudgeAI career summary', 70, 362, 13, '#3C3489', 'F2');
+    wrapText(
+      'You are strongest on focused execution days and your most productive pattern is Tuesday morning deep work. Your updates show clear ownership and steady collaboration.',
+      70,
+      342,
+      84,
+      15,
+      10,
+      '#5F5E5A'
+    );
+
+    text('Personal wins', 48, 282, 16, '#2C2C2A', 'F2');
+    const wins = [
+      ['Lightning', 'Resolved blocker without escalation', '#FFF3E0', '#F59E0B'],
+      ['Trophy', '9-day check-in streak', '#FFFDE7', '#D6A400'],
+      ['Star', 'Helped teammate unblock', '#EEEDFE', '#7F77DD']
+    ];
+    wins.forEach(([icon, win, bg, color], index) => {
+      const y = 236 - index * 48;
+      rect(48, y, 516, 36, '#FFFFFF');
+      outline(48, y, 516, 36, '#EEEDFE');
+      rect(66, y + 8, 20, 20, bg);
+      text(icon, 96, y + 13, 9, color, 'F2');
+      text(win, 190, y + 13, 10, '#2C2C2A', 'F2');
+    });
+
+    rect(48, 42, 516, 64, '#161238');
+    text('Manager-ready note', 70, 82, 12, '#FFFFFF', 'F2');
+    wrapText(
+      'Kunal has shown consistent ownership, clear update habits, and strong collaboration signals across the last 90 days.',
+      70,
+      64,
+      86,
+      14,
+      9,
+      '#EEEDFE'
+    );
+    text('Demo export. Live product will use real employee data from NudgeHQ.', 48, 22, 8, '#8A8894');
+
+    const content = commands.join('\n');
     const objects = [
       '1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj',
       '2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj',
-      '3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj',
+      '3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R /F2 6 0 R >> >> /Contents 5 0 R >> endobj',
       '4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj',
-      `5 0 obj << /Length ${content.length} >> stream\n${content}\nendstream endobj`
+      `5 0 obj << /Length ${content.length} >> stream\n${content}\nendstream endobj`,
+      '6 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> endobj'
     ];
     let pdf = '%PDF-1.4\n';
     const offsets = [0];
@@ -2147,29 +2258,7 @@ function App() {
   };
 
   const downloadDemoGrowthPdf = () => {
-    const blob = createSimplePdfBlob('NudgeHQ 90-Day Growth Snapshot', [
-      'Employee: Kunal',
-      'Role: Employee',
-      'Generated: 2 Jun 2026',
-      '',
-      'Performance summary',
-      '30 days: 18 tasks completed',
-      '60 days: 39 tasks completed',
-      '90 days: 64 tasks completed',
-      '',
-      'NudgeAI career summary',
-      'You are strongest on focused execution days and your most productive pattern is Tuesday morning deep work.',
-      '',
-      'Personal wins',
-      '- Resolved blocker without escalation',
-      '- 9-day check-in streak',
-      '- Helped teammate unblock',
-      '',
-      'Manager-ready note',
-      'Kunal has shown consistent ownership, clear update habits, and strong collaboration signals across the last 90 days.',
-      '',
-      'This is a demo export. In the live product, this PDF will use real employee data from NudgeHQ.'
-    ]);
+    const blob = createGrowthPdfBlob();
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
