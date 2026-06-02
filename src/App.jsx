@@ -2101,6 +2101,84 @@ function App() {
     }
   };
 
+  const createSimplePdfBlob = (title, lines) => {
+    const escapePdfText = (text = '') => String(text)
+      .replace(/[()\\]/g, '\\$&')
+      .replace(/[^\x20-\x7E]/g, '')
+      .slice(0, 3000);
+    const wrapLine = (line) => {
+      const words = String(line).split(' ');
+      const wrapped = [];
+      let current = '';
+      words.forEach((word) => {
+        const next = current ? `${current} ${word}` : word;
+        if (next.length > 78) {
+          if (current) wrapped.push(current);
+          current = word;
+        } else {
+          current = next;
+        }
+      });
+      if (current) wrapped.push(current);
+      return wrapped.length ? wrapped : [''];
+    };
+    const textLines = [title, '', ...lines].flatMap(wrapLine).map(escapePdfText);
+    const content = `BT /F1 18 Tf 50 780 Td (${textLines[0]}) Tj /F1 10 Tf ${textLines.slice(1).map((line) => `0 -18 Td (${line}) Tj`).join(' ')} ET`;
+    const objects = [
+      '1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj',
+      '2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj',
+      '3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj',
+      '4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj',
+      `5 0 obj << /Length ${content.length} >> stream\n${content}\nendstream endobj`
+    ];
+    let pdf = '%PDF-1.4\n';
+    const offsets = [0];
+    objects.forEach((object) => {
+      offsets.push(pdf.length);
+      pdf += `${object}\n`;
+    });
+    const xref = pdf.length;
+    pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+    offsets.slice(1).forEach((offset) => {
+      pdf += `${String(offset).padStart(10, '0')} 00000 n \n`;
+    });
+    pdf += `trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+    return new Blob([pdf], { type: 'application/pdf' });
+  };
+
+  const downloadDemoGrowthPdf = () => {
+    const blob = createSimplePdfBlob('NudgeHQ 90-Day Growth Snapshot', [
+      'Employee: Kunal',
+      'Role: Employee',
+      'Generated: 2 Jun 2026',
+      '',
+      'Performance summary',
+      '30 days: 18 tasks completed',
+      '60 days: 39 tasks completed',
+      '90 days: 64 tasks completed',
+      '',
+      'NudgeAI career summary',
+      'You are strongest on focused execution days and your most productive pattern is Tuesday morning deep work.',
+      '',
+      'Personal wins',
+      '- Resolved blocker without escalation',
+      '- 9-day check-in streak',
+      '- Helped teammate unblock',
+      '',
+      'Manager-ready note',
+      'Kunal has shown consistent ownership, clear update habits, and strong collaboration signals across the last 90 days.',
+      '',
+      'This is a demo export. In the live product, this PDF will use real employee data from NudgeHQ.'
+    ]);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'kunal-90-day-growth-snapshot.pdf';
+    link.click();
+    URL.revokeObjectURL(url);
+    showToast('90-day growth PDF downloaded.', 'success');
+  };
+
   const chooseStarterPlan = () => {
     if (!token) {
       showToast('Please verify your email and log in before activating Starter.', 'info');
@@ -5273,7 +5351,11 @@ function App() {
                   <section className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
                     <div className="flex items-center justify-between">
                       <h2 className="text-xl font-extrabold text-[#2C2C2A]">Growth snapshot</h2>
-                      <button type="button" className="inline-flex items-center gap-2 rounded-xl bg-[#3C3489] px-3 py-2 text-xs font-extrabold text-white">
+                      <button
+                        type="button"
+                        onClick={downloadDemoGrowthPdf}
+                        className="inline-flex items-center gap-2 rounded-xl bg-[#3C3489] px-3 py-2 text-xs font-extrabold text-white transition hover:bg-[#7F77DD]"
+                      >
                         <Download className="h-4 w-4" />
                         90-day PDF
                       </button>
