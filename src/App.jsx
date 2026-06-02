@@ -1042,6 +1042,15 @@ function App() {
   const [demoTaskOverrides, setDemoTaskOverrides] = useState({})
   const [demoCheckinLocation, setDemoCheckinLocation] = useState('Office')
   const [demoAiQuestionIndex, setDemoAiQuestionIndex] = useState(0)
+  const [demoAiHelperOpen, setDemoAiHelperOpen] = useState(false)
+  const [demoAiHelperInput, setDemoAiHelperInput] = useState('')
+  const [demoAiHelperLoading, setDemoAiHelperLoading] = useState(false)
+  const [demoAiHelperMessages, setDemoAiHelperMessages] = useState([
+    {
+      from: 'assistant',
+      text: 'Hi Kunal, I am NudgeAI. Ask me anything: work updates, coding doubts, writing, planning, ideas, or general questions.',
+    },
+  ])
 
   // Sign-in States
   const [emailInput, setEmailInput] = useState('')
@@ -2218,7 +2227,7 @@ function App() {
       }, token);
       return data.data?.answer || data.answer || 'NudgeAI answered, but the response was empty. Try asking in a different way.';
     } catch {
-      if (/price|pricing|cost/i.test(payload.message)) {
+      if (/\b(price|pricing|cost|plan|plans)\b/i.test(payload.message)) {
         return 'Pricing is temporary right now. The current plans are early estimates and can change as NudgeHQ grows.';
       }
       if (/feature|nudgeai|dashboard/i.test(payload.message)) {
@@ -2233,6 +2242,43 @@ function App() {
       return 'NudgeAI can answer general questions too, but the live AI service is unavailable right now. Try again in a moment, or ask me for a quick draft, plan, explanation, or NudgeHQ help.';
     }
   }
+
+  const submitDemoAiHelperQuestion = async (question = demoAiHelperInput) => {
+    const clean = question.trim();
+    if (!clean || demoAiHelperLoading) return;
+
+    setDemoAiHelperMessages((items) => [...items, { from: 'user', text: clean }]);
+    setDemoAiHelperInput('');
+    setDemoAiHelperLoading(true);
+
+    try {
+      const answer = await askNudgeAi({
+        message: clean,
+        context: 'dashboard',
+        role: 'employee',
+        page: 'employee_nudgeai_modal',
+        dashboard_snapshot: {
+          employee: 'Kunal',
+          total_tasks: demoWorkQueueRows.length,
+          active_section: selectedDemoSection,
+          tasks: demoWorkQueueRows.map(([group, title, progress, status]) => ({
+            group,
+            title,
+            status,
+            progress,
+          })),
+        },
+      });
+      setDemoAiHelperMessages((items) => [...items, { from: 'assistant', text: answer }]);
+    } catch {
+      setDemoAiHelperMessages((items) => [
+        ...items,
+        { from: 'assistant', text: 'NudgeAI is unavailable right now. Try again in a moment.' },
+      ]);
+    } finally {
+      setDemoAiHelperLoading(false);
+    }
+  };
 
   const signupDetailsReady = Boolean(
     signupCompany.trim() &&
@@ -2574,6 +2620,107 @@ function App() {
               <Sparkles className="h-5 w-5 shrink-0" />
             )}
             <span>{statusMessage.text}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {demoAiHelperOpen && (
+          <motion.div
+            className="fixed inset-0 z-[110] flex items-center justify-center bg-[#111827]/45 px-4 py-6 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.section
+              initial={{ opacity: 0, y: 22, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.96 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="flex h-[min(44rem,88vh)] w-full max-w-3xl flex-col overflow-hidden rounded-[1.75rem] border border-[#DAD7FB] bg-white shadow-2xl shadow-[#111827]/25"
+            >
+              <div className="flex items-center justify-between gap-4 border-b border-[#EEEDFE] bg-gradient-to-r from-[#3C3489] via-[#7F77DD] to-[#1D9E75] px-5 py-4 text-white">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15">
+                    <Sparkles className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="text-lg font-extrabold">NudgeAI Helper</p>
+                    <p className="text-xs font-semibold text-white/75">Ask anything without leaving your dashboard</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDemoAiHelperOpen(false)}
+                  className="rounded-full p-2 text-white/80 transition hover:bg-white/15 hover:text-white"
+                  aria-label="Close NudgeAI helper"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 space-y-4 overflow-y-auto bg-[#FCFCFF] p-5">
+                {demoAiHelperMessages.map((message, index) => (
+                  <div
+                    key={`${message.from}-${index}-${message.text.slice(0, 16)}`}
+                    className={`flex ${message.from === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-[85%] rounded-2xl px-5 py-4 text-sm leading-7 shadow-sm ${
+                        message.from === 'user'
+                          ? 'bg-[#3C3489] text-white'
+                          : 'border border-[#EEEDFE] bg-white text-[#2C2C2A]'
+                      }`}
+                    >
+                      {message.text}
+                    </div>
+                  </div>
+                ))}
+                {demoAiHelperLoading ? (
+                  <div className="inline-flex items-center gap-2 rounded-2xl border border-[#EEEDFE] bg-white px-5 py-4 text-sm font-semibold text-[#5F5E5A] shadow-sm">
+                    <RefreshCw className="h-4 w-4 animate-spin text-[#7F77DD]" />
+                    NudgeAI is thinking...
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="border-t border-[#EEEDFE] bg-white p-4">
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {['Solve my coding doubt', 'Draft a status update', 'Plan my next task'].map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      onClick={() => submitDemoAiHelperQuestion(prompt)}
+                      className="rounded-full border border-[#DAD7FB] bg-[#FCFCFF] px-3 py-1.5 text-xs font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    submitDemoAiHelperQuestion();
+                  }}
+                  className="flex gap-3"
+                >
+                  <input
+                    value={demoAiHelperInput}
+                    onChange={(event) => setDemoAiHelperInput(event.target.value)}
+                    className="min-w-0 flex-1 rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none transition focus:border-[#7F77DD]"
+                    placeholder="Ask NudgeAI anything..."
+                  />
+                  <button
+                    type="submit"
+                    disabled={demoAiHelperLoading || !demoAiHelperInput.trim()}
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#3C3489] text-white transition hover:bg-[#7F77DD] disabled:opacity-45"
+                    aria-label="Send NudgeAI message"
+                  >
+                    <Send className="h-5 w-5" />
+                  </button>
+                </form>
+              </div>
+            </motion.section>
           </motion.div>
         )}
       </AnimatePresence>
@@ -5194,7 +5341,7 @@ function App() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => setCurrentView('nudgeai')}
+                        onClick={() => setDemoAiHelperOpen(true)}
                         className="mt-5 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]"
                       >
                         Open NudgeAI helper

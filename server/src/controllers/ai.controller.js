@@ -116,7 +116,7 @@ const aiEntityKey = (req, fallback = 'company') => {
 
 const assistantFallback = (message = '', context = 'public') => {
   const text = message.toLowerCase();
-  if (/price|pricing|cost|plan/.test(text)) {
+  if (/\b(price|pricing|cost|plan|plans)\b/.test(text)) {
     return 'NudgeHQ pricing is currently temporary. Current plans are Free Trial, Starter at Rs. 2,000/month for up to 15 employees, Growth at Rs. 6,000/month for up to 45 employees, and Enterprise custom.';
   }
   if (/feature|what.*do|nudgeai|ai/.test(text)) {
@@ -153,7 +153,7 @@ export const assistantChat = async (req, res) => {
       suggestions: ['What does NudgeHQ do?', 'How does NudgeAI help?', 'What can admins see?']
     };
 
-    if (/price|pricing|cost|plan/i.test(message)) {
+    if (/\b(price|pricing|cost|plan|plans)\b/i.test(message)) {
       return res.status(200).json({
         success: true,
         data: {
