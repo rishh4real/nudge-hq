@@ -13,9 +13,8 @@ import {
   X,
   FileCheck2,
   Fingerprint,
-  Globe2,
   LayoutDashboard,
-  LineChart,
+  LineChart as LineChartIcon,
   LockKeyhole,
   Mail,
   MessageSquareText,
@@ -33,14 +32,32 @@ import {
   User,
   ListTodo,
   Shield,
+  Star,
   Search,
+  Trophy,
   Zap,
   ExternalLink,
   Eye,
   EyeOff
 } from 'lucide-react'
+import {
+  CartesianGrid,
+  Line,
+  LineChart as RechartsLineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis
+} from 'recharts'
 
 // --- CONSTANTS ---
+const DEMO_AI_QUESTIONS = [
+  "How should I write today's update if I'm blocked?",
+  'What should I focus on first today?',
+  'How do I explain a missed deadline to my manager?',
+  'What makes a high quality check-in?'
+]
+
 const DASHBOARD_PATHS = {
   admin: '/dashboard/admin',
   hr: '/dashboard/hr',
@@ -522,7 +539,7 @@ function NudgeAssistant({ context, role, page, dashboardSnapshot, onAsk }) {
       <button
         type="button"
         onClick={() => setIsOpen((state) => !state)}
-        className="group flex items-center gap-3 rounded-full bg-[#111827] px-5 py-4 text-sm font-extrabold text-white shadow-2xl shadow-[#111827]/25 transition hover:-translate-y-0.5 hover:bg-[#3C3489]"
+        className="nudgeai-pulse-button group flex items-center gap-3 rounded-full bg-[#111827] px-5 py-4 text-sm font-extrabold text-white shadow-2xl shadow-[#111827]/25 transition hover:-translate-y-0.5 hover:bg-[#3C3489]"
       >
         <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-[#8DE4C3]">
           <MessageSquareText className="h-4 w-4" aria-hidden="true" />
@@ -1017,6 +1034,14 @@ function App() {
   const [serverPort, setServerPort] = useState(null)
   const [isSandbox, setIsSandbox] = useState(false)
   const [statusMessage, setStatusMessage] = useState(null)
+  const [demoEmployeeSection, setDemoEmployeeSection] = useState('My Dashboard')
+  const [selectedDemoTask, setSelectedDemoTask] = useState(null)
+  const [demoTaskUpdate, setDemoTaskUpdate] = useState('')
+  const [demoProofLink, setDemoProofLink] = useState('')
+  const [demoProofFiles, setDemoProofFiles] = useState([])
+  const [demoTaskOverrides, setDemoTaskOverrides] = useState({})
+  const [demoCheckinLocation, setDemoCheckinLocation] = useState('Office')
+  const [demoAiQuestionIndex, setDemoAiQuestionIndex] = useState(0)
 
   // Sign-in States
   const [emailInput, setEmailInput] = useState('')
@@ -1049,6 +1074,14 @@ function App() {
   const [csvPreview, setCsvPreview] = useState([])
   const [magicInviteLink, setMagicInviteLink] = useState('')
   const [onboardingLoading, setOnboardingLoading] = useState(false)
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setDemoAiQuestionIndex((index) => (index + 1) % DEMO_AI_QUESTIONS.length)
+    }, 3000)
+
+    return () => window.clearInterval(timer)
+  }, [])
 
   // --- DASHBOARD DATA STATES ---
   // Employee Workspace
@@ -2271,7 +2304,7 @@ function App() {
     employee: [
       ['Your workspace', 'Tasks, goals, updates, recognitions, and streaks stay personal.', User],
       ['Focus tools', 'Deep work, Smart Presence, Focus Pulse, and blocker logs.', Activity],
-      ['Growth story', 'Your progress history becomes appraisal-ready evidence.', LineChart]
+      ['Growth story', 'Your progress history becomes appraisal-ready evidence.', LineChartIcon]
     ]
   }[dashboardRole] || [];
   const roleSignals = {
@@ -2307,7 +2340,7 @@ function App() {
       ? [
           ['People Health', 'Burnout, energy, attendance, and trend signals.', ShieldCheck, '#7F77DD'],
           ['Skill Gaps', 'NudgeAI groups recurring blocker themes.', Workflow, '#1D9E75'],
-          ['Growth Views', 'Review employee growth and performance patterns.', LineChart, '#3C3489'],
+          ['Growth Views', 'Review employee growth and performance patterns.', LineChartIcon, '#3C3489'],
           ['HR Reports', 'Export board packs and people summaries.', FileCheck2, '#F59E0B']
         ]
       : authRole === 'manager'
@@ -2321,7 +2354,7 @@ function App() {
             ['Daily Check-in', 'Share work location, energy, and top goals.', Activity, '#1D9E75'],
             ['Progress Update', 'Log work, proof links, blockers, and focus.', Send, '#7F77DD'],
             ['Deep Work', 'Declare focused time without noisy nudges.', Clock3, '#3C3489'],
-            ['Growth Portal', 'Build your personal performance summary.', LineChart, '#F59E0B']
+            ['Growth Portal', 'Build your personal performance summary.', LineChartIcon, '#F59E0B']
           ];
   const leaderTaskCount = empTasks.length;
   const leaderCompletedTasks = empTasks.filter((task) => task.status === 'completed').length;
@@ -2370,6 +2403,147 @@ function App() {
     ['Recent update quality', averageQuality, averageQuality === '—' ? 'Waiting for scored updates.' : 'Use this for coaching, not pressure.'],
     ['Deep work active', deepWorkTeam?.active?.length || 0, 'Healthy focus signal for the company.']
   ];
+  const indiaClock = new Date().toLocaleString('en-US', {
+    timeZone: 'Asia/Kolkata',
+    hour: 'numeric',
+    hour12: false
+  });
+  const indiaHour = Number.parseInt(indiaClock, 10);
+  const dashboardGreeting = indiaHour < 12 ? 'Good morning' : indiaHour < 17 ? 'Good afternoon' : indiaHour < 21 ? 'Good evening' : 'Good night';
+  const dashboardDateLabel = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' });
+  const dashboardRoleLabel = dashboardRole === 'hr' ? 'HR' : dashboardRole.charAt(0).toUpperCase() + dashboardRole.slice(1);
+  const demoSidebarItems = dashboardRole === 'employee'
+    ? [
+        ['My Dashboard', LayoutDashboard],
+        ['My Tasks', CheckCircle2],
+        ['Check-in', ClipboardCheck],
+        ['My Progress', LineChartIcon],
+        ['Growth Portal', Sparkles],
+        ['NudgeAI', Zap],
+        ['Settings', Shield],
+      ]
+    : [
+        ['Dashboard', LayoutDashboard],
+        ['Tasks', CheckCircle2],
+        ['Projects', Building2],
+        ['People', UsersRound],
+        ['Reports', LineChartIcon],
+        ['NudgeAI', Zap],
+        ['Integrations', Workflow],
+        ['Settings', Shield],
+      ];
+  const demoStatCards = dashboardRole === 'employee'
+    ? [
+        ['Total Tasks', leaderTaskCount || 6, ListTodo, '#7F77DD', '▲ 12% vs yesterday', 'up'],
+        ['Completed Today', leaderCompletedTasks || 3, CheckCircle2, '#1D9E75', '▲ 18% vs yesterday', 'up'],
+        ['In Progress', Math.max(leaderOpenTasks - leaderBlockedTasks, 2), Clock3, '#F59E0B', '— No change', 'flat'],
+        ['Blocked', leaderBlockedTasks || 1, AlertCircle, '#EF4444', leaderBlockedTasks ? '▼ needs attention' : '— Clear', leaderBlockedTasks ? 'down' : 'flat'],
+      ]
+    : [
+        ['Total Tasks', leaderTaskCount || 42, ListTodo, '#7F77DD', '▲ 12% vs yesterday', 'up'],
+        ['Completed', leaderCompletedTasks || 28, CheckCircle2, '#1D9E75', '▲ 18% vs yesterday', 'up'],
+        ['In Progress', Math.max(leaderOpenTasks - leaderBlockedTasks, 9), Clock3, '#F59E0B', '— No change', 'flat'],
+        ['Overdue', leaderBlockedTasks || 5, AlertCircle, '#EF4444', '▼ 20% vs yesterday', 'down'],
+      ];
+  const demoProgressRows = [
+    ['Aman Verma', 'Landing Page', 100, 'Completed', '#1D9E75'],
+    ['Priya Singh', 'Client Deck', 80, 'In Progress', '#7F77DD'],
+    ['Rahul Mehta', 'Market Research', 60, 'In Progress', '#F59E0B'],
+    ['Neha Gupta', 'Content Strategy', 40, 'In Progress', '#F59E0B'],
+    ['Karan Arora', 'Competitor Analysis', 20, 'Overdue', '#EF4444'],
+  ];
+  const baseEmployeeTaskRows = [
+    ['Today', 'Verify customer email lists', 88, 'In Progress', '#7F77DD'],
+    ['Today', 'Submit progress update', 100, 'Completed', '#1D9E75'],
+    ['This Week', 'Share proof sheet', 62, 'In Progress', '#F59E0B'],
+    ['Overdue', 'Resolve CRM blocker', 20, 'Blocked', '#EF4444'],
+  ];
+  const employeeTaskRows = baseEmployeeTaskRows.map(([group, task, progress, status, color]) => {
+    const override = demoTaskOverrides[task];
+    return override ? [group, task, override.progress, override.status, override.color] : [group, task, progress, status, color];
+  });
+  const demoTaskBriefs = {
+    'Verify customer email lists': 'Manager brief: Open the campaign email sheet named "June Outreach Leads". Remove duplicate rows, verify bounce status for each address, mark invalid emails in red, and upload the cleaned sheet as proof. Final target: bounce risk under 1% before 6 PM.',
+    'Submit progress update': 'Write today’s work update with what got completed, what is still in progress, any blocker, and one proof link or screenshot if available.',
+    'Share proof sheet': 'Upload the reviewed Google Sheet or PDF export that confirms the verified customer email list. Add the file link in the proof section before marking complete.',
+    'Resolve CRM blocker': 'Check why the CRM import is failing for the latest contact batch. Capture the error screen, mention what you tried, and tag the manager if access is needed.',
+    'Landing page polish': 'Review the landing page sections, fix visual spacing issues, and attach before/after screenshots for the final UI polish pass.',
+    'Verify Supabase auth': 'Test signup, verification, login, and dashboard redirects. Note any failed route, exact error message, and browser screenshot.',
+    'Prepare launch checklist': 'Create a short checklist of production readiness items: auth, email, database schema, payments, storage, analytics, and support contact.'
+  };
+  const openDemoTask = (taskData) => {
+    const [group, task, progress, status, color] = taskData;
+    setDemoTaskUpdate('');
+    setDemoProofLink('');
+    setDemoProofFiles([]);
+    setSelectedDemoTask({
+      group,
+      task,
+      progress,
+      status,
+      color,
+      owner: user?.name || 'Employee User',
+      due: group === 'Overdue' ? 'Yesterday' : group === 'Today' ? 'Today, 6:00 PM' : 'This Friday',
+      manager: 'Rahul Sharma',
+      description: demoTaskBriefs[task] || 'Complete the assigned work, attach proof if available, and update status so the team dashboard stays live.',
+    });
+  };
+  const demoActivityRows = [
+    ['Aman completed', 'Landing Page', '2m ago', CheckCircle2, '#1D9E75'],
+    ['Priya updated progress on', 'Client Deck', '15m ago', Activity, '#7F77DD'],
+    ['Rahul uploaded', 'Market Research', '32m ago', ClipboardCheck, '#F59E0B'],
+    ['Neha added a comment on', 'Content Strategy', '45m ago', MessageSquareText, '#F59E0B'],
+    ['Karan missed a deadline on', 'Competitor Analysis', '1h ago', AlertCircle, '#EF4444'],
+  ];
+  const employeeRecentActivityRows = [
+    ['Completed task', 'Verify customer email lists', '2m ago', CheckCircle2, '#1D9E75'],
+    ['Progress update submitted', 'Daily check-in', '1h ago', Activity, '#3B82F6'],
+    ['Proof uploaded', 'Cleaned email sheet PDF', 'Yesterday', FileCheck2, '#F59E0B'],
+    ['Blocker flagged', 'CRM import access issue', 'Yesterday', AlertCircle, '#EF4444'],
+  ];
+  const demoEmployeeCanNavigate = dashboardRole === 'employee';
+  const selectedDemoSection = demoEmployeeCanNavigate ? demoEmployeeSection : 'Dashboard';
+  const demoWorkQueueRows = [
+    ['Today', 'Landing page polish', 74, 'In Progress', '#7F77DD'],
+    ['Today', 'Verify Supabase auth', 42, 'In Progress', '#7F77DD'],
+    ['This Week', 'Prepare launch checklist', 18, 'At risk', '#F59E0B']
+  ];
+  const demoWeeklyProgressData = [
+    { day: 'Mon', tasks: 2 },
+    { day: 'Tue', tasks: 4 },
+    { day: 'Wed', tasks: 3 },
+    { day: 'Thu', tasks: 5 },
+    { day: 'Fri', tasks: 4 },
+    { day: 'Sat', tasks: 6 },
+    { day: 'Sun', tasks: 3 }
+  ];
+  const actualWeeklyProgressData = empHistory
+    .slice(0, 7)
+    .map((item, index) => ({
+      day: new Date(item.created_at || Date.now() - (6 - index) * 86400000).toLocaleDateString('en-IN', { weekday: 'short', timeZone: 'Asia/Kolkata' }),
+      tasks: Number(item.tasks_completed || item.completed_tasks || item.completed_count || 1)
+    }))
+    .reverse();
+  const weeklyProgressData = actualWeeklyProgressData.length ? actualWeeklyProgressData : demoWeeklyProgressData;
+  const renderEmptyState = ({ title, sub, Icon = Sparkles, actionLabel, onAction }) => (
+    <div className="flex min-h-56 flex-col items-center justify-center rounded-2xl border border-dashed border-[#DAD7FB] bg-[#FCFCFF] p-8 text-center">
+      <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#EEEDFE] text-[#7F77DD] shadow-sm">
+        <Icon className="h-8 w-8" />
+      </span>
+      <p className="mt-4 max-w-sm text-base font-extrabold text-[#2C2C2A]">{title}</p>
+      {sub ? <p className="mt-2 max-w-sm text-sm font-semibold leading-6 text-[#8A8894]">{sub}</p> : null}
+      {actionLabel && onAction ? (
+        <button
+          type="button"
+          onClick={onAction}
+          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#7F77DD] px-4 py-2.5 text-sm font-extrabold text-white transition hover:bg-[#3C3489]"
+        >
+          {actionLabel}
+          <ArrowRight className="h-4 w-4" />
+        </button>
+      ) : null}
+    </div>
+  );
 
   return (
     <main className="min-h-screen overflow-x-clip bg-white text-[#2C2C2A] font-sans">
@@ -2447,23 +2621,6 @@ function App() {
                 </a>
               </div>
               <div className="flex items-center gap-2 sm:gap-3">
-                <button
-                  type="button"
-                  onClick={() => showToast('Search is coming soon with docs, features, and help articles.', 'info')}
-                  className="hidden h-10 w-10 items-center justify-center rounded-md text-[#2C2C2A] transition hover:bg-[#EEEDFE] hover:text-[#3C3489] sm:inline-flex"
-                  aria-label="Search NudgeHQ"
-                >
-                  <Search className="h-5 w-5" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => showToast('English is active. More languages will be added later.', 'info')}
-                  className="hidden items-center gap-2 rounded-md px-3 py-2.5 text-sm font-semibold text-[#2C2C2A] transition hover:bg-[#EEEDFE] hover:text-[#3C3489] lg:inline-flex"
-                  aria-label="Language selector"
-                >
-                  <Globe2 className="h-4 w-4" aria-hidden="true" />
-                  English
-                </button>
                 <button
                   type="button"
                   onClick={openSignin}
@@ -3051,7 +3208,7 @@ function App() {
                 className="inline-flex items-center gap-2 rounded-full border border-white bg-white/80 px-4 py-2 text-sm font-semibold text-[#3C3489] shadow-lg shadow-[#3C3489]/5 backdrop-blur"
               >
                 <Sparkles className="h-4 w-4 text-[#1D9E75]" aria-hidden="true" />
-                Newly building for modern Indian teams
+                Newly building for modern Indian teams · ✦ Now in beta — join early teams
               </motion.div>
               <motion.h1
                 initial={{ opacity: 0, y: 24 }}
@@ -3069,7 +3226,7 @@ function App() {
                 transition={{ duration: 0.6, ease: 'easeOut', delay: 0.18 }}
                 className="mt-8 max-w-3xl text-lg leading-8 text-[#718099] sm:text-xl"
               >
-                NudgeHQ helps employees share progress, blockers, focus, and energy while admins get one calm dashboard powered by NudgeAI.
+                No follow-ups. No missed updates. Just your team, moving forward.
               </motion.p>
 
               <motion.div
@@ -3108,8 +3265,16 @@ function App() {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.55, ease: 'easeOut', delay: 0.34 }}
-                className="mt-11 flex flex-col gap-4 sm:flex-row"
+                className="mt-11 flex flex-col justify-center gap-4 sm:flex-row"
               >
+                <button
+                  type="button"
+                  onClick={openSignup}
+                  className="inline-flex min-w-56 items-center justify-center gap-3 rounded-full bg-[#7F77DD] px-8 py-5 text-sm font-extrabold uppercase tracking-[0.16em] text-white shadow-xl shadow-[#7F77DD]/25 transition hover:-translate-y-0.5 hover:bg-[#3C3489]"
+                >
+                  Start Free Trial
+                  <ArrowRight className="h-5 w-5" aria-hidden="true" />
+                </button>
                 <button
                   type="button"
                   onClick={() => setCurrentView('demo_console')}
@@ -3119,6 +3284,256 @@ function App() {
                   <ArrowRight className="h-5 w-5" aria-hidden="true" />
                 </button>
               </motion.div>
+            </div>
+          </section>
+
+          <section className="border-y border-[#EEEDFE] bg-white px-5 py-10 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-6xl text-center">
+              <p className="text-sm font-bold text-[#5F5E5A]">Trusted by early teams across India 🇮🇳</p>
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-x-7 gap-y-3 text-sm font-extrabold uppercase tracking-[0.14em] text-[#8A8894]">
+                {['Techflow', 'Nexus Labs', 'Brightwork', 'Crevo', 'Opstree'].map((company) => (
+                  <span key={company}>{company}</span>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="bg-white px-5 py-24 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-6xl">
+              <SectionHeader
+                eyebrow="Before vs after"
+                title="Your team, before and after NudgeHQ"
+                copy="The product is built around one promise: less chasing, more knowing."
+              />
+              <div className="mt-12 grid gap-5">
+                {[
+                  [
+                    'Manager sends 5 WhatsApp messages asking for updates every morning',
+                    "Manager opens NudgeHQ and sees every team member's status instantly"
+                  ],
+                  [
+                    'HR spends 3 hours every Monday building weekly reports manually',
+                    'NudgeAI generates the full team report automatically at 9am'
+                  ],
+                  [
+                    'Blockers go unnoticed for days and delay entire projects',
+                    'NudgeHQ alerts the admin within minutes of a blocker being flagged'
+                  ]
+                ].map(([before, after], index) => (
+                  <motion.div
+                    key={before}
+                    {...cardMotion}
+                    transition={{ duration: 0.45, delay: index * 0.05, ease: 'easeOut' }}
+                    className="grid gap-4 md:grid-cols-2"
+                  >
+                    <div className="rounded-2xl border border-rose-100 bg-[#FFF5F5] p-5">
+                      <div className="flex items-start gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-rose-500 shadow-sm">
+                          <X className="h-5 w-5" />
+                        </span>
+                        <p className="text-base font-extrabold leading-7 text-[#2C2C2A]">{before}</p>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-emerald-100 bg-[#F0FFF4] p-5">
+                      <div className="flex items-start gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#1D9E75] shadow-sm">
+                          <Check className="h-5 w-5" />
+                        </span>
+                        <p className="text-base font-extrabold leading-7 text-[#2C2C2A]">{after}</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="relative overflow-hidden bg-[#FCFCFF] px-5 py-24 sm:px-6 lg:px-8">
+            <div className="soft-grid absolute inset-0 opacity-35" />
+            <div className="relative mx-auto max-w-6xl">
+              <SectionHeader
+                eyebrow="Dashboard preview"
+                title="One dashboard. Full visibility."
+                copy="Everything your team is working on — live, in one place."
+              />
+              <motion.div {...cardMotion} className="mt-12 rounded-[2rem] border border-[#DAD7FB] bg-[#111827] p-3 shadow-2xl shadow-[#3C3489]/20 sm:p-5">
+                <div className="rounded-[1.45rem] border border-white/10 bg-white p-4">
+                  <div className="mb-4 flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-full bg-rose-400" />
+                    <span className="h-3 w-3 rounded-full bg-amber-400" />
+                    <span className="h-3 w-3 rounded-full bg-emerald-400" />
+                    <span className="ml-3 text-xs font-extrabold uppercase tracking-[0.18em] text-[#8A8894]">NudgeHQ admin dashboard</span>
+                  </div>
+                  <div className="grid overflow-hidden rounded-[1.25rem] border border-[#EEEDFE] bg-[#F7F8FB] lg:grid-cols-[14rem_1fr]">
+                    <div className="hidden border-r border-[#EEEDFE] bg-[#161238] p-5 text-white lg:block">
+                      <div className="flex items-center gap-3">
+                        <img src="/brand/nudgehq-icon.svg" alt="" className="h-10 w-10 rounded-xl" />
+                        <span className="font-extrabold">NudgeHQ</span>
+                      </div>
+                      <div className="mt-8 grid gap-3 text-sm font-bold text-white/70">
+                        {['Dashboard', 'Tasks', 'People', 'Reports', 'NudgeAI'].map((item, index) => (
+                          <span key={item} className={`rounded-xl px-3 py-2 ${index === 0 ? 'bg-[#7F77DD] text-white' : ''}`}>{item}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="p-5 sm:p-7">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <h3 className="text-2xl font-extrabold text-[#2C2C2A]">Good morning, Rahul!</h3>
+                          <p className="mt-1 text-sm font-semibold text-[#5F5E5A]">Here&apos;s what&apos;s happening with your team today.</p>
+                        </div>
+                        <span className="w-fit rounded-xl border border-[#EEEDFE] bg-white px-3 py-2 text-xs font-extrabold text-[#5F5E5A]">2 Jun · Today</span>
+                      </div>
+                      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        {[
+                          ['Total Tasks', '42', '#7F77DD'],
+                          ['Completed', '28', '#1D9E75'],
+                          ['In Progress', '9', '#F59E0B'],
+                          ['Overdue', '5', '#EF4444']
+                        ].map(([label, value, color]) => (
+                          <div key={label} className="rounded-2xl border border-[#EEEDFE] bg-white p-4 shadow-sm">
+                            <p className="text-xs font-extrabold text-[#5F5E5A]">{label}</p>
+                            <p className="mt-3 text-3xl font-extrabold text-[#111827]">{value}</p>
+                            <p className="mt-2 text-xs font-extrabold" style={{ color }}>▲ Live signal</p>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-5 grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
+                        <div className="rounded-2xl border border-[#EEEDFE] bg-white p-4 shadow-sm">
+                          <p className="font-extrabold text-[#2C2C2A]">Team Progress</p>
+                          <div className="mt-4 space-y-3">
+                            {demoProgressRows.slice(0, 4).map(([name, task, progress, status, color]) => (
+                              <div key={name} className="grid gap-2 sm:grid-cols-[1fr_8rem_5rem] sm:items-center">
+                                <span>
+                                  <span className="block text-sm font-extrabold text-[#2C2C2A]">{name}</span>
+                                  <span className="block text-xs font-semibold text-[#8A8894]">{task}</span>
+                                </span>
+                                <span className="h-2 rounded-full bg-[#EEEFF5]">
+                                  <span className="block h-full rounded-full" style={{ width: `${progress}%`, backgroundColor: color }} />
+                                </span>
+                                <span className="text-xs font-extrabold text-[#3C3489]">{status}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="rounded-2xl border border-[#EEEDFE] bg-white p-4 shadow-sm">
+                          <p className="font-extrabold text-[#2C2C2A]">Recent Activity</p>
+                          <div className="mt-4 space-y-3">
+                            {demoActivityRows.slice(0, 4).map(([action, task, time, Icon, color]) => (
+                              <div key={`${action}-${task}`} className="flex items-center gap-3">
+                                <span className="flex h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: `${color}18`, color }}>
+                                  <Icon className="h-4 w-4" />
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate text-xs font-extrabold text-[#2C2C2A]">{action}</span>
+                                  <span className="block truncate text-xs font-semibold text-[#8A8894]">{task}</span>
+                                </span>
+                                <span className="text-[11px] font-bold text-[#8A8894]">{time}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </section>
+
+          <section className="relative overflow-hidden bg-[#161238] px-5 py-24 text-white sm:px-6 lg:px-8">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(127,119,221,0.45),transparent_34%),radial-gradient(circle_at_88%_20%,rgba(29,158,117,0.22),transparent_28%)]" />
+            <div className="relative mx-auto max-w-6xl">
+              <div className="text-center">
+                <p className="text-sm font-extrabold uppercase tracking-[0.2em] text-[#8DE4C3]">NudgeAI highlight</p>
+                <h2 className="mt-4 text-4xl font-extrabold sm:text-5xl">Meet NudgeAI.</h2>
+                <p className="mx-auto mt-4 max-w-2xl text-lg leading-8 text-[#DAD7FB]">Your team&apos;s invisible operations layer.</p>
+              </div>
+              <div className="mt-12 grid gap-5 md:grid-cols-3">
+                {[
+                  ['🔥', 'Burnout Predictor', "NudgeAI detects early warning signs of burnout before it affects your team's output."],
+                  ['📊', 'Sprint Forecast', "Every Monday, NudgeAI predicts your team's completion rate for the week and flags at-risk tasks."],
+                  ['✍️', 'Standup Writer', 'NudgeAI reads all updates and writes your morning team brief automatically. No meeting needed.']
+                ].map(([icon, title, desc], index) => (
+                  <motion.article
+                    key={title}
+                    {...cardMotion}
+                    transition={{ duration: 0.45, delay: index * 0.06, ease: 'easeOut' }}
+                    className="rounded-2xl border border-[#7F77DD]/35 bg-white/8 p-6 shadow-xl shadow-black/10 backdrop-blur"
+                  >
+                    <span className="text-4xl" aria-hidden="true">{icon}</span>
+                    <h3 className="mt-6 text-2xl font-extrabold">{title}</h3>
+                    <p className="mt-3 text-sm leading-7 text-white/72">{desc}</p>
+                    <span className="mt-6 inline-flex rounded-full bg-[#7F77DD]/25 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.18em] text-[#DAD7FB]">
+                      NudgeAI
+                    </span>
+                  </motion.article>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="bg-white px-5 py-24 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-6xl">
+              <SectionHeader
+                eyebrow="Early feedback"
+                title="What early teams are saying"
+                copy="Sample early-user stories that show the kind of workflow NudgeHQ is built to unlock."
+              />
+              <div className="mt-12 grid gap-5 md:grid-cols-3">
+                {[
+                  ['RM', 'Our Monday morning meetings went from 45 minutes to 10 minutes.', 'Ravi M., HR Manager', 'Techflow, Bangalore · 40 employees'],
+                  ['SK', 'I finally know what my team did this week without asking anyone.', 'Sneha K., Founder', 'Crevo, Mumbai · 22 employees'],
+                  ['AP', 'NudgeAI flagged a burnout risk before we even noticed the signs.', 'Arjun P., Operations Lead', 'Nexus Labs, Pune · 55 employees']
+                ].map(([initials, quote, name, meta], index) => (
+                  <motion.article
+                    key={quote}
+                    {...cardMotion}
+                    transition={{ duration: 0.45, delay: index * 0.06, ease: 'easeOut' }}
+                    className="rounded-2xl border border-[#EEEDFE] bg-white p-6 shadow-lg shadow-[#3C3489]/7"
+                  >
+                    <p className="text-sm tracking-[0.12em] text-[#F59E0B]">★★★★★</p>
+                    <p className="mt-5 text-5xl font-extrabold leading-none text-[#7F77DD]">“</p>
+                    <p className="-mt-3 text-lg font-extrabold leading-8 text-[#2C2C2A]">{quote}</p>
+                    <div className="mt-8 flex items-center gap-3">
+                      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#EEEDFE] text-sm font-extrabold text-[#3C3489]">{initials}</span>
+                      <span>
+                        <span className="block text-sm font-extrabold text-[#2C2C2A]">{name}</span>
+                        <span className="block text-xs font-semibold text-[#8A8894]">{meta}</span>
+                      </span>
+                    </div>
+                  </motion.article>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section id="faq" className="bg-[#FCFCFF] px-5 py-24 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-4xl">
+              <SectionHeader
+                eyebrow="FAQ"
+                title="Frequently asked questions"
+              />
+              <div className="mt-10 divide-y divide-[#EEEDFE] rounded-3xl border border-[#DAD7FB] bg-white p-4 shadow-xl shadow-[#3C3489]/8 sm:p-6">
+                {[
+                  ['How long does setup take?', 'Under 10 minutes. Add your company details, invite your team, and you are live. No IT team needed.'],
+                  ['Is employee data private and secure?', 'Yes. Employees only see their own data. Admins see company-wide data. Everything is encrypted end-to-end.'],
+                  ['Can we try before paying?', 'Yes. Full 14-day free trial with no credit card required. Cancel anytime.'],
+                  ['What if an employee forgets to submit an update?', 'NudgeAI automatically detects inactivity and sends a gentle nudge. Admin gets alerted too.'],
+                  ['Do you support WhatsApp updates?', 'WhatsApp integration is coming in V2. For now updates are submitted through the web app.'],
+                  ["What's the difference between Employee and Admin access?", 'Employees see only their own tasks and progress. Admins see the full team dashboard, analytics, and NudgeAI insights.']
+                ].map(([question, answer], index) => (
+                  <details key={question} open={index === 0} className="group py-5">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-5">
+                      <span className="text-lg font-extrabold text-[#2C2C2A]">{question}</span>
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#EEEDFE] text-[#3C3489] transition group-open:rotate-45">
+                        <Plus className="h-5 w-5" />
+                      </span>
+                    </summary>
+                    <p className="mt-4 max-w-3xl text-base leading-8 text-[#5F5E5A]">{answer}</p>
+                  </details>
+                ))}
+              </div>
             </div>
           </section>
 
@@ -3676,6 +4091,35 @@ function App() {
                   </motion.div>
                 ))}
               </div>
+            </div>
+          </section>
+
+          <section className="px-5 py-24 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-6xl overflow-hidden rounded-[2rem] bg-[linear-gradient(135deg,#7F77DD_0%,#3C3489_100%)] px-6 py-16 text-center text-white shadow-2xl shadow-[#3C3489]/20 sm:px-10">
+              <h2 className="text-4xl font-extrabold leading-tight sm:text-6xl">
+                Stop chasing updates.
+                <br />
+                Start knowing.
+              </h2>
+              <div className="mt-9 flex flex-col justify-center gap-4 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={openSignup}
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-7 py-4 text-sm font-extrabold uppercase tracking-[0.14em] text-[#3C3489] transition hover:bg-[#EEEDFE]"
+                >
+                  Start Free Trial
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentView('demo_console')}
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-white/60 bg-transparent px-7 py-4 text-sm font-extrabold uppercase tracking-[0.14em] text-white transition hover:bg-white/10"
+                >
+                  Take Demo
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="mt-6 text-sm font-bold text-white/75">14-day free trial · No credit card required · Cancel anytime</p>
             </div>
           </section>
 
@@ -4264,7 +4708,776 @@ function App() {
       )}
 
       {/* VIEW 3: LIVE DASHBOARD AREA */}
-      {currentView === 'dashboard' && (
+      {currentView === 'dashboard' && isSandbox && (
+        <section className="min-h-screen bg-[#F7F8FB] px-4 py-6 sm:px-6 lg:px-8">
+          <div className="mx-auto grid max-w-[92rem] overflow-hidden rounded-[28px] border border-[#E7E5F8] bg-white shadow-2xl shadow-[#3C3489]/10 lg:grid-cols-[17rem_minmax(0,1fr)]">
+            <aside className="flex border-b border-[#EEEDFE] bg-white p-5 lg:min-h-[calc(100vh-3rem)] lg:flex-col lg:border-b-0 lg:border-r">
+              <div className="flex w-full items-center justify-between gap-4 lg:block">
+                <div className="flex items-center gap-3">
+                  <img src="/brand/nudgehq-icon.svg" alt="" className="h-11 w-11 rounded-xl shadow-sm" />
+                  <div>
+                    <p className="text-lg font-extrabold text-[#3C3489]">NudgeHQ</p>
+                    <p className="text-xs font-bold text-[#8A8894]">{dashboardRoleLabel} demo</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCurrentView('demo_console')}
+                  className="rounded-xl border border-[#FECACA] px-3 py-2 text-xs font-extrabold text-rose-500 transition hover:bg-rose-50 lg:hidden"
+                >
+                  Exit
+                </button>
+              </div>
+
+              <nav className="mt-7 hidden flex-1 space-y-2 lg:block">
+                {demoSidebarItems.map(([label, Icon], index) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => {
+                      if (demoEmployeeCanNavigate) setDemoEmployeeSection(label);
+                    }}
+                    className={`flex w-full items-center gap-3 rounded-xl border-l-[3px] px-4 py-3 text-sm font-extrabold transition ${
+                      (demoEmployeeCanNavigate ? selectedDemoSection === label : index === 0)
+                        ? 'border-l-[#7F77DD] bg-[#7F77DD] text-white shadow-lg shadow-[#7F77DD]/22'
+                        : 'border-l-transparent text-[#6E6B78] hover:bg-[#EEEDFE] hover:text-[#3C3489]'
+                    }`}
+                  >
+                    <Icon className="h-5 w-5" aria-hidden="true" />
+                    {label}
+                  </button>
+                ))}
+              </nav>
+
+              <div className="mt-auto hidden rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4 lg:block">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#3C3489] text-sm font-extrabold text-white">
+                    {(user?.name || 'Demo User').split(' ').map((part) => part[0]).join('').slice(0, 2)}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-extrabold text-[#2C2C2A]">{user?.name || 'Demo User'}</p>
+                    <p className="text-xs font-bold capitalize text-[#8A8894]">{dashboardRoleLabel}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCurrentView('demo_console')}
+                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#FECACA] px-3 py-2 text-xs font-extrabold text-rose-500 transition hover:bg-rose-50"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Exit demo
+                </button>
+              </div>
+            </aside>
+
+            <div className="min-w-0 bg-[#FAFAFD] p-5 sm:p-7">
+              <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <h1 className="text-3xl font-extrabold tracking-tight text-[#2C2C2A] sm:text-4xl">
+                    {dashboardGreeting}, {user?.name?.split(' ')[0] || 'Rahul'}! 👋
+                  </h1>
+                  <p className="mt-2 text-sm font-medium text-[#6E6B78]">
+                    {dashboardRole === 'employee' ? "Here's your focus for today." : "Here's what's happening with your team today."}
+                  </p>
+                </div>
+                <div className="inline-flex w-fit items-center gap-2 rounded-xl border border-[#EEEDFE] bg-white px-4 py-3 text-sm font-bold text-[#5F5E5A] shadow-sm">
+                  <Clock3 className="h-4 w-4 text-[#7F77DD]" />
+                  {dashboardDateLabel} · Today
+                </div>
+              </header>
+
+              <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {demoStatCards.map(([title, value, Icon, color, trend, trendType]) => (
+                  <article key={title} className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-extrabold text-[#5F5E5A]">{title}</p>
+                        <p className="mt-4 text-4xl font-extrabold tracking-tight text-[#111827]">{value}</p>
+                      </div>
+                      <span className="flex h-11 w-11 items-center justify-center rounded-full" style={{ backgroundColor: `${color}18`, color }}>
+                        <Icon className="h-5 w-5" aria-hidden="true" />
+                      </span>
+                    </div>
+                    <p className={`mt-4 text-xs font-extrabold ${trendType === 'up' ? 'text-[#1D9E75]' : trendType === 'down' ? 'text-[#EF4444]' : 'text-[#8A8894]'}`}>
+                      {trend}
+                    </p>
+                  </article>
+                ))}
+              </div>
+
+              {(!demoEmployeeCanNavigate || selectedDemoSection === 'My Dashboard') && (
+                <div className="mt-6 grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
+                  <section className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
+                    <div className="flex items-center justify-between gap-4">
+                      <h2 className="text-xl font-extrabold text-[#2C2C2A]">{dashboardRole === 'employee' ? 'My Tasks' : 'Team Progress'}</h2>
+                      <span className="rounded-full bg-[#EEEDFE] px-3 py-1 text-xs font-extrabold text-[#3C3489]">
+                        {dashboardRoleLabel}
+                      </span>
+                    </div>
+                    <div className="mt-5 space-y-4">
+                      {dashboardRole === 'employee' && !employeeTaskRows.length ? renderEmptyState({
+                        title: 'No tasks assigned yet',
+                        sub: 'Your manager will assign tasks soon. Check back here!',
+                        Icon: ListTodo
+                      }) : null}
+                      {(dashboardRole === 'employee' ? employeeTaskRows : demoProgressRows).map(([name, task, progress, status, color], index) => (
+                        <button
+                          key={`${name}-${task}`}
+                          type="button"
+                          onClick={() => {
+                            if (dashboardRole === 'employee') openDemoTask([name, task, progress, status, color]);
+                          }}
+                          className="grid w-full gap-3 rounded-xl border border-[#F0EFFA] bg-[#FCFCFF] p-3 text-left transition hover:border-[#7F77DD] hover:bg-[#F7F6FF] sm:grid-cols-[minmax(10rem,1fr)_minmax(9rem,0.7fr)_4rem_7rem] sm:items-center"
+                        >
+                          <div className="flex min-w-0 items-center gap-3">
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-extrabold text-white" style={{ backgroundColor: ['#7F77DD', '#1D9E75', '#3C3489', '#F59E0B', '#EF4444'][index % 5] }}>
+                              {name.split(' ').map((part) => part[0]).join('').slice(0, 2)}
+                            </span>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-extrabold text-[#2C2C2A]">{name}</p>
+                              <p className="truncate text-xs font-semibold text-[#8A8894]">{task}</p>
+                            </div>
+                          </div>
+                          <div className="h-2.5 overflow-hidden rounded-full bg-[#EEEFF5]">
+                            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progress}%`, backgroundColor: color }} />
+                          </div>
+                          <p className="text-sm font-extrabold text-[#2C2C2A]">{progress}%</p>
+                          <span className={`w-fit rounded-full px-3 py-1 text-xs font-extrabold ${
+                            status === 'Completed' ? 'bg-[#E8F7F1] text-[#1D9E75]' :
+                            status === 'Overdue' || status === 'Blocked' ? 'bg-rose-50 text-rose-600' :
+                            'bg-[#EEEDFE] text-[#3C3489]'
+                          }`}>
+                            {status}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                    <button type="button" onClick={() => setDemoEmployeeSection('My Tasks')} className="mt-5 inline-flex items-center gap-2 rounded-xl border border-[#DAD7FB] px-4 py-2 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]">
+                      View all tasks
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  </section>
+
+                  <section className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
+                    <h2 className="text-xl font-extrabold text-[#2C2C2A]">
+                      {dashboardRole === 'employee' ? "Today's Check-in" : 'Recent Activity'}
+                    </h2>
+                    {dashboardRole === 'employee' ? (
+                      <div className="mt-5 space-y-5">
+                        <div className="rounded-xl border border-[#DAD7FB] bg-[#F7F6FF] p-5">
+                          <p className="text-sm font-extrabold text-[#3C3489]">Submit today's update</p>
+                          <p className="mt-2 text-sm leading-6 text-[#5F5E5A]">Share progress, blocker status, and your main focus in under a minute.</p>
+                          <button type="button" onClick={() => setDemoEmployeeSection('Check-in')} className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-[#7F77DD] px-4 py-3 text-sm font-extrabold text-white transition hover:bg-[#3C3489]">
+                            Open check-in
+                          </button>
+                          <div className="mt-4 rounded-xl bg-white p-4 text-xs font-semibold leading-6 text-[#5F5E5A]">
+                            <span className="font-extrabold text-[#3C3489]">NudgeAI tip:</span> Mention what changed, where it lives, and what is blocked.
+                          </div>
+                        </div>
+                        <div className="rounded-xl border border-[#EEEDFE] bg-white p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <h3 className="text-base font-extrabold text-[#2C2C2A]">Recent Activity</h3>
+                            <span className="rounded-full bg-[#EEEDFE] px-3 py-1 text-[11px] font-extrabold text-[#3C3489]">Last 4</span>
+                          </div>
+                          <div className="mt-4 space-y-3">
+                            {employeeRecentActivityRows.length ? employeeRecentActivityRows.map(([action, detail, time, Icon, color]) => (
+                              <div key={`${action}-${detail}`} className="flex items-start gap-3 rounded-xl bg-[#FCFCFF] p-3">
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${color}16`, color }}>
+                                  <Icon className="h-4 w-4" />
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-extrabold text-[#2C2C2A]">{action}</p>
+                                  <p className="truncate text-xs font-semibold text-[#8A8894]">{detail}</p>
+                                </div>
+                                <span className="shrink-0 text-xs font-bold text-[#8A8894]">{time}</span>
+                              </div>
+                            )) : (
+                              <p className="rounded-xl border border-dashed border-[#DAD7FB] bg-[#FCFCFF] p-4 text-center text-sm font-semibold text-[#8A8894]">
+                                No activity yet — submit your first check-in to get started!
+                              </p>
+                            )}
+                          </div>
+                          <button type="button" onClick={() => setDemoEmployeeSection('My Progress')} className="mt-4 inline-flex items-center gap-2 rounded-xl border border-[#DAD7FB] px-4 py-2 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]">
+                            View all activity
+                            <ArrowRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-5 space-y-4">
+                        {demoActivityRows.map(([action, task, time, Icon, color]) => (
+                          <div key={`${action}-${task}`} className="flex items-start gap-3">
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${color}16`, color }}>
+                              <Icon className="h-4 w-4" />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-extrabold text-[#2C2C2A]">{action}</p>
+                              <p className="text-xs font-semibold text-[#8A8894]">{task}</p>
+                            </div>
+                            <span className="text-xs font-bold text-[#8A8894]">{time}</span>
+                          </div>
+                        ))}
+                        <button type="button" className="mt-2 inline-flex items-center gap-2 rounded-xl border border-[#DAD7FB] px-4 py-2 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]">
+                          View all activity
+                          <ArrowRight className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+                  </section>
+                </div>
+              )}
+
+              {demoEmployeeCanNavigate && selectedDemoSection === 'My Tasks' && (
+                <div className="mt-6 grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
+                  <section className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                    <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#1D9E75]">Today</p>
+                    <h2 className="mt-2 text-2xl font-extrabold text-[#2C2C2A]">Your work queue</h2>
+                    <p className="mt-2 text-sm leading-6 text-[#5F5E5A]">Everything here is only visible to you and your assigned manager.</p>
+                    <div className="mt-5 grid gap-3">
+                      {!demoWorkQueueRows.length ? renderEmptyState({
+                        title: 'No tasks assigned yet',
+                        sub: 'Your manager will assign tasks soon. Check back here!',
+                        Icon: ListTodo
+                      }) : null}
+                      {demoWorkQueueRows.map(([group, task, progress, status, color]) => (
+                        <button
+                          key={task}
+                          type="button"
+                          onClick={() => openDemoTask([group, task, progress, status, color])}
+                          className="flex items-center justify-between rounded-xl border border-[#EEEDFE] bg-[#FCFCFF] p-4 text-left transition hover:border-[#7F77DD] hover:bg-[#F7F6FF]"
+                        >
+                          <span>
+                            <span className="block text-sm font-extrabold text-[#2C2C2A]">{task}</span>
+                            <span className="mt-1 block text-xs font-semibold text-[#8A8894]">{group === 'Today' ? 'Due today' : 'This week'}</span>
+                          </span>
+                          <span className={`rounded-full px-3 py-1 text-xs font-extrabold ${status === 'At risk' ? 'bg-[#FFF7ED] text-[#F59E0B]' : 'bg-[#EEEDFE] text-[#3C3489]'}`}>
+                            {status}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                  <section className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-xl font-extrabold text-[#2C2C2A]">Task progress</h2>
+                      <span className="rounded-full bg-[#E8F7F1] px-3 py-1 text-xs font-extrabold text-[#1D9E75]">Live</span>
+                    </div>
+                    <div className="mt-5 space-y-4">
+                      {!employeeTaskRows.length ? renderEmptyState({
+                        title: 'No tasks assigned yet',
+                        sub: 'Your manager will assign tasks soon. Check back here!',
+                        Icon: ListTodo
+                      }) : null}
+                      {employeeTaskRows.map(([name, task, progress, status, color]) => (
+                        <div key={task} className="rounded-xl border border-[#F0EFFA] bg-[#FCFCFF] p-4">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-sm font-extrabold text-[#2C2C2A]">{task}</p>
+                              <p className="text-xs font-semibold text-[#8A8894]">{name}</p>
+                            </div>
+                            <span className="w-fit rounded-full bg-[#EEEDFE] px-3 py-1 text-xs font-extrabold text-[#3C3489]">{status}</span>
+                          </div>
+                          <div className="mt-4 h-3 overflow-hidden rounded-full bg-[#EEEFF5]">
+                            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progress}%`, backgroundColor: color }} />
+                          </div>
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            <button type="button" onClick={() => openDemoTask([name, task, progress, status, color])} className="rounded-xl bg-[#3C3489] px-3 py-2 text-xs font-extrabold text-white transition hover:bg-[#7F77DD]">
+                              View details
+                            </button>
+                            {['Start', 'Complete', 'Report blocker'].map((action) => (
+                              <button key={action} type="button" onClick={() => openDemoTask([name, task, progress, action === 'Complete' ? 'Completed' : action === 'Report blocker' ? 'Blocked' : 'In Progress', action === 'Complete' ? '#1D9E75' : action === 'Report blocker' ? '#EF4444' : '#7F77DD'])} className="rounded-xl border border-[#DAD7FB] px-3 py-2 text-xs font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]">
+                                {action}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                </div>
+              )}
+
+              {demoEmployeeCanNavigate && selectedDemoSection === 'Check-in' && (
+                <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+                  <section className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                    <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#7F77DD]">Daily check-in</p>
+                    <h2 className="mt-2 text-2xl font-extrabold text-[#2C2C2A]">Tell the workspace what changed</h2>
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      {[
+                        ['Office', '🏢 Office'],
+                        ['Home', '🏠 Home'],
+                        ['Client site', '🤝 Client site'],
+                        ['Travel', '✈️ Travel']
+                      ].map(([location, label]) => (
+                        <button
+                          key={location}
+                          type="button"
+                          onClick={() => setDemoCheckinLocation(location)}
+                          className={`rounded-full border px-4 py-2.5 text-sm font-extrabold transition ${
+                            demoCheckinLocation === location
+                              ? 'border-transparent bg-[#7F77DD] text-white shadow-lg shadow-[#7F77DD]/20'
+                              : 'border-[#D3D1C7] bg-white text-[#5F5E5A] hover:bg-[#F7F6FF] hover:text-[#3C3489]'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="mt-5 grid gap-4">
+                      {['Goal 1: finish dashboard polish', 'Goal 2: test onboarding flow', 'Main focus: NudgeAI employee experience'].map((placeholder) => (
+                        <div key={placeholder} className="rounded-xl border border-[#EEEDFE] bg-[#FCFCFF] px-4 py-3 text-sm font-semibold text-[#8A8894]">
+                          {placeholder}
+                        </div>
+                      ))}
+                      <div className="min-h-28 rounded-xl border border-[#EEEDFE] bg-[#FCFCFF] px-4 py-3 text-sm font-semibold text-[#8A8894]">
+                        Progress update: Completed the first visual pass and found two blockers around auth redirects.
+                      </div>
+                    </div>
+                    <button type="button" className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#7F77DD] px-4 py-3 text-sm font-extrabold text-white transition hover:bg-[#3C3489]">
+                      <Send className="h-4 w-4" />
+                      Submit check-in
+                    </button>
+                  </section>
+                  <section className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                    <h2 className="text-xl font-extrabold text-[#2C2C2A]">NudgeAI quality preview</h2>
+                    <div className="mt-5 rounded-2xl bg-[#3C3489] p-5 text-white">
+                      <p className="text-5xl font-extrabold">8.6</p>
+                      <p className="mt-2 text-sm font-bold text-white/75">Update clarity score</p>
+                      <p className="mt-5 text-sm leading-6 text-white/80">Strong update. Add the proof link or file location and it becomes manager-ready.</p>
+                    </div>
+                    <div className="mt-4 rounded-xl border border-[#DAD7FB] bg-[#F7F6FF] p-4 text-sm font-semibold leading-6 text-[#5F5E5A]">
+                      <span className="font-extrabold text-[#3C3489]">Gentle nudge:</span> mention outcome, blocker, and next action in one tight paragraph.
+                    </div>
+                  </section>
+                </div>
+              )}
+
+              {demoEmployeeCanNavigate && selectedDemoSection === 'My Progress' && (
+                <div className="mt-6 grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+                  <section className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                    <h2 className="text-xl font-extrabold text-[#2C2C2A]">Your momentum</h2>
+                    <div className="mt-5 grid gap-3">
+                      {[
+                        ['Completion rate', '82%', '▲ 12% this week', '#1D9E75'],
+                        ['Check-in streak', '9 days', 'Personal best', '#7F77DD'],
+                        ['Blockers resolved', '4', '2 faster than avg', '#F59E0B']
+                      ].map(([label, value, trend, color]) => (
+                        <div key={label} className="rounded-xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                          <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#8A8894]">{label}</p>
+                          <p className="mt-2 text-3xl font-extrabold text-[#2C2C2A]">{value}</p>
+                          <p className="mt-1 text-xs font-extrabold" style={{ color }}>{trend}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                  <section className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h2 className="text-xl font-extrabold text-[#2C2C2A]">Weekly progress curve</h2>
+                        <p className="mt-1 text-sm font-semibold text-[#8A8894]">Tasks completed per day · last 7 days</p>
+                      </div>
+                      {!actualWeeklyProgressData.length ? (
+                        <span className="rounded-full bg-[#EEEDFE] px-3 py-1 text-xs font-extrabold text-[#3C3489]">Demo data</span>
+                      ) : null}
+                    </div>
+                    {weeklyProgressData.length ? (
+                      <div className="mt-6 h-64 rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <RechartsLineChart data={weeklyProgressData} margin={{ top: 10, right: 18, left: -18, bottom: 0 }}>
+                            <CartesianGrid stroke="#ECEAFB" strokeDasharray="4 4" vertical={false} />
+                            <XAxis dataKey="day" tick={{ fill: '#8A8894', fontSize: 12, fontWeight: 700 }} axisLine={false} tickLine={false} />
+                            <YAxis allowDecimals={false} tick={{ fill: '#8A8894', fontSize: 12, fontWeight: 700 }} axisLine={false} tickLine={false} />
+                            <Tooltip
+                              contentStyle={{ border: '1px solid #DAD7FB', borderRadius: 12, boxShadow: '0 12px 30px rgba(60,52,137,0.14)' }}
+                              labelStyle={{ color: '#3C3489', fontWeight: 800 }}
+                              formatter={(value) => [`${value} tasks completed`, '']}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="tasks"
+                              name="Tasks completed"
+                              stroke="#7F77DD"
+                              strokeWidth={4}
+                              dot={{ r: 5, fill: '#FFFFFF', stroke: '#7F77DD', strokeWidth: 3 }}
+                              activeDot={{ r: 7, fill: '#7F77DD', stroke: '#FFFFFF', strokeWidth: 3 }}
+                            />
+                          </RechartsLineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : renderEmptyState({
+                      title: 'Your progress curve starts here',
+                      sub: 'Complete your first check-in to see your weekly momentum.',
+                      Icon: LineChartIcon,
+                      actionLabel: 'Go to Check-in',
+                      onAction: () => setDemoEmployeeSection('Check-in')
+                    })}
+                  </section>
+                </div>
+              )}
+
+              {demoEmployeeCanNavigate && selectedDemoSection === 'Growth Portal' && (
+                <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_1fr]">
+                  <section className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-xl font-extrabold text-[#2C2C2A]">Growth snapshot</h2>
+                      <button type="button" className="inline-flex items-center gap-2 rounded-xl bg-[#3C3489] px-3 py-2 text-xs font-extrabold text-white">
+                        <Download className="h-4 w-4" />
+                        90-day PDF
+                      </button>
+                    </div>
+                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                      {['30 days', '60 days', '90 days'].map((period, index) => (
+                        <div key={period} className="rounded-xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                          <p className="text-sm font-extrabold text-[#3C3489]">{period}</p>
+                          <p className="mt-2 text-2xl font-extrabold text-[#2C2C2A]">{[18, 39, 64][index]}</p>
+                          <p className="mt-1 text-xs font-semibold text-[#8A8894]">tasks completed</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-5 rounded-xl bg-[#F7F6FF] p-4 text-sm font-semibold leading-6 text-[#5F5E5A]">
+                      <span className="font-extrabold text-[#3C3489]">NudgeAI career summary:</span> You are strongest on focused execution days and your most productive pattern is Tuesday morning deep work.
+                    </div>
+                  </section>
+                  <section className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                    <h2 className="text-xl font-extrabold text-[#2C2C2A]">Personal wins</h2>
+                    <div className="mt-5 space-y-3">
+                      {[
+                        ['Resolved blocker without escalation', Zap, '#FFF3E0', '#F59E0B'],
+                        ['9-day check-in streak', Trophy, '#FFFDE7', '#D97706'],
+                        ['Helped teammate unblock', Star, '#EEEDFE', '#7F77DD']
+                      ].map(([win, Icon, bg, color]) => (
+                        <div key={win} className="flex items-center gap-3 rounded-xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                          <span className="flex h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: bg, color }}>
+                            <Icon className="h-5 w-5" />
+                          </span>
+                          <p className="text-sm font-extrabold text-[#2C2C2A]">{win}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                </div>
+              )}
+
+              {demoEmployeeCanNavigate && selectedDemoSection === 'NudgeAI' && (
+                <div className="mt-6 grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+                  <section className="relative overflow-hidden rounded-xl border border-[#DAD7FB] bg-[#3C3489] p-6 text-white shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                    <div className="absolute right-[-4rem] top-[-4rem] h-56 w-56 rounded-full bg-[#7F77DD]/40 blur-3xl" />
+                    <div className="relative">
+                      <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-extrabold uppercase tracking-[0.18em] text-white/80">
+                        <Zap className="h-4 w-4" />
+                        NudgeAI
+                      </span>
+                      <h2 className="mt-5 text-3xl font-extrabold tracking-tight">Ask NudgeAI about your work</h2>
+                      <p className="mt-3 max-w-xl text-sm leading-6 text-white/75">A private employee helper for check-ins, blockers, task clarity, and what to update next.</p>
+                      <div className="mt-6 rounded-2xl border border-white/10 bg-white/10 p-4">
+                        <p className="text-sm font-bold text-white/70">Try asking</p>
+                        <div className="mt-2 min-h-[3.5rem]">
+                          <AnimatePresence mode="wait">
+                            <motion.p
+                              key={DEMO_AI_QUESTIONS[demoAiQuestionIndex]}
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              transition={{ duration: 0.5 }}
+                              className="text-lg font-extrabold"
+                            >
+                              "{DEMO_AI_QUESTIONS[demoAiQuestionIndex]}"
+                            </motion.p>
+                          </AnimatePresence>
+                        </div>
+                      </div>
+                      <button type="button" className="mt-5 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]">
+                        Open NudgeAI helper
+                        <ArrowRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </section>
+                  <section className="grid gap-4">
+                    {[
+                      ['Focus suggestion', 'Finish the dashboard UI pass before touching backend polish.', '#7F77DD'],
+                      ['Blocker coaching', 'Write the blocker with expected outcome, what you tried, and who can unblock it.', '#F59E0B'],
+                      ['Quality score', 'Your last update scored 8.6/10 for clarity.', '#1D9E75'],
+                      ['Next best action', 'Attach a screenshot or link so your manager can review faster.', '#3C3489']
+                    ].map(([title, copy, color]) => (
+                      <div key={title} className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                        <div className="flex items-start gap-3">
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${color}18`, color }}>
+                            <Sparkles className="h-5 w-5" />
+                          </span>
+                          <div>
+                            <p className="text-sm font-extrabold text-[#2C2C2A]">{title}</p>
+                            <p className="mt-1 text-sm leading-6 text-[#5F5E5A]">{copy}</p>
+                            <p className="mt-2 text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#8A8894]">Powered by NudgeAI</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </section>
+                </div>
+              )}
+
+              {demoEmployeeCanNavigate && selectedDemoSection === 'Settings' && (
+                <div className="mt-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+                  <section className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                    <h2 className="text-xl font-extrabold text-[#2C2C2A]">Profile</h2>
+                    <div className="mt-5 flex items-center gap-4 rounded-xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#7F77DD] text-lg font-extrabold text-white">EU</span>
+                      <div>
+                        <p className="font-extrabold text-[#2C2C2A]">Employee User</p>
+                        <p className="text-sm font-semibold text-[#8A8894]">employee@nudgehq.com</p>
+                      </div>
+                    </div>
+                  </section>
+                  <section className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                    <h2 className="text-xl font-extrabold text-[#2C2C2A]">Preferences</h2>
+                    <div className="mt-5 space-y-3">
+                      {['Daily check-in reminders', 'Recognition notifications', 'NudgeAI tips'].map((item, index) => (
+                        <div key={item} className="flex items-center justify-between rounded-xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                          <span className="text-sm font-extrabold text-[#2C2C2A]">{item}</span>
+                          <span className={`h-7 w-12 rounded-full p-1 ${index === 1 ? 'bg-[#DAD7FB]' : 'bg-[#7F77DD]'}`}>
+                            <span className={`block h-5 w-5 rounded-full bg-white shadow ${index === 1 ? '' : 'ml-5'}`} />
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                </div>
+              )}
+
+              <AnimatePresence>
+                {selectedDemoTask && (
+                  <motion.div
+                    className="fixed inset-0 z-[80] flex items-center justify-center bg-[#111827]/45 px-4 py-6 backdrop-blur-sm"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    <motion.div
+                      initial={{ opacity: 0, y: 24, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 24, scale: 0.96 }}
+                      className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[24px] border border-[#E7E5F8] bg-white p-5 shadow-2xl shadow-[#3C3489]/20 sm:p-6"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <span className="inline-flex rounded-full bg-[#EEEDFE] px-3 py-1 text-xs font-extrabold text-[#3C3489]">
+                            {selectedDemoTask.group}
+                          </span>
+                          <h2 className="mt-3 text-2xl font-extrabold text-[#2C2C2A]">{selectedDemoTask.task}</h2>
+                          <p className="mt-2 text-sm leading-6 text-[#5F5E5A]">Review the manager brief, update status, and attach proof before submitting.</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDemoTask(null)}
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#EEEDFE] text-[#5F5E5A] transition hover:bg-[#F7F6FF] hover:text-[#3C3489]"
+                          aria-label="Close task details"
+                        >
+                          <X className="h-5 w-5" />
+                        </button>
+                      </div>
+
+                      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                        {[
+                          ['Assigned to', selectedDemoTask.owner],
+                          ['Due', selectedDemoTask.due],
+                          ['Manager', selectedDemoTask.manager]
+                        ].map(([label, value]) => (
+                          <div key={label} className="rounded-xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                            <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#8A8894]">{label}</p>
+                            <p className="mt-2 text-sm font-extrabold text-[#2C2C2A]">{value}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="mt-5 rounded-xl border border-[#DAD7FB] bg-[#F7F6FF] p-4">
+                        <div className="flex items-start gap-3">
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#3C3489]">
+                            <ClipboardCheck className="h-5 w-5" />
+                          </span>
+                          <div>
+                            <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#3C3489]">Task description from manager</p>
+                            <p className="mt-2 text-sm font-semibold leading-6 text-[#5F5E5A]">{selectedDemoTask.description}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 rounded-xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-extrabold text-[#2C2C2A]">Progress</p>
+                          <p className="text-sm font-extrabold" style={{ color: selectedDemoTask.color }}>{selectedDemoTask.progress}%</p>
+                        </div>
+                        <div className="mt-3 h-3 overflow-hidden rounded-full bg-[#EEEFF5]">
+                          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${selectedDemoTask.progress}%`, backgroundColor: selectedDemoTask.color }} />
+                        </div>
+                      </div>
+
+                      <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <label className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#5F5E5A]">Change status</label>
+                          <div className="mt-2 grid gap-2">
+                            {['Not started', 'In Progress', 'Blocked', 'Completed'].map((status) => (
+                              <button
+                                key={status}
+                                type="button"
+                                onClick={() => setSelectedDemoTask((task) => task ? {
+                                  ...task,
+                                  status,
+                                  progress: status === 'Completed' ? 100 : status === 'Blocked' ? Math.min(task.progress, 35) : status === 'Not started' ? 0 : Math.max(task.progress, 45),
+                                  color: status === 'Completed' ? '#1D9E75' : status === 'Blocked' ? '#EF4444' : status === 'Not started' ? '#8A8894' : '#7F77DD'
+                                } : task)}
+                                className={`rounded-xl border px-4 py-3 text-left text-sm font-extrabold transition ${
+                                  selectedDemoTask.status === status
+                                    ? 'border-[#7F77DD] bg-[#EEEDFE] text-[#3C3489]'
+                                    : 'border-[#EEEDFE] text-[#5F5E5A] hover:bg-[#FCFCFF]'
+                                }`}
+                              >
+                                {status}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#5F5E5A]">Submit update</label>
+                          <textarea
+                            value={demoTaskUpdate}
+                            onChange={(event) => setDemoTaskUpdate(event.target.value)}
+                            placeholder="Write what you completed, what changed, blockers, and what proof you attached..."
+                            className="mt-2 min-h-36 w-full resize-none rounded-xl border border-[#EEEDFE] bg-[#FCFCFF] p-4 text-sm font-semibold leading-6 text-[#2C2C2A] outline-none transition placeholder:text-[#A7A4AF] focus:border-[#7F77DD] focus:bg-white focus:ring-4 focus:ring-[#EEEDFE]"
+                          />
+                          <div className="mt-3 grid gap-2">
+                            <label
+                              className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-dashed border-[#C9C5F6] bg-white px-4 py-3 text-left transition hover:border-[#7F77DD] hover:bg-[#F7F6FF]"
+                            >
+                              <span className="flex items-center gap-3">
+                                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#EEEDFE] text-[#3C3489]">
+                                  <FileCheck2 className="h-5 w-5" />
+                                </span>
+                                <span>
+                                  <span className="block text-sm font-extrabold text-[#2C2C2A]">Upload PDF proof</span>
+                                  <span className="block text-xs font-semibold text-[#8A8894]">Report, invoice, doc, or export file</span>
+                                </span>
+                              </span>
+                              <Plus className="h-4 w-4 text-[#7F77DD]" />
+                              <input
+                                type="file"
+                                accept="application/pdf,.pdf,.doc,.docx,.xls,.xlsx,.csv"
+                                className="hidden"
+                                onChange={(event) => {
+                                  const files = Array.from(event.target.files || []);
+                                  setDemoProofFiles((current) => [...current, ...files.map((file) => ({ name: file.name, type: 'PDF/File proof' }))]);
+                                  event.target.value = '';
+                                }}
+                              />
+                            </label>
+                            <label
+                              className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-dashed border-[#C9C5F6] bg-white px-4 py-3 text-left transition hover:border-[#7F77DD] hover:bg-[#F7F6FF]"
+                            >
+                              <span className="flex items-center gap-3">
+                                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#E8F7F1] text-[#1D9E75]">
+                                  <ClipboardCheck className="h-5 w-5" />
+                                </span>
+                                <span>
+                                  <span className="block text-sm font-extrabold text-[#2C2C2A]">Upload screenshot</span>
+                                  <span className="block text-xs font-semibold text-[#8A8894]">Design proof, error screen, or completed work</span>
+                                </span>
+                              </span>
+                              <Plus className="h-4 w-4 text-[#1D9E75]" />
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif"
+                                className="hidden"
+                                onChange={(event) => {
+                                  const files = Array.from(event.target.files || []);
+                                  setDemoProofFiles((current) => [...current, ...files.map((file) => ({ name: file.name, type: 'Screenshot proof' }))]);
+                                  event.target.value = '';
+                                }}
+                              />
+                            </label>
+                            <input
+                              type="url"
+                              value={demoProofLink}
+                              onChange={(event) => setDemoProofLink(event.target.value)}
+                              placeholder="Paste proof link: Google Drive, GitHub, Figma, Notion, sheet..."
+                              className="rounded-xl border border-[#EEEDFE] bg-[#FCFCFF] px-4 py-3 text-sm font-semibold text-[#2C2C2A] outline-none transition placeholder:text-[#A7A4AF] focus:border-[#7F77DD] focus:bg-white focus:ring-4 focus:ring-[#EEEDFE]"
+                            />
+                            {demoProofFiles.length || demoProofLink ? (
+                              <div className="rounded-xl border border-[#E8F7F1] bg-[#F3FBF8] p-3">
+                                <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#1D9E75]">Attached proof</p>
+                                <div className="mt-2 space-y-1">
+                                  {demoProofFiles.map((file, index) => (
+                                    <p key={`${file.name}-${index}`} className="text-xs font-semibold text-[#2C2C2A]">
+                                      {file.type}: {file.name}
+                                    </p>
+                                  ))}
+                                  {demoProofLink ? (
+                                    <p className="break-all text-xs font-semibold text-[#2C2C2A]">Proof link: {demoProofLink}</p>
+                                  ) : null}
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+                          <div className="mt-3 rounded-xl border border-[#DAD7FB] bg-[#F7F6FF] p-3 text-xs font-semibold leading-5 text-[#5F5E5A]">
+                            <span className="font-extrabold text-[#3C3489]">NudgeAI:</span> Nice. Attach a PDF, screenshot, or proof link so your manager can review without chasing.
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const proofCount = demoProofFiles.length + (demoProofLink ? 1 : 0);
+                            setDemoTaskOverrides((current) => ({
+                              ...current,
+                              [selectedDemoTask.task]: {
+                                status: selectedDemoTask.status,
+                                progress: selectedDemoTask.progress,
+                                color: selectedDemoTask.color,
+                              }
+                            }));
+                            showToast(`Demo task update submitted${proofCount ? ` with ${proofCount} proof item${proofCount > 1 ? 's' : ''}` : ''}.`, 'success');
+                            setSelectedDemoTask(null);
+                          }}
+                          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#7F77DD] px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#3C3489]"
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                          Submit update
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDemoTask((task) => task ? { ...task, status: 'Blocked', color: '#EF4444', progress: Math.min(task.progress, 35) } : task)}
+                          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-5 py-3 text-sm font-extrabold text-rose-600 transition hover:bg-rose-100"
+                        >
+                          <AlertCircle className="h-4 w-4" />
+                          Mark blocker
+                        </button>
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <div className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-4 gap-2 rounded-2xl border border-[#EEEDFE] bg-white/95 p-2 shadow-2xl shadow-[#3C3489]/12 backdrop-blur lg:hidden">
+                {demoSidebarItems.slice(0, 4).map(([label, Icon], index) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => {
+                      if (demoEmployeeCanNavigate) setDemoEmployeeSection(label);
+                    }}
+                    className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-extrabold ${(demoEmployeeCanNavigate ? selectedDemoSection === label : index === 0) ? 'bg-[#7F77DD] text-white' : 'text-[#6E6B78]'}`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {label.replace('My ', '')}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {currentView === 'dashboard' && !isSandbox && (
         <section
           className={`workspace-surface workspace-surface-${dashboardRole} relative mx-auto max-w-[96rem] overflow-hidden px-5 py-8 sm:px-6 lg:px-8`}
           style={{
@@ -4955,7 +6168,7 @@ function App() {
                       onClick={() => runNudgeAiFeature('forecast', true)}
                       className="metric-lift rounded-2xl border border-[#DAD7FB] bg-[#E8F7F1] p-4 text-center transition hover:border-[#1D9E75]"
                     >
-                      <LineChart className="mx-auto h-5 w-5 text-[#1D9E75]" />
+                      <LineChartIcon className="mx-auto h-5 w-5 text-[#1D9E75]" />
                       <span className="mt-2 block text-xs font-bold text-[#1D9E75]">Sprint Forecast</span>
                     </button>}
                     {isPeopleDashboard && <button
