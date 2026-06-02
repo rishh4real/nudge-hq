@@ -293,7 +293,9 @@ const faqs = [
 
 const faqCategories = ['All Inquiries', 'Basics', 'NudgeAI', 'Roles', 'Pricing', 'Support']
 
-function PasswordField({ label, value, onChange, placeholder = 'Enter password', className = '', labelClassName = '', required = true }) {
+const AUTH_INPUT_CLASS = 'block w-full rounded-2xl border border-[#DAD7FB] bg-white px-4 py-3.5 text-sm shadow-[0_1px_0_rgba(60,52,137,0.03)] outline-none transition placeholder:text-[#A09F9A] focus:border-[#7F77DD] focus:shadow-[0_0_0_4px_rgba(127,119,221,0.12)]'
+
+function PasswordField({ label, value, onChange, placeholder = 'Enter password', className = '', labelClassName = '', inputClassName = '', required = true }) {
   const [visible, setVisible] = useState(false)
 
   return (
@@ -306,7 +308,7 @@ function PasswordField({ label, value, onChange, placeholder = 'Enter password',
           type={visible ? 'text' : 'password'}
           value={value}
           onChange={onChange}
-          className="block w-full rounded-md border border-[#DAD7FB] px-4 py-3 pr-12 text-sm outline-none transition focus:border-[#7F77DD]"
+          className={`${AUTH_INPUT_CLASS} pr-12 ${inputClassName}`.trim()}
           placeholder={placeholder}
           required={required}
         />
@@ -327,9 +329,9 @@ function LegalPage({ pageKey, setCurrentView }) {
   const page = legalPages[pageKey]
 
   useEffect(() => {
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-  }, [pageKey]);
+    document.documentElement.scrollTop = 0
+    document.body.scrollTop = 0
+  }, [pageKey])
 
   return (
     <main className="relative isolate overflow-hidden bg-[#F8FBFF] px-5 py-16 sm:px-6 lg:px-8">
@@ -4779,11 +4781,13 @@ function App() {
       {/* VIEW 2: SIGN IN */}
       {currentView === 'signin' && (
         <section className="relative isolate min-h-[calc(100svh-5rem)] overflow-hidden bg-[#F7FAFF] px-5 py-12 text-[#2C2C2A] sm:px-6 lg:px-8">
-          <div className="absolute inset-0 -z-10 bg-[linear-gradient(135deg,#EEF4FF_0%,#FFFFFF_46%,#EAF8F2_100%)]" />
+          <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,#EEF4FF_0%,#FFFFFF_42%,#EAF8F2_100%)]" />
           <div className="soft-grid absolute inset-0 -z-10 opacity-35" />
-          <div className="mx-auto grid max-w-6xl overflow-hidden rounded-[2rem] border border-[#DAD7FB] bg-white shadow-2xl shadow-[#3C3489]/12 lg:grid-cols-[0.92fr_1.08fr]">
-            <motion.div {...cardMotion} className="bg-[#FBFBFF] p-6 text-[#2C2C2A] sm:p-8 lg:p-10">
-              <div className="flex items-center justify-between gap-4">
+          <div className="mx-auto grid max-w-7xl overflow-hidden rounded-[2.2rem] border border-[#DAD7FB] bg-white shadow-2xl shadow-[#3C3489]/12 lg:grid-cols-[0.96fr_1.04fr]">
+            <motion.div {...cardMotion} className="relative overflow-hidden bg-[linear-gradient(180deg,#FEFEFF_0%,#F8F7FF_100%)] p-6 text-[#2C2C2A] sm:p-8 lg:p-10">
+              <div className="absolute -right-14 -top-14 h-48 w-48 rounded-full bg-[#EEEDFE] blur-3xl" />
+              <div className="absolute bottom-0 left-0 h-32 w-32 rounded-full bg-[#E8F7F1] blur-3xl" />
+              <div className="relative flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <img src="/brand/nudgehq-icon.svg" alt="" className="h-11 w-11 rounded-xl shadow-md shadow-[#3C3489]/10" />
                   <div>
@@ -4794,9 +4798,9 @@ function App() {
                 <span className="rounded-full bg-[#EEEDFE] px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-[#3C3489]">Secure</span>
               </div>
 
-              <div className="mt-8 rounded-full bg-[#F1F2F7] p-1">
+              <div className="relative mt-8 rounded-full border border-white/70 bg-white/80 p-1 shadow-[0_16px_40px_rgba(60,52,137,0.08)] backdrop-blur">
                 <div className="grid grid-cols-2 gap-1">
-                  <button type="button" className="rounded-full bg-white px-4 py-2.5 text-sm font-extrabold text-[#2C2C2A] shadow-sm">
+                  <button type="button" className="rounded-full bg-white px-4 py-2.5 text-sm font-extrabold text-[#2C2C2A] shadow-sm ring-1 ring-[#EEEDFE]">
                     Sign In
                   </button>
                   <button type="button" onClick={openSignup} className="rounded-full px-4 py-2.5 text-sm font-bold text-[#8A8984] transition hover:text-[#3C3489]">
@@ -4805,19 +4809,32 @@ function App() {
                 </div>
               </div>
 
-              <div className="mt-8">
-                <h1 className="text-3xl font-extrabold tracking-normal text-[#1E2737]">Welcome back</h1>
-                <p className="mt-2 text-sm leading-6 text-[#5F5E5A]">Log in to open tasks, blockers, reports, and NudgeAI insights.</p>
+              <div className="relative mt-8">
+                <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-[#1D9E75]">Fast access</p>
+                <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-[#1E2737]">Welcome back</h1>
+                <p className="mt-3 max-w-xl text-sm leading-6 text-[#5F5E5A]">Log in to open tasks, blockers, reports, and NudgeAI insights in one focused workspace.</p>
+                <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                  {[
+                    ['1 tap', 'Back to the HQ'],
+                    ['Live', 'Updates & blockers'],
+                    ['AI', 'Summaries on demand'],
+                  ].map(([value, label]) => (
+                    <div key={label} className="rounded-2xl border border-[#EEEDFE] bg-white/90 p-4 shadow-sm">
+                      <p className="text-2xl font-extrabold text-[#3C3489]">{value}</p>
+                      <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8A8984]">{label}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              <form onSubmit={handleLoginSubmit} className="mt-7 grid gap-4">
+              <form onSubmit={handleLoginSubmit} className="relative mt-8 grid gap-4">
                 <div>
                   <label className="text-xs font-bold uppercase tracking-[0.14em] text-[#5F5E5A]">Email address</label>
                   <input
                     type="email"
                     value={emailInput}
                     onChange={(e) => setEmailInput(e.target.value)}
-                    className="mt-2 block w-full rounded-2xl border border-[#DAD7FB] bg-white px-4 py-4 text-sm outline-none transition focus:border-[#7F77DD] focus:shadow-[0_0_0_4px_rgba(127,119,221,0.12)]"
+                    className={`mt-2 ${AUTH_INPUT_CLASS}`}
                     placeholder="you@company.com"
                     required
                   />
@@ -4842,7 +4859,7 @@ function App() {
                 <button
                   type="submit"
                   disabled={loginLoading}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#3C3489] px-5 py-4 text-sm font-extrabold text-white shadow-lg shadow-[#3C3489]/20 transition hover:bg-[#7F77DD] disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1E2737] px-5 py-4 text-sm font-extrabold text-white shadow-[0_18px_40px_rgba(30,39,55,0.22)] transition hover:bg-[#3C3489] disabled:opacity-50"
                 >
                   {loginLoading ? <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="h-4 w-4" aria-hidden="true" />}
                   Open workspace
@@ -4872,11 +4889,13 @@ function App() {
               </p>
             </motion.div>
 
-            <motion.div {...cardMotion} className="relative min-h-[34rem] overflow-hidden bg-[linear-gradient(135deg,#7F77DD_0%,#3657D6_48%,#DDEBFF_100%)] p-8">
+            <motion.div {...cardMotion} className="relative min-h-[36rem] overflow-hidden bg-[linear-gradient(145deg,#3C3489_0%,#5B7CFA_48%,#EAF8F2_112%)] p-8 text-white">
               <div className="absolute inset-0 soft-grid opacity-20" />
+              <div className="absolute -left-24 top-10 h-64 w-64 rounded-full bg-white/12 blur-3xl" />
+              <div className="absolute bottom-8 right-8 h-44 w-44 rounded-full bg-[#1D9E75]/20 blur-3xl" />
               <div className="relative flex h-full flex-col justify-between">
                 <div className="flex items-center justify-between">
-                  <span className="inline-flex items-center gap-2 rounded-full bg-white/16 px-4 py-2 text-xs font-extrabold uppercase tracking-wider text-white backdrop-blur">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/12 px-4 py-2 text-xs font-extrabold uppercase tracking-wider text-white backdrop-blur">
                     <Sparkles className="h-4 w-4" />
                     NudgeAI ready
                   </span>
@@ -4884,8 +4903,8 @@ function App() {
                     Demo Console
                   </button>
                 </div>
-                <div className="mx-auto w-full max-w-md rounded-[1.75rem] border border-white/35 bg-white/18 p-4 shadow-2xl shadow-[#16215E]/30 backdrop-blur">
-                  <div className="rounded-[1.35rem] bg-white p-5 text-[#2C2C2A]">
+                <div className="mx-auto w-full max-w-md rounded-[1.8rem] border border-white/35 bg-white/16 p-4 shadow-2xl shadow-[#16215E]/30 backdrop-blur">
+                  <div className="rounded-[1.4rem] bg-white p-5 text-[#2C2C2A] shadow-[0_18px_50px_rgba(30,39,55,0.12)]">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-extrabold text-[#3C3489]">Today at a glance</p>
@@ -4922,11 +4941,13 @@ function App() {
       {/* VIEW 3: SIGN UP */}
       {currentView === 'signup' && (
         <section className="relative isolate min-h-[calc(100svh-5rem)] overflow-hidden bg-[#F7FAFF] px-5 py-12 text-[#2C2C2A] sm:px-6 lg:px-8">
-          <div className="absolute inset-0 -z-10 bg-[linear-gradient(135deg,#EEF4FF_0%,#FFFFFF_46%,#EAF8F2_100%)]" />
+          <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,#EEF4FF_0%,#FFFFFF_42%,#EAF8F2_100%)]" />
           <div className="soft-grid absolute inset-0 -z-10 opacity-35" />
-          <div className="mx-auto grid max-w-7xl overflow-hidden rounded-[2rem] border border-[#DAD7FB] bg-white shadow-2xl shadow-[#3C3489]/12 lg:grid-cols-[1.02fr_0.98fr]">
-            <motion.div {...cardMotion} className="bg-[#FBFBFF] p-6 text-[#2C2C2A] sm:p-8 lg:p-10">
-              <div className="flex items-center justify-between gap-4">
+          <div className="mx-auto grid max-w-7xl overflow-hidden rounded-[2.2rem] border border-[#DAD7FB] bg-white shadow-2xl shadow-[#3C3489]/12 lg:grid-cols-[1.02fr_0.98fr]">
+            <motion.div {...cardMotion} className="relative overflow-hidden bg-[linear-gradient(180deg,#FEFEFF_0%,#F8F7FF_100%)] p-6 text-[#2C2C2A] sm:p-8 lg:p-10">
+              <div className="absolute -left-16 -top-16 h-44 w-44 rounded-full bg-[#E8F7F1] blur-3xl" />
+              <div className="absolute right-0 top-20 h-40 w-40 rounded-full bg-[#EEEDFE] blur-3xl" />
+              <div className="relative flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <img src="/brand/nudgehq-icon.svg" alt="" className="h-11 w-11 rounded-xl shadow-md shadow-[#3C3489]/10" />
                   <div>
@@ -4937,9 +4958,9 @@ function App() {
                 <span className="rounded-full bg-[#E8F7F1] px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-[#1D9E75]">14-day trial</span>
               </div>
 
-              <div className="mt-8 rounded-full bg-[#F1F2F7] p-1">
+              <div className="relative mt-8 rounded-full border border-white/70 bg-white/80 p-1 shadow-[0_16px_40px_rgba(60,52,137,0.08)] backdrop-blur">
                 <div className="grid grid-cols-2 gap-1">
-                  <button type="button" className="rounded-full bg-white px-4 py-2.5 text-sm font-extrabold text-[#2C2C2A] shadow-sm">
+                  <button type="button" className="rounded-full bg-white px-4 py-2.5 text-sm font-extrabold text-[#2C2C2A] shadow-sm ring-1 ring-[#EEEDFE]">
                     Sign Up
                   </button>
                   <button type="button" onClick={openSignin} className="rounded-full px-4 py-2.5 text-sm font-bold text-[#8A8984] transition hover:text-[#3C3489]">
@@ -4948,19 +4969,32 @@ function App() {
                 </div>
               </div>
 
-              <div className="mt-8">
-                <h1 className="text-3xl font-extrabold tracking-normal text-[#1E2737]">Create an account</h1>
-                <p className="mt-2 text-sm leading-6 text-[#5F5E5A]">Set up your company HQ, verify email, then continue into onboarding.</p>
+              <div className="relative mt-8">
+                <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-[#1D9E75]">Join now</p>
+                <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-[#1E2737]">Create an account</h1>
+                <p className="mt-3 max-w-xl text-sm leading-6 text-[#5F5E5A]">Set up your company HQ, verify email, and move into onboarding with a workspace that already feels organized.</p>
+                <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                  {[
+                    ['14 days', 'Free to explore'],
+                    ['4 roles', 'Ready on day one'],
+                    ['No card', 'Fast start'],
+                  ].map(([value, label]) => (
+                    <div key={label} className="rounded-2xl border border-[#EEEDFE] bg-white/90 p-4 shadow-sm">
+                      <p className="text-2xl font-extrabold text-[#3C3489]">{value}</p>
+                      <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8A8984]">{label}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              <form onSubmit={handleSignupSubmit} className="mt-7 grid gap-4">
+              <form onSubmit={handleSignupSubmit} className="relative mt-8 grid gap-4">
                 <div>
                   <label className="text-xs font-bold uppercase tracking-[0.14em] text-[#5F5E5A]">Company name</label>
                   <input
                     type="text"
                     value={signupCompany}
                     onChange={(e) => setSignupCompany(e.target.value)}
-                    className="mt-2 block w-full rounded-2xl border border-[#DAD7FB] bg-white px-4 py-4 text-sm outline-none transition focus:border-[#7F77DD] focus:shadow-[0_0_0_4px_rgba(127,119,221,0.12)]"
+                    className={`mt-2 ${AUTH_INPUT_CLASS}`}
                     placeholder="Acme Operations"
                     required
                   />
@@ -4972,7 +5006,7 @@ function App() {
                       type="text"
                       value={signupName}
                       onChange={(e) => setSignupName(e.target.value)}
-                      className="mt-2 block w-full rounded-2xl border border-[#DAD7FB] bg-white px-4 py-4 text-sm outline-none transition focus:border-[#7F77DD] focus:shadow-[0_0_0_4px_rgba(127,119,221,0.12)]"
+                      className={`mt-2 ${AUTH_INPUT_CLASS}`}
                       placeholder="Kunal Sharma"
                       required
                     />
@@ -4983,7 +5017,7 @@ function App() {
                       type="email"
                       value={signupEmail}
                       onChange={(e) => setSignupEmail(e.target.value)}
-                      className="mt-2 block w-full rounded-2xl border border-[#DAD7FB] bg-white px-4 py-4 text-sm outline-none transition focus:border-[#7F77DD] focus:shadow-[0_0_0_4px_rgba(127,119,221,0.12)]"
+                      className={`mt-2 ${AUTH_INPUT_CLASS}`}
                       placeholder="you@company.com"
                       required
                     />
@@ -5040,7 +5074,7 @@ function App() {
                 <button
                   type="submit"
                   disabled={signupLoading}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#3C3489] px-5 py-4 text-sm font-extrabold text-white shadow-lg shadow-[#3C3489]/20 transition hover:bg-[#7F77DD] disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1E2737] px-5 py-4 text-sm font-extrabold text-white shadow-[0_18px_40px_rgba(30,39,55,0.22)] transition hover:bg-[#3C3489] disabled:opacity-50"
                 >
                   {signupLoading ? <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Building2 className="h-4 w-4" aria-hidden="true" />}
                   Create workspace
@@ -5070,18 +5104,20 @@ function App() {
               </p>
             </motion.div>
 
-            <motion.div {...cardMotion} className="relative min-h-[42rem] overflow-hidden bg-[linear-gradient(135deg,#EEEDFE_0%,#7F77DD_46%,#DDEBFF_100%)] p-8">
+            <motion.div {...cardMotion} className="relative min-h-[42rem] overflow-hidden bg-[linear-gradient(145deg,#3C3489_0%,#7F77DD_46%,#E8F7F1_112%)] p-8 text-white">
               <div className="absolute inset-0 soft-grid opacity-20" />
+              <div className="absolute -right-20 top-10 h-64 w-64 rounded-full bg-white/12 blur-3xl" />
+              <div className="absolute bottom-8 left-8 h-44 w-44 rounded-full bg-[#1D9E75]/18 blur-3xl" />
               <div className="relative flex h-full flex-col justify-between">
                 <div className="flex items-center justify-between">
-                  <span className="inline-flex items-center gap-2 rounded-full bg-white/70 px-4 py-2 text-xs font-extrabold uppercase tracking-wider text-[#3C3489] backdrop-blur">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/14 px-4 py-2 text-xs font-extrabold uppercase tracking-wider text-white backdrop-blur">
                     <Building2 className="h-4 w-4" />
                     Setup preview
                   </span>
                   <span className="rounded-full bg-[#111827] px-4 py-2 text-xs font-extrabold text-white">No credit card</span>
                 </div>
-                <div className="mx-auto w-full max-w-md rounded-[1.75rem] border border-white/60 bg-white/30 p-4 shadow-2xl shadow-[#3C3489]/25 backdrop-blur">
-                  <div className="rounded-[1.35rem] bg-white p-5 text-[#2C2C2A]">
+                <div className="mx-auto w-full max-w-md rounded-[1.8rem] border border-white/35 bg-white/16 p-4 shadow-2xl shadow-[#3C3489]/25 backdrop-blur">
+                  <div className="rounded-[1.4rem] bg-white p-5 text-[#2C2C2A] shadow-[0_18px_50px_rgba(30,39,55,0.12)]">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-extrabold text-[#3C3489]">Workspace setup</p>
@@ -5094,15 +5130,15 @@ function App() {
                         const isComplete = index < signupPreviewStep;
                         const isCurrent = index === signupPreviewStep;
                         return (
-                        <div key={label} className={`flex items-center gap-3 rounded-2xl border px-4 py-3 transition-all duration-300 ${isComplete ? 'border-[#1D9E75]/30 bg-[#E8F7F1]' : isCurrent ? 'border-[#7F77DD]/40 bg-[#F4F3FF]' : 'border-[#EEEDFE] bg-[#FCFCFF]'}`}>
-                          <span className={`flex h-7 w-7 items-center justify-center rounded-full ${isComplete ? 'bg-[#1D9E75] text-white' : isCurrent ? 'bg-[#7F77DD] text-white' : 'bg-[#EEEDFE] text-[#7F77DD]'}`}>
-                            {isComplete ? <Check className="h-4 w-4" /> : <span className="text-xs font-extrabold">{index + 1}</span>}
-                          </span>
-                          <span>
-                            <span className="block text-sm font-extrabold">{label}</span>
-                            <span className="mt-0.5 block text-[11px] font-semibold text-[#5F5E5A]">{helper}</span>
-                          </span>
-                        </div>
+                          <div key={label} className={`flex items-center gap-3 rounded-2xl border px-4 py-3 transition-all duration-300 ${isComplete ? 'border-[#1D9E75]/30 bg-[#E8F7F1]' : isCurrent ? 'border-[#7F77DD]/40 bg-[#F4F3FF]' : 'border-[#EEEDFE] bg-[#FCFCFF]'}`}>
+                            <span className={`flex h-7 w-7 items-center justify-center rounded-full ${isComplete ? 'bg-[#1D9E75] text-white' : isCurrent ? 'bg-[#7F77DD] text-white' : 'bg-[#EEEDFE] text-[#7F77DD]'}`}>
+                              {isComplete ? <Check className="h-4 w-4" /> : <span className="text-xs font-extrabold">{index + 1}</span>}
+                            </span>
+                            <span>
+                              <span className="block text-sm font-extrabold">{label}</span>
+                              <span className="mt-0.5 block text-[11px] font-semibold text-[#5F5E5A]">{helper}</span>
+                            </span>
+                          </div>
                         );
                       })}
                     </div>
@@ -8130,22 +8166,125 @@ function JoinWorkspaceView({ setCurrentView, setUser, setToken, setAuthRole, sho
   }
 
   return (
-    <div className="mx-auto max-w-md px-6 py-20">
-      <div className="rounded-2xl border border-[#DAD7FB] bg-white p-8 shadow-2xl shadow-[#3C3489]/10">
-        {invite?.organizations?.logo_url ? <img src={invite.organizations.logo_url} alt="" className="mx-auto h-14 w-14 rounded-xl object-cover" /> : <img src="/brand/nudgehq-icon.svg" alt="" className="mx-auto h-14 w-14 rounded-xl" />}
-        <h1 className="mt-4 text-center text-2xl font-extrabold text-[#2C2C2A]">Join {invite?.organizations?.name || 'Company'} on NudgeHQ</h1>
-        <form onSubmit={submit} className="mt-7 space-y-4">
-          <input className="block w-full rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} required />
-          <input className="block w-full rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" placeholder="Work email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          <PasswordField label="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
-          <PasswordField label="Confirm password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Repeat password" />
-          {error ? <p className="rounded-md bg-rose-50 p-3 text-sm font-semibold text-rose-600">{error}</p> : null}
-          <button disabled={submitting} className="w-full rounded-md bg-[#7F77DD] px-5 py-3 text-sm font-extrabold text-white hover:bg-[#3C3489] disabled:opacity-50">
+    <section className="relative isolate min-h-[calc(100svh-5rem)] overflow-hidden bg-[#F7FAFF] px-5 py-12 text-[#2C2C2A] sm:px-6 lg:px-8">
+      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,#EEF4FF_0%,#FFFFFF_40%,#EAF8F2_100%)]" />
+      <div className="soft-grid absolute inset-0 -z-10 opacity-30" />
+      <div className="mx-auto grid max-w-6xl overflow-hidden rounded-[2.2rem] border border-[#DAD7FB] bg-white shadow-2xl shadow-[#3C3489]/12 lg:grid-cols-[0.96fr_1.04fr]">
+        <div className="relative overflow-hidden bg-[linear-gradient(180deg,#FEFEFF_0%,#F8F7FF_100%)] p-6 sm:p-8 lg:p-10">
+          <div className="absolute -left-12 -top-12 h-40 w-40 rounded-full bg-[#E8F7F1] blur-3xl" />
+          <div className="absolute right-0 top-20 h-44 w-44 rounded-full bg-[#EEEDFE] blur-3xl" />
+          <div className="relative flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              {invite?.organizations?.logo_url ? <img src={invite.organizations.logo_url} alt="" className="h-12 w-12 rounded-2xl object-cover shadow-md shadow-[#3C3489]/10" /> : <img src="/brand/nudgehq-icon.svg" alt="" className="h-12 w-12 rounded-2xl shadow-md shadow-[#3C3489]/10" />}
+              <div>
+                <p className="text-lg font-extrabold text-[#2C2C2A]">NudgeHQ</p>
+                <p className="text-xs font-semibold text-[#5F5E5A]">Invite-based workspace access</p>
+              </div>
+            </div>
+            <span className="rounded-full bg-[#E8F7F1] px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-[#1D9E75]">Private invite</span>
+          </div>
+
+          <div className="relative mt-8">
+            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-[#1D9E75]">Join now</p>
+            <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-[#1E2737]">Join {invite?.organizations?.name || 'Company'} on NudgeHQ</h1>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-[#5F5E5A]">Finish setup once and get a workspace that already knows your team, role, and invite context.</p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              {[
+                ['Invite', 'Pre-approved access'],
+                ['Fast setup', 'Name, email, password'],
+                ['Role aware', 'Ready for the right workspace'],
+              ].map(([value, label]) => (
+                <div key={label} className="rounded-2xl border border-[#EEEDFE] bg-white/90 p-4 shadow-sm">
+                  <p className="text-2xl font-extrabold text-[#3C3489]">{value}</p>
+                  <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8A8984]">{label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-8 rounded-[1.75rem] border border-[#EEEDFE] bg-white/90 p-5 shadow-[0_18px_50px_rgba(60,52,137,0.08)]">
+            <div className="flex items-center gap-3">
+              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#F4F3FF] text-[#3C3489]">
+                <ShieldCheck className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-extrabold text-[#2C2C2A]">Secure invite onboarding</p>
+                <p className="text-xs font-semibold text-[#5F5E5A]">Your invite stays scoped to this workspace.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative overflow-hidden bg-[linear-gradient(145deg,#3C3489_0%,#5B7CFA_46%,#E8F7F1_112%)] p-6 text-white sm:p-8 lg:p-10">
+          <div className="absolute inset-0 soft-grid opacity-18" />
+          <div className="absolute -right-20 top-10 h-64 w-64 rounded-full bg-white/12 blur-3xl" />
+          <div className="absolute bottom-8 left-8 h-44 w-44 rounded-full bg-[#1D9E75]/18 blur-3xl" />
+          <div className="relative flex h-full flex-col justify-between gap-8">
+            <div className="flex items-center justify-between gap-4">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/14 px-4 py-2 text-xs font-extrabold uppercase tracking-wider text-white backdrop-blur">
+                <UsersRound className="h-4 w-4" />
+                Team-ready setup
+              </span>
+              <span className="rounded-full bg-white px-4 py-2 text-xs font-extrabold text-[#3C3489]">Invite only</span>
+            </div>
+
+            <div className="mx-auto w-full max-w-md rounded-[1.8rem] border border-white/35 bg-white/16 p-4 shadow-2xl shadow-[#3C3489]/25 backdrop-blur">
+              <div className="rounded-[1.4rem] bg-white p-5 text-[#2C2C2A] shadow-[0_18px_50px_rgba(30,39,55,0.12)]">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-extrabold text-[#3C3489]">Your workspace card</p>
+                    <p className="mt-1 text-xs font-semibold text-[#5F5E5A]">What happens after you join</p>
+                  </div>
+                  <span className="rounded-full bg-[#E8F7F1] px-3 py-1 text-xs font-extrabold text-[#1D9E75]">Live</span>
+                </div>
+                <div className="mt-5 space-y-3">
+                  {[
+                    ['1', 'Confirm your details'],
+                    ['2', 'Access your team space'],
+                    ['3', 'Start check-ins and tasks'],
+                  ].map(([step, label]) => (
+                    <div key={label} className="flex items-center gap-3 rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] px-4 py-3">
+                      <span className="grid h-8 w-8 place-items-center rounded-full bg-[#7F77DD] text-sm font-extrabold text-white">{step}</span>
+                      <span className="text-sm font-semibold text-[#2C2C2A]">{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <p className="max-w-md text-3xl font-extrabold leading-tight text-white">
+              Join once, then move straight into the team rhythm.
+            </p>
+
+            <div className="rounded-[1.75rem] border border-white/20 bg-white/12 p-4 backdrop-blur">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase tracking-[0.22em] text-white/70">Workspace</p>
+                  <p className="mt-1 text-sm font-semibold text-white">{invite?.organizations?.name || 'Your company'}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase tracking-[0.22em] text-white/70">Invite status</p>
+                  <p className="mt-1 text-sm font-semibold text-white">Ready to join</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto mt-8 max-w-[42rem] rounded-[2rem] border border-[#DAD7FB] bg-white p-6 shadow-2xl shadow-[#3C3489]/10 sm:p-8">
+        <form onSubmit={submit} className="space-y-4">
+          <input className={AUTH_INPUT_CLASS} placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} required />
+          <input className={AUTH_INPUT_CLASS} placeholder="Work email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <PasswordField label="Password" value={password} onChange={(e) => setPassword(e.target.value)} inputClassName="pr-12" />
+          <PasswordField label="Confirm password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Repeat password" inputClassName="pr-12" />
+          {error ? <p className="rounded-2xl border border-rose-100 bg-rose-50 p-3 text-sm font-semibold text-rose-600">{error}</p> : null}
+          <button disabled={submitting} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1E2737] px-5 py-3.5 text-sm font-extrabold text-white shadow-[0_18px_40px_rgba(30,39,55,0.18)] transition hover:bg-[#3C3489] disabled:opacity-50">
             {submitting ? 'Joining...' : 'Join workspace'}
           </button>
         </form>
       </div>
-    </div>
+    </section>
   );
 }
 
