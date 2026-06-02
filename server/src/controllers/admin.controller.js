@@ -295,32 +295,41 @@ export const inviteEmployee = async (req, res) => {
     const adminOrgId = req.user.organization_id;
     const inviteRole = VALID_INVITE_ROLES.includes(role) ? role : 'employee';
 
-    // Check if user already exists
+    // Check if user already exists. Existing accounts can still be invited to a
+    // new workspace; accepting the invite will attach/update that account.
     const { data: existingUser, error: checkError } = await supabase
       .from('users')
-      .select('id, name, email, role')
+      .select('id, name, email, role, organization_id, company_id')
       .eq('email', normalizedEmail)
       .maybeSingle();
 
     if (checkError) throw checkError;
 
-    if (existingUser) {
+    const existingUserOrgId = existingUser?.company_id || existingUser?.organization_id;
+    if (existingUser?.id === req.user.id) {
       return res.status(409).json({
         success: false,
-        message: 'A user with this email is already registered.'
+        message: 'You are already the admin of this workspace. Invite a different email.'
       });
     }
 
-    // Check if pending invitation exists, delete if expired
+    if (existingUser && existingUserOrgId === adminOrgId) {
+      return res.status(409).json({
+        success: false,
+        message: 'This email is already a member of your workspace. You can update their role from People.'
+      });
+    }
+
+    // Replace older pending invites so users always receive one fresh working link.
     await supabase
       .from('employee_invitations')
       .delete()
       .eq('email', normalizedEmail)
-      .eq('status', 'pending')
-      .lt('expires_at', new Date().toISOString());
+      .eq('organization_id', adminOrgId)
+      .eq('status', 'pending');
 
     // Generate unique invitation record
-    const token = crypto.randomBytes(32).toString('hex');
+    const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
     // Fetch company name to display in the email invite
@@ -358,10 +367,12 @@ export const inviteEmployee = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: 'Invitation sent successfully. Magic link emailed to employee.',
+      message: existingUser
+        ? 'Invitation sent successfully. Existing account can join this workspace from the email link.'
+        : 'Invitation sent successfully. Magic link emailed to employee.',
       invitation,
       employee: {
-        id: invitation.id,
+        id: existingUser?.id || invitation.id,
         name: invitation.name || name || normalizedEmail.split('@')[0],
         email: invitation.email,
         role: invitation.role,

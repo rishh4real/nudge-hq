@@ -726,9 +726,17 @@ export const getInviteStatus = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invitation token is required.' });
     }
 
+    const uuidLikeToken = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(token);
+    if (!uuidLikeToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'This invite link is from an older email. Please ask your admin to send a fresh invite.'
+      });
+    }
+
     const { data: invitation, error } = await supabase
       .from('employee_invitations')
-      .select('id, email, name, role, department_id, organization_id, company_id, status, expires_at, organizations!employee_invitations_company_id_fkey(name, logo_url)')
+      .select('id, email, name, role, department_id, organization_id, company_id, status, expires_at')
       .eq('token', token)
       .maybeSingle();
 
@@ -741,9 +749,26 @@ export const getInviteStatus = async (req, res) => {
       });
     }
 
+    const organizationId = invitation.company_id || invitation.organization_id;
+    let organization = null;
+
+    if (organizationId) {
+      const { data: orgData, error: orgError } = await supabase
+        .from('organizations')
+        .select('name, logo_url')
+        .eq('id', organizationId)
+        .maybeSingle();
+
+      if (orgError) console.warn('Invite organization lookup failed:', orgError.message);
+      organization = orgData || null;
+    }
+
     return res.status(200).json({
       success: true,
-      invitation
+      invitation: {
+        ...invitation,
+        organizations: organization
+      }
     });
   } catch (error) {
     console.error('Get invite status error:', error);
@@ -763,6 +788,14 @@ export const acceptInvite = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Token, name, and password are required.' });
     }
 
+    const uuidLikeToken = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(token);
+    if (!uuidLikeToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'This invite link is from an older email. Please ask your admin to send a fresh invite.'
+      });
+    }
+
     // Fetch invitation
     const { data: invitation, error: inviteError } = await supabase
       .from('employee_invitations')
@@ -779,44 +812,78 @@ export const acceptInvite = async (req, res) => {
       });
     }
 
-    let authUserId = null;
-    try {
-      const authResult = await supabase.auth.admin.createUser({
-        email: invitation.email,
-        password,
-        email_confirm: true,
-        user_metadata: { name }
-      });
-      authUserId = authResult.data?.user?.id || null;
-    } catch (authError) {
-      console.warn('Supabase Auth invited user create skipped/fallback:', authError.message);
-    }
-
     // Hash user password
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
+    const organizationId = invitation.organization_id || invitation.company_id;
+    const companyId = invitation.company_id || invitation.organization_id;
 
-    // Create user and link to company automatically
-    const { data: newUser, error: userError } = await supabase
+    const { data: existingUser, error: existingUserError } = await supabase
       .from('users')
-      .insert([
-        compactPayload({
-          id: authUserId || undefined,
+      .select('id, name, email, role, organization_id, company_id')
+      .eq('email', invitation.email)
+      .maybeSingle();
+
+    if (existingUserError) throw existingUserError;
+
+    let newUser = null;
+
+    if (existingUser) {
+      const { data: updatedUser, error: updateUserError } = await supabase
+        .from('users')
+        .update(compactPayload({
           name,
-          email: invitation.email,
           password_hash: passwordHash,
           role: invitation.role || 'employee',
-          organization_id: invitation.organization_id || invitation.company_id,
-          company_id: invitation.company_id || invitation.organization_id,
+          organization_id: organizationId,
+          company_id: companyId,
           department_id: invitation.department_id || null,
           onboarding_complete: true,
-          is_verified: true // Magic link serves as verification
-        })
-      ])
-      .select('id, name, email, role, organization_id, company_id, department_id')
-      .single();
+          is_verified: true
+        }))
+        .eq('id', existingUser.id)
+        .select('id, name, email, role, organization_id, company_id, department_id')
+        .single();
 
-    if (userError) throw userError;
+      if (updateUserError) throw updateUserError;
+      newUser = updatedUser;
+    } else {
+      let authUserId = null;
+      try {
+        const authResult = await supabase.auth.admin.createUser({
+          email: invitation.email,
+          password,
+          email_confirm: true,
+          user_metadata: { name }
+        });
+        authUserId = authResult.data?.user?.id || null;
+      } catch (authError) {
+        console.warn('Supabase Auth invited user create skipped/fallback:', authError.message);
+      }
+
+      // Create user and link to company automatically
+      const { data: insertedUser, error: userError } = await supabase
+        .from('users')
+        .insert([
+          compactPayload({
+            id: authUserId || undefined,
+            name,
+            email: invitation.email,
+            password_hash: passwordHash,
+            role: invitation.role || 'employee',
+            organization_id: organizationId,
+            company_id: companyId,
+            department_id: invitation.department_id || null,
+            onboarding_complete: true,
+            is_verified: true // Magic link serves as verification
+          })
+        ])
+        .select('id, name, email, role, organization_id, company_id, department_id')
+        .single();
+
+      if (userError) throw userError;
+      newUser = insertedUser;
+    }
 
     // Set invitation status to accepted
     await supabase
@@ -962,30 +1029,64 @@ export const completeOnboarding = async (req, res) => {
     if (orgError) throw orgError;
 
     const departmentRows = departments
-      .filter((dept) => dept.name)
+      .filter((dept) => dept.name?.trim())
       .slice(0, 5)
-      .map((dept) => ({ name: dept.name, description: dept.description || null, organization_id: orgId }));
+      .map((dept) => ({ name: dept.name.trim(), description: dept.description || null, organization_id: orgId }));
     let createdDepartments = [];
     if (departmentRows.length) {
-      const { data, error } = await supabase.from('departments').insert(departmentRows).select('id, name');
-      if (error) throw error;
-      createdDepartments = data || [];
+      const departmentNames = [...new Set(departmentRows.map((dept) => dept.name))];
+      const { data: existingDepartments, error: existingDeptError } = await supabase
+        .from('departments')
+        .select('id, name')
+        .eq('organization_id', orgId)
+        .in('name', departmentNames);
+      if (existingDeptError) throw existingDeptError;
+
+      const existingNames = new Set((existingDepartments || []).map((dept) => dept.name.toLowerCase()));
+      const newDepartments = departmentRows.filter((dept) => !existingNames.has(dept.name.toLowerCase()));
+
+      let insertedDepartments = [];
+      if (newDepartments.length) {
+        const { data, error } = await supabase.from('departments').insert(newDepartments).select('id, name');
+        if (error) throw error;
+        insertedDepartments = data || [];
+      }
+      createdDepartments = [...(existingDepartments || []), ...insertedDepartments];
     }
 
     const { data: adminUser } = await supabase.from('users').select('name').eq('id', adminId).single();
     const { data: org } = await supabase.from('organizations').select('name').eq('id', orgId).single();
     const deptByName = new Map(createdDepartments.map((dept) => [dept.name.toLowerCase(), dept.id]));
 
+    const normalizedEmployeeEmails = [...new Set(
+      employees
+        .slice(0, 15)
+        .map((employee) => employee.email?.toLowerCase().trim())
+        .filter(Boolean)
+    )];
+    const { data: existingUsers, error: existingUsersError } = normalizedEmployeeEmails.length
+      ? await supabase.from('users').select('email').in('email', normalizedEmployeeEmails)
+      : { data: [], error: null };
+    if (existingUsersError) throw existingUsersError;
+    const registeredEmails = new Set((existingUsers || []).map((item) => item.email));
+
     const inviteRows = [];
+    const inviteEmailsToNotify = [];
+    const skippedInvites = [];
     for (const employee of employees.slice(0, 15)) {
       if (!employee.email) continue;
-      const inviteToken = crypto.randomBytes(32).toString('hex');
+      const normalizedEmployeeEmail = employee.email.toLowerCase().trim();
+      if (registeredEmails.has(normalizedEmployeeEmail)) {
+        skippedInvites.push({ email: normalizedEmployeeEmail, reason: 'already_registered' });
+        continue;
+      }
+      const inviteToken = crypto.randomUUID();
       const deptId = employee.department_id || deptByName.get(String(employee.department || '').toLowerCase()) || null;
       const employeeRole = VALID_ROLES.includes(employee.role) ? employee.role : 'employee';
       inviteRows.push({
         organization_id: orgId,
         company_id: orgId,
-        email: employee.email.toLowerCase().trim(),
+        email: normalizedEmployeeEmail,
         name: employee.name || null,
         role: employeeRole,
         department_id: deptId,
@@ -994,7 +1095,12 @@ export const completeOnboarding = async (req, res) => {
         expires_at: addDays(7),
         status: 'pending'
       });
-      await sendWorkspaceInviteEmail({ email: employee.email, adminName: adminUser?.name || 'Your admin', companyName: org?.name || 'your company', token: inviteToken });
+      inviteEmailsToNotify.push({
+        email: normalizedEmployeeEmail,
+        adminName: adminUser?.name || 'Your admin',
+        companyName: org?.name || 'your company',
+        token: inviteToken
+      });
     }
 
     let invitations = [];
@@ -1002,6 +1108,7 @@ export const completeOnboarding = async (req, res) => {
       const { data, error } = await supabase.from('employee_invitations').insert(inviteRows).select();
       if (error) throw error;
       invitations = data || [];
+      await Promise.allSettled(inviteEmailsToNotify.map((invite) => sendWorkspaceInviteEmail(invite)));
     }
 
     let inviteLink = null;
@@ -1018,7 +1125,7 @@ export const completeOnboarding = async (req, res) => {
 
     await supabase.from('users').update({ onboarding_complete: true }).eq('id', adminId);
 
-    return res.status(200).json({ success: true, departments: createdDepartments, invitations, invite_link: inviteLink, redirect_to: '/dashboard/admin' });
+    return res.status(200).json({ success: true, departments: createdDepartments, invitations, skipped_invites: skippedInvites, invite_link: inviteLink, redirect_to: '/dashboard/admin' });
   } catch (error) {
     console.error('Complete onboarding error:', error);
     return res.status(500).json({ success: false, message: 'Failed to complete onboarding.', error: error.message });

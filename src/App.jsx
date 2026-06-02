@@ -953,6 +953,7 @@ const isBackendConnectionError = (message = '') => (
 
 const getInitialView = () => {
   const path = window.location.pathname;
+  const storedToken = window.localStorage.getItem('nudgehq_auth_token');
   if (path === '/privacy') return 'privacy';
   if (path === '/terms') return 'terms';
   if (path === '/contact') return 'contact';
@@ -968,8 +969,8 @@ const getInitialView = () => {
   if (path === '/oauth/callback') return 'oauth_callback';
   if (path === '/accept-invite' || path === '/set-password') return 'accept_invite';
   if (path === '/signup') return 'signup';
-  if (path === '/login' || path === '/signin') return 'signin';
-  if (path === '/dashboard' || Object.values(DASHBOARD_PATHS).includes(path)) return 'signin';
+  if (path === '/login' || path === '/signin') return storedToken ? 'dashboard' : 'signin';
+  if (path === '/dashboard' || Object.values(DASHBOARD_PATHS).includes(path)) return storedToken ? 'dashboard' : 'signin';
   if (path === '/demo') return 'demo_console';
   return 'landing';
 }
@@ -1022,13 +1023,22 @@ const fetchApi = async (endpoint, options = {}, token = null) => {
   throw lastError || new Error('Connection refused on ports 5000/5001');
 }
 
+const getStoredJson = (key, fallback = null) => {
+  try {
+    const value = window.localStorage.getItem(key);
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 // --- MAIN APPLICATION ---
 function App() {
   const [currentView, setCurrentView] = useState(getInitialView)
   const [queryParams, setQueryParams] = useState(new URLSearchParams(window.location.search))
-  const [authRole, setAuthRole] = useState(null) // 'admin' | 'hr' | 'manager' | 'employee'
-  const [user, setUser] = useState(null)
-  const [token, setToken] = useState(null)
+  const [authRole, setAuthRole] = useState(() => window.localStorage.getItem('nudgehq_auth_role') || null) // 'admin' | 'hr' | 'manager' | 'employee'
+  const [user, setUser] = useState(() => getStoredJson('nudgehq_auth_user', null))
+  const [token, setToken] = useState(() => window.localStorage.getItem('nudgehq_auth_token') || null)
   
   // Active Connection Metadata
   const [serverPort, setServerPort] = useState(null)
@@ -1086,6 +1096,21 @@ function App() {
   const [csvPreview, setCsvPreview] = useState([])
   const [magicInviteLink, setMagicInviteLink] = useState('')
   const [onboardingLoading, setOnboardingLoading] = useState(false)
+
+  useEffect(() => {
+    if (token) window.localStorage.setItem('nudgehq_auth_token', token);
+    else window.localStorage.removeItem('nudgehq_auth_token');
+  }, [token])
+
+  useEffect(() => {
+    if (user) window.localStorage.setItem('nudgehq_auth_user', JSON.stringify(user));
+    else window.localStorage.removeItem('nudgehq_auth_user');
+  }, [user])
+
+  useEffect(() => {
+    if (authRole) window.localStorage.setItem('nudgehq_auth_role', authRole);
+    else window.localStorage.removeItem('nudgehq_auth_role');
+  }, [authRole])
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -1371,6 +1396,13 @@ function App() {
   // --- REFRESH DATA API CALLS ---
   const refreshDashboardData = async () => {
     if (isSandbox) return;
+    if (authRole === 'employee') {
+      setEmpTasks([]);
+      setEmpHistory([]);
+      setEmpStats(null);
+      setNotifications([]);
+      setGrowthSummary(null);
+    }
     try {
       if (authRole === 'employee') {
         // Fetch employee tasks
@@ -1523,6 +1555,7 @@ function App() {
       });
 
       setUser(data.user);
+      setIsSandbox(false);
       setToken(data.token);
       setAuthRole(data.user.role);
       routeAfterAuth(data.user);
@@ -1592,6 +1625,7 @@ function App() {
       }
 
       setUser(data.user);
+      setIsSandbox(false);
       setToken(data.token);
       setAuthRole(data.user.role);
       routeAfterAuth(data.user, signupCompany);
@@ -1645,6 +1679,9 @@ function App() {
     setUser(null);
     setToken(null);
     setAuthRole(null);
+    window.localStorage.removeItem('nudgehq_auth_token');
+    window.localStorage.removeItem('nudgehq_auth_user');
+    window.localStorage.removeItem('nudgehq_auth_role');
     setCurrentView('landing');
     setAiReportContent(null);
     setAiReportType(null);
@@ -2333,6 +2370,13 @@ function App() {
   }
 
   const finishOnboarding = async () => {
+    const authToken = token || window.localStorage.getItem('nudgehq_auth_token');
+    if (!authToken) {
+      showToast('Please log in again to finish onboarding. Your session token expired.', 'error');
+      setCurrentView('signin');
+      return;
+    }
+
     setOnboardingLoading(true);
     try {
       const employees = [...inviteEmployees, ...csvPreview]
@@ -2345,7 +2389,7 @@ function App() {
           employees,
           generate_invite_link: true
         })
-      }, token);
+      }, authToken);
       if (data.invite_link?.url) setMagicInviteLink(data.invite_link.url);
       setUser((current) => current ? { ...current, onboarding_complete: true } : current);
       showToast('Company setup finished. Welcome to your admin dashboard.', 'success');
@@ -2634,7 +2678,12 @@ function App() {
   const dashboardGreeting = indiaHour < 12 ? 'Good morning' : indiaHour < 17 ? 'Good afternoon' : indiaHour < 21 ? 'Good evening' : 'Good night';
   const dashboardDateLabel = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' });
   const dashboardRoleLabel = dashboardRole === 'hr' ? 'HR' : dashboardRole.charAt(0).toUpperCase() + dashboardRole.slice(1);
-  const demoDisplayName = dashboardRole === 'employee' ? demoProfileName.trim() || 'Kunal' : user?.name || 'Demo User';
+  const demoDisplayName = dashboardRole === 'employee'
+    ? (isSandbox ? demoProfileName.trim() || 'Kunal' : user?.name || 'Employee User')
+    : user?.name || 'Demo User';
+  const profileDisplayEmail = isSandbox
+    ? demoProfileEmail
+    : user?.email || 'Registered email unavailable';
   const demoInitials = demoDisplayName.split(' ').filter(Boolean).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'K';
   const demoSidebarItems = dashboardRole === 'employee'
     ? [
@@ -2749,6 +2798,129 @@ function App() {
     }))
     .reverse();
   const weeklyProgressData = actualWeeklyProgressData.length ? actualWeeklyProgressData : demoWeeklyProgressData;
+  const normalizeTaskStatus = (status = '') => String(status).toLowerCase().replace(/\s+/g, '_');
+  const realEmployeeTasks = empTasks.map((task) => ({
+    ...task,
+    normalizedStatus: normalizeTaskStatus(task.status),
+  }));
+  const realEmployeeTaskTotal = empStats
+    ? (empStats.todo || 0) + (empStats.inProgress || 0) + (empStats.completed || 0) + (empStats.blocked || 0)
+    : realEmployeeTasks.length;
+  const realEmployeeTaskStats = {
+    total: realEmployeeTaskTotal,
+    completed: empStats?.completed ?? realEmployeeTasks.filter((task) => task.normalizedStatus === 'completed').length,
+    inProgress: empStats?.inProgress ?? realEmployeeTasks.filter((task) => task.normalizedStatus === 'in_progress').length,
+    blocked: empStats?.blocked ?? realEmployeeTasks.filter((task) => task.normalizedStatus === 'blocked').length,
+  };
+  const realEmployeeStatCards = [
+    ['Total Tasks', realEmployeeTaskStats.total, ListTodo, '#7F77DD', realEmployeeTaskStats.total ? '▲ synced from workspace' : '— waiting for tasks', realEmployeeTaskStats.total ? 'up' : 'flat'],
+    ['Completed', realEmployeeTaskStats.completed, CheckCircle2, '#1D9E75', realEmployeeTaskStats.completed ? '▲ momentum building' : '— first win pending', realEmployeeTaskStats.completed ? 'up' : 'flat'],
+    ['In Progress', realEmployeeTaskStats.inProgress, Clock3, '#F59E0B', realEmployeeTaskStats.inProgress ? '— active focus' : '— no active task', 'flat'],
+    ['Blocked', realEmployeeTaskStats.blocked, AlertCircle, '#EF4444', realEmployeeTaskStats.blocked ? '▼ needs attention' : '— all clear', realEmployeeTaskStats.blocked ? 'down' : 'flat'],
+  ];
+  const realEmployeeProgressForStatus = (status = '') => {
+    const normalized = normalizeTaskStatus(status);
+    if (normalized === 'completed') return 100;
+    if (normalized === 'in_progress') return 62;
+    if (normalized === 'blocked') return 24;
+    return 8;
+  };
+  const realEmployeeColorForStatus = (status = '') => {
+    const normalized = normalizeTaskStatus(status);
+    if (normalized === 'completed') return '#1D9E75';
+    if (normalized === 'in_progress') return '#7F77DD';
+    if (normalized === 'blocked') return '#EF4444';
+    return '#F59E0B';
+  };
+  const realEmployeeStatusLabel = (status = '') => {
+    const normalized = normalizeTaskStatus(status);
+    if (normalized === 'in_progress') return 'In Progress';
+    if (normalized === 'completed') return 'Completed';
+    if (normalized === 'blocked') return 'Blocked';
+    return 'Not started';
+  };
+  const realEmployeeStatusClass = (status = '') => {
+    const normalized = normalizeTaskStatus(status);
+    if (normalized === 'completed') return 'bg-[#E8F7F1] text-[#1D9E75]';
+    if (normalized === 'in_progress') return 'bg-[#EEEDFE] text-[#3C3489]';
+    if (normalized === 'blocked') return 'bg-rose-50 text-rose-600';
+    return 'bg-amber-50 text-amber-700';
+  };
+  const realEmployeeTaskRows = realEmployeeTasks.length ? realEmployeeTasks : [];
+  const realEmployeeRecentActivity = empHistory.slice(0, 4).map((item, index) => {
+    const Icon = index % 4 === 0 ? Activity : index % 4 === 1 ? CheckCircle2 : index % 4 === 2 ? FileCheck2 : AlertCircle;
+    const color = index % 4 === 0 ? '#3B82F6' : index % 4 === 1 ? '#1D9E75' : index % 4 === 2 ? '#F59E0B' : '#EF4444';
+    return {
+      id: item.id || index,
+      Icon,
+      color,
+      title: item.tasks?.title ? `Updated ${item.tasks.title}` : 'Progress update submitted',
+      copy: item.progress_text || 'Shared a daily update.',
+      when: formatDisplayDate(item.created_at),
+    };
+  });
+  const realEmployeeLocationPills = [
+    ['office', '🏢 Office'],
+    ['home', '🏠 Home'],
+    ['client_site', '🤝 Client site'],
+    ['travel', '✈️ Travel'],
+  ];
+  const employeeDashboardTaskRows = isSandbox
+    ? employeeTaskRows
+    : realEmployeeTaskRows.map((task) => [
+        task.due_date ? formatDisplayDate(task.due_date) : 'Assigned',
+        task.title || 'Untitled task',
+        realEmployeeProgressForStatus(task.status),
+        realEmployeeStatusLabel(task.status),
+        realEmployeeColorForStatus(task.status),
+      ]);
+  const employeeDashboardWorkQueueRows = isSandbox
+    ? demoWorkQueueRows
+    : realEmployeeTaskRows.map((task) => [
+        task.due_date ? formatDisplayDate(task.due_date) : 'Assigned',
+        task.title || 'Untitled task',
+        realEmployeeProgressForStatus(task.status),
+        realEmployeeStatusLabel(task.status),
+        realEmployeeColorForStatus(task.status),
+      ]);
+  const employeeDashboardActivityRows = isSandbox
+    ? employeeRecentActivityRows
+    : realEmployeeRecentActivity.map(({ Icon, color, title, copy, when }) => [title, copy, when, Icon, color]);
+  const employeeDashboardWeeklyProgressData = isSandbox ? weeklyProgressData : actualWeeklyProgressData;
+  const hasRealEmployeeGrowthSignals = isSandbox || Boolean(growthSummary) || realEmployeeTaskStats.completed > 0 || empHistory.length > 0;
+  const realEmployeeCompletionRate = realEmployeeTaskStats.total
+    ? Math.round((realEmployeeTaskStats.completed / realEmployeeTaskStats.total) * 100)
+    : 0;
+  const hasEmployeeProgressSignals = isSandbox || actualWeeklyProgressData.length > 0 || realEmployeeTaskStats.total > 0 || empHistory.length > 0;
+  const employeeMomentumRows = isSandbox
+    ? [
+        ['Completion rate', '82%', '▲ 12% this week', '#1D9E75'],
+        ['Check-in streak', '9 days', 'Personal best', '#7F77DD'],
+        ['Blockers resolved', '4', '2 faster than avg', '#F59E0B']
+      ]
+    : [
+        ['Completion rate', `${realEmployeeCompletionRate}%`, realEmployeeTaskStats.total ? 'Synced from assigned tasks' : 'No assigned tasks yet', realEmployeeTaskStats.total ? '#1D9E75' : '#8A8894'],
+        ['Check-ins logged', `${empHistory.length}`, empHistory.length ? 'Building your rhythm' : 'First check-in pending', empHistory.length ? '#7F77DD' : '#8A8894'],
+        ['Blockers active', `${realEmployeeTaskStats.blocked}`, realEmployeeTaskStats.blocked ? 'Needs attention' : 'All clear', realEmployeeTaskStats.blocked ? '#EF4444' : '#1D9E75']
+      ];
+  const employeeGrowthSnapshotRows = isSandbox
+    ? [
+        ['30 days', 18],
+        ['60 days', 39],
+        ['90 days', 64]
+      ]
+    : [
+        ['30 days', growthSummary?.completed_tasks ?? realEmployeeTaskStats.completed],
+        ['60 days', growthSummary?.completed_tasks ?? realEmployeeTaskStats.completed],
+        ['90 days', growthSummary?.completed_tasks ?? realEmployeeTaskStats.completed]
+      ];
+  const employeePersonalWins = isSandbox
+    ? [
+        ['Resolved blocker without escalation', Zap, '#FFF3E0', '#F59E0B'],
+        ['9-day check-in streak', Trophy, '#FFFDE7', '#D97706'],
+        ['Helped teammate unblock', Star, '#EEEDFE', '#7F77DD']
+      ]
+    : [];
   const renderEmptyState = ({ title, sub, Icon = Sparkles, actionLabel, onAction }) => (
     <div className="flex min-h-56 flex-col items-center justify-center rounded-2xl border border-dashed border-[#DAD7FB] bg-[#FCFCFF] p-8 text-center">
       <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#EEEDFE] text-[#7F77DD] shadow-sm">
@@ -2970,14 +3142,16 @@ function App() {
                 <Activity className="h-3.5 w-3.5 text-[#1D9E75]" />
                 {isSandbox ? 'Sandbox Environment' : `Server Port: ${serverPort}`}
               </span>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="inline-flex items-center gap-1.5 rounded-md bg-rose-50 border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-100"
-              >
-                <LogOut className="h-4 w-4" />
-                Exit Demo
-              </button>
+              {isSandbox ? (
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-rose-50 border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-100"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Exit Demo
+                </button>
+              ) : null}
             </div>
           )}
         </nav>
@@ -3766,6 +3940,87 @@ function App() {
             </div>
           </section>
 
+          <section className="relative overflow-hidden bg-[#0F0B28] px-5 py-24 text-white sm:px-6 lg:px-8">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_12%,rgba(127,119,221,0.48),transparent_32%),radial-gradient(circle_at_78%_72%,rgba(29,158,117,0.24),transparent_30%)]" />
+            <div className="soft-grid absolute inset-0 opacity-10" />
+            <div className="relative mx-auto max-w-6xl">
+              <div className="grid gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
+                <motion.div {...cardMotion}>
+                  <p className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.18em] text-[#DAD7FB]">
+                    <Sparkles className="h-4 w-4 text-[#8DE4C3]" />
+                    Live signal gallery
+                  </p>
+                  <h2 className="mt-5 text-4xl font-extrabold tracking-tight sm:text-5xl">
+                    A dome of every team signal.
+                  </h2>
+                  <p className="mt-4 max-w-xl text-lg leading-8 text-white/72">
+                    Updates, blockers, focus, check-ins, and NudgeAI briefs roll into one visual command wall so leaders can understand the day in seconds.
+                  </p>
+                  <div className="mt-8 flex flex-wrap gap-3">
+                    {['No screenshots', 'Voluntary updates', 'NudgeAI summaries', 'Live team pulse'].map((item) => (
+                      <span key={item} className="rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm font-extrabold text-white/78">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                </motion.div>
+
+                <motion.div {...cardMotion} className="relative">
+                  <div className="absolute -inset-6 rounded-[3rem] bg-[#7F77DD]/25 blur-3xl" />
+                  <div className="nudge-dome-shell relative rounded-[2rem] border border-white/10 bg-[#17113A] p-4 shadow-2xl shadow-[#7F77DD]/20">
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#8DE4C3]">NudgeHQ signal wall</p>
+                        <p className="mt-1 text-sm font-semibold text-white/62">Click-ready product moments</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentView('demo_console')}
+                        className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]"
+                      >
+                        Preview demo
+                        <ArrowRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="nudge-dome-stage">
+                      <div className="nudge-dome-grid">
+                        {[
+                          ['Daily update', 'Kunal submitted progress', '#7F77DD', '✓'],
+                          ['Blocker alert', 'CRM import needs review', '#EF4444', '!'],
+                          ['Focus pulse', 'Sales ops verifying leads', '#1D9E75', '↗'],
+                          ['Deep work', '2 hr protected session', '#3C3489', '◐'],
+                          ['NudgeAI brief', 'Standup ready at 9am', '#F59E0B', '✦'],
+                          ['Growth', '9-day check-in streak', '#7F77DD', '★'],
+                          ['Report', 'Weekly summary exported', '#1D9E75', '↓'],
+                          ['Presence', 'Home · high energy', '#3C3489', '⌂'],
+                          ['Forecast', '72% completion likely', '#F59E0B', '⌁'],
+                          ['Recognition', 'Helped teammate unblock', '#7F77DD', '♡'],
+                          ['Skill gap', 'API error handling', '#EF4444', '◆'],
+                          ['Admin view', 'All teams synced', '#1D9E75', '●']
+                        ].map(([title, copy, color, mark], index) => (
+                          <div
+                            key={`${title}-${index}`}
+                            className="nudge-dome-tile group"
+                            style={{ '--tile-color': color, '--tile-delay': `${index * 80}ms` }}
+                          >
+                            <span className="flex h-9 w-9 items-center justify-center rounded-xl text-sm font-black text-white" style={{ backgroundColor: color }}>
+                              {mark}
+                            </span>
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm font-extrabold text-white">{title}</span>
+                              <span className="mt-1 block truncate text-xs font-semibold text-white/58">{copy}</span>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <p className="mt-4 text-xs font-semibold text-white/48">Signals drift live. Hover any card to lift it; in the product, every tile opens the related task, update, blocker, or NudgeAI insight.</p>
+                  </div>
+                </motion.div>
+              </div>
+            </div>
+          </section>
+
           <section className="relative overflow-hidden bg-[#161238] px-5 py-24 text-white sm:px-6 lg:px-8">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(127,119,221,0.45),transparent_34%),radial-gradient(circle_at_88%_20%,rgba(29,158,117,0.22),transparent_28%)]" />
             <div className="relative mx-auto max-w-6xl">
@@ -3799,37 +4054,37 @@ function App() {
           </section>
 
           <section className="bg-white px-5 py-24 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-6xl">
+            <div className="mx-auto max-w-4xl">
               <SectionHeader
                 eyebrow="Early feedback"
-                title="What early teams are saying"
-                copy="Sample early-user stories that show the kind of workflow NudgeHQ is built to unlock."
+                title="Real words from HR leaders"
+                copy="No fake customer cards here. Just honest discovery feedback from people who understand team operations."
               />
-              <div className="mt-12 grid gap-5 md:grid-cols-3">
-                {[
-                  ['RM', 'Our Monday morning meetings went from 45 minutes to 10 minutes.', 'Ravi M., HR Manager', 'Techflow, Bangalore · 40 employees'],
-                  ['SK', 'I finally know what my team did this week without asking anyone.', 'Sneha K., Founder', 'Crevo, Mumbai · 22 employees'],
-                  ['AP', 'NudgeAI flagged a burnout risk before we even noticed the signs.', 'Arjun P., Operations Lead', 'Nexus Labs, Pune · 55 employees']
-                ].map(([initials, quote, name, meta], index) => (
-                  <motion.article
-                    key={quote}
-                    {...cardMotion}
-                    transition={{ duration: 0.45, delay: index * 0.06, ease: 'easeOut' }}
-                    className="rounded-2xl border border-[#EEEDFE] bg-white p-6 shadow-lg shadow-[#3C3489]/7"
-                  >
-                    <p className="text-sm tracking-[0.12em] text-[#F59E0B]">★★★★★</p>
-                    <p className="mt-5 text-5xl font-extrabold leading-none text-[#7F77DD]">“</p>
-                    <p className="-mt-3 text-lg font-extrabold leading-8 text-[#2C2C2A]">{quote}</p>
-                    <div className="mt-8 flex items-center gap-3">
-                      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#EEEDFE] text-sm font-extrabold text-[#3C3489]">{initials}</span>
-                      <span>
-                        <span className="block text-sm font-extrabold text-[#2C2C2A]">{name}</span>
-                        <span className="block text-xs font-semibold text-[#8A8894]">{meta}</span>
+              <motion.article
+                {...cardMotion}
+                className="mt-12 overflow-hidden rounded-[2rem] border border-[#EEEDFE] bg-[#FCFCFF] p-7 shadow-xl shadow-[#3C3489]/8 sm:p-10"
+              >
+                <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+                  <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#EEEDFE] text-xl font-extrabold text-[#3C3489]">
+                    SD
+                  </span>
+                  <div>
+                    <p className="text-6xl font-black leading-none text-[#7F77DD]/25">“</p>
+                    <p className="-mt-4 text-2xl font-extrabold leading-9 text-[#2C2C2A]">
+                      We don't have anything like this right now, but this sounds good and useful.
+                    </p>
+                    <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                      <div>
+                        <p className="font-extrabold text-[#2C2C2A]">Swati Dogra</p>
+                        <p className="mt-1 text-sm font-semibold text-[#5F5E5A]">Head of HR - South Asia, Omya</p>
+                      </div>
+                      <span className="inline-flex w-fit rounded-full bg-[#E8F7F1] px-3 py-1 text-xs font-extrabold uppercase tracking-[0.14em] text-[#1D9E75]">
+                        Early discovery feedback
                       </span>
                     </div>
-                  </motion.article>
-                ))}
-              </div>
+                  </div>
+                </div>
+              </motion.article>
             </div>
           </section>
 
@@ -5033,7 +5288,7 @@ function App() {
       )}
 
       {/* VIEW 3: LIVE DASHBOARD AREA */}
-      {currentView === 'dashboard' && isSandbox && (
+      {currentView === 'dashboard' && (isSandbox || (!isSandbox && isEmployeeDashboard)) && (
         <section className="min-h-screen bg-[#F7F8FB] px-4 py-6 sm:px-6 lg:px-8">
           <div className="mx-auto grid max-w-[92rem] overflow-hidden rounded-[28px] border border-[#E7E5F8] bg-white shadow-2xl shadow-[#3C3489]/10 lg:grid-cols-[17rem_minmax(0,1fr)]">
             <aside className="flex border-b border-[#EEEDFE] bg-white p-5 lg:min-h-[calc(100vh-3rem)] lg:flex-col lg:border-b-0 lg:border-r">
@@ -5042,16 +5297,18 @@ function App() {
                   <img src="/brand/nudgehq-icon.svg" alt="" className="h-11 w-11 rounded-xl shadow-sm" />
                   <div>
                     <p className="text-lg font-extrabold text-[#3C3489]">NudgeHQ</p>
-                    <p className="text-xs font-bold text-[#8A8894]">{dashboardRoleLabel} demo</p>
+                    <p className="text-xs font-bold text-[#8A8894]">{isSandbox ? `${dashboardRoleLabel} demo` : 'Employee workspace'}</p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setCurrentView('demo_console')}
-                  className="rounded-xl border border-[#FECACA] px-3 py-2 text-xs font-extrabold text-rose-500 transition hover:bg-rose-50 lg:hidden"
-                >
-                  Exit
-                </button>
+                {isSandbox ? (
+                  <button
+                    type="button"
+                    onClick={() => setCurrentView('demo_console')}
+                    className="rounded-xl border border-[#FECACA] px-3 py-2 text-xs font-extrabold text-rose-500 transition hover:bg-rose-50 lg:hidden"
+                  >
+                    Exit
+                  </button>
+                ) : null}
               </div>
 
               <nav className="mt-7 hidden flex-1 space-y-2 lg:block">
@@ -5077,7 +5334,7 @@ function App() {
               <div className="mt-auto hidden rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4 lg:block">
                 <div className="flex items-center gap-3">
                   <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-[#3C3489] text-sm font-extrabold text-white">
-                    {demoProfileAvatar && dashboardRole === 'employee' ? (
+                    {isSandbox && demoProfileAvatar && dashboardRole === 'employee' ? (
                       <img src={demoProfileAvatar} alt="" className="h-full w-full object-cover" />
                     ) : (
                       demoInitials
@@ -5088,14 +5345,16 @@ function App() {
                     <p className="text-xs font-bold capitalize text-[#8A8894]">{dashboardRoleLabel}</p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setCurrentView('demo_console')}
-                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#FECACA] px-3 py-2 text-xs font-extrabold text-rose-500 transition hover:bg-rose-50"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Exit demo
-                </button>
+                {isSandbox ? (
+                  <button
+                    type="button"
+                    onClick={() => setCurrentView('demo_console')}
+                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#FECACA] px-3 py-2 text-xs font-extrabold text-rose-500 transition hover:bg-rose-50"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Exit demo
+                  </button>
+                ) : null}
               </div>
             </aside>
 
@@ -5117,7 +5376,7 @@ function App() {
 
               {selectedDemoSection !== 'Settings' && (
                 <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                  {demoStatCards.map(([title, value, Icon, color, trend, trendType]) => (
+                  {((!isSandbox && isEmployeeDashboard) ? realEmployeeStatCards : demoStatCards).map(([title, value, Icon, color, trend, trendType]) => (
                     <article key={title} className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
                       <div className="flex items-start justify-between gap-4">
                         <div>
@@ -5146,12 +5405,12 @@ function App() {
                       </span>
                     </div>
                     <div className="mt-5 space-y-4">
-                      {dashboardRole === 'employee' && !employeeTaskRows.length ? renderEmptyState({
+                            {dashboardRole === 'employee' && !employeeDashboardTaskRows.length ? renderEmptyState({
                         title: 'No tasks assigned yet',
                         sub: 'Your manager will assign tasks soon. Check back here!',
                         Icon: ListTodo
                       }) : null}
-                      {(dashboardRole === 'employee' ? employeeTaskRows : demoProgressRows).map(([name, task, progress, status, color], index) => (
+                      {(dashboardRole === 'employee' ? employeeDashboardTaskRows : demoProgressRows).map(([name, task, progress, status, color], index) => (
                         <button
                           key={`${name}-${task}`}
                           type="button"
@@ -5211,7 +5470,7 @@ function App() {
                             <span className="rounded-full bg-[#EEEDFE] px-3 py-1 text-[11px] font-extrabold text-[#3C3489]">Last 4</span>
                           </div>
                           <div className="mt-4 space-y-3">
-                            {employeeRecentActivityRows.length ? employeeRecentActivityRows.map(([action, detail, time, Icon, color]) => (
+                            {employeeDashboardActivityRows.length ? employeeDashboardActivityRows.map(([action, detail, time, Icon, color]) => (
                               <div key={`${action}-${detail}`} className="flex items-start gap-3 rounded-xl bg-[#FCFCFF] p-3">
                                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${color}16`, color }}>
                                   <Icon className="h-4 w-4" />
@@ -5265,12 +5524,12 @@ function App() {
                     <h2 className="mt-2 text-2xl font-extrabold text-[#2C2C2A]">Your work queue</h2>
                     <p className="mt-2 text-sm leading-6 text-[#5F5E5A]">Everything here is only visible to you and your assigned manager.</p>
                     <div className="mt-5 grid gap-3">
-                      {!demoWorkQueueRows.length ? renderEmptyState({
+                      {!employeeDashboardWorkQueueRows.length ? renderEmptyState({
                         title: 'No tasks assigned yet',
                         sub: 'Your manager will assign tasks soon. Check back here!',
                         Icon: ListTodo
                       }) : null}
-                      {demoWorkQueueRows.map(([group, task, progress, status, color]) => (
+                      {employeeDashboardWorkQueueRows.map(([group, task, progress, status, color]) => (
                         <button
                           key={task}
                           type="button"
@@ -5294,12 +5553,12 @@ function App() {
                       <span className="rounded-full bg-[#E8F7F1] px-3 py-1 text-xs font-extrabold text-[#1D9E75]">Live</span>
                     </div>
                     <div className="mt-5 space-y-4">
-                      {!employeeTaskRows.length ? renderEmptyState({
+                      {!employeeDashboardTaskRows.length ? renderEmptyState({
                         title: 'No tasks assigned yet',
                         sub: 'Your manager will assign tasks soon. Check back here!',
                         Icon: ListTodo
                       }) : null}
-                      {employeeTaskRows.map(([name, task, progress, status, color]) => (
+                      {employeeDashboardTaskRows.map(([name, task, progress, status, color]) => (
                         <div key={task} className="rounded-xl border border-[#F0EFFA] bg-[#FCFCFF] p-4">
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <div>
@@ -5387,19 +5646,23 @@ function App() {
                 <div className="mt-6 grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
                   <section className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
                     <h2 className="text-xl font-extrabold text-[#2C2C2A]">Your momentum</h2>
-                    <div className="mt-5 grid gap-3">
-                      {[
-                        ['Completion rate', '82%', '▲ 12% this week', '#1D9E75'],
-                        ['Check-in streak', '9 days', 'Personal best', '#7F77DD'],
-                        ['Blockers resolved', '4', '2 faster than avg', '#F59E0B']
-                      ].map(([label, value, trend, color]) => (
+                    {hasEmployeeProgressSignals ? (
+                      <div className="mt-5 grid gap-3">
+                        {employeeMomentumRows.map(([label, value, trend, color]) => (
                         <div key={label} className="rounded-xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
                           <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#8A8894]">{label}</p>
                           <p className="mt-2 text-3xl font-extrabold text-[#2C2C2A]">{value}</p>
                           <p className="mt-1 text-xs font-extrabold" style={{ color }}>{trend}</p>
                         </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    ) : renderEmptyState({
+                      title: 'Your progress curve starts here',
+                      sub: 'Complete your first check-in to see your weekly momentum.',
+                      Icon: LineChartIcon,
+                      actionLabel: 'Go to Check-in',
+                      onAction: () => setDemoEmployeeSection('Check-in')
+                    })}
                   </section>
                   <section className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
                     <div className="flex items-start justify-between gap-4">
@@ -5407,14 +5670,14 @@ function App() {
                         <h2 className="text-xl font-extrabold text-[#2C2C2A]">Weekly progress curve</h2>
                         <p className="mt-1 text-sm font-semibold text-[#8A8894]">Tasks completed per day · last 7 days</p>
                       </div>
-                      {!actualWeeklyProgressData.length ? (
+                      {isSandbox && !actualWeeklyProgressData.length ? (
                         <span className="rounded-full bg-[#EEEDFE] px-3 py-1 text-xs font-extrabold text-[#3C3489]">Demo data</span>
                       ) : null}
                     </div>
-                    {weeklyProgressData.length ? (
+                    {employeeDashboardWeeklyProgressData.length ? (
                       <div className="mt-6 h-64 rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
                         <ResponsiveContainer width="100%" height="100%">
-                          <RechartsLineChart data={weeklyProgressData} margin={{ top: 10, right: 18, left: -18, bottom: 0 }}>
+                          <RechartsLineChart data={employeeDashboardWeeklyProgressData} margin={{ top: 10, right: 18, left: -18, bottom: 0 }}>
                             <CartesianGrid stroke="#ECEAFB" strokeDasharray="4 4" vertical={false} />
                             <XAxis dataKey="day" tick={{ fill: '#8A8894', fontSize: 12, fontWeight: 700 }} axisLine={false} tickLine={false} />
                             <YAxis allowDecimals={false} tick={{ fill: '#8A8894', fontSize: 12, fontWeight: 700 }} axisLine={false} tickLine={false} />
@@ -5451,44 +5714,66 @@ function App() {
                   <section className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
                     <div className="flex items-center justify-between">
                       <h2 className="text-xl font-extrabold text-[#2C2C2A]">Growth snapshot</h2>
-                      <button
-                        type="button"
-                        onClick={downloadDemoGrowthPdf}
-                        className="inline-flex items-center gap-2 rounded-xl bg-[#3C3489] px-3 py-2 text-xs font-extrabold text-white transition hover:bg-[#7F77DD]"
-                      >
-                        <Download className="h-4 w-4" />
-                        90-day PDF
-                      </button>
+                      {hasRealEmployeeGrowthSignals ? (
+                        <button
+                          type="button"
+                          onClick={downloadDemoGrowthPdf}
+                          className="inline-flex items-center gap-2 rounded-xl bg-[#3C3489] px-3 py-2 text-xs font-extrabold text-white transition hover:bg-[#7F77DD]"
+                        >
+                          <Download className="h-4 w-4" />
+                          90-day PDF
+                        </button>
+                      ) : null}
                     </div>
-                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                      {['30 days', '60 days', '90 days'].map((period, index) => (
+                    {hasRealEmployeeGrowthSignals ? (
+                      <>
+                        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                          {employeeGrowthSnapshotRows.map(([period, count]) => (
                         <div key={period} className="rounded-xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
                           <p className="text-sm font-extrabold text-[#3C3489]">{period}</p>
-                          <p className="mt-2 text-2xl font-extrabold text-[#2C2C2A]">{[18, 39, 64][index]}</p>
+                          <p className="mt-2 text-2xl font-extrabold text-[#2C2C2A]">{count}</p>
                           <p className="mt-1 text-xs font-semibold text-[#8A8894]">tasks completed</p>
                         </div>
-                      ))}
-                    </div>
-                    <div className="mt-5 rounded-xl bg-[#F7F6FF] p-4 text-sm font-semibold leading-6 text-[#5F5E5A]">
-                      <span className="font-extrabold text-[#3C3489]">NudgeAI career summary:</span> You are strongest on focused execution days and your most productive pattern is Tuesday morning deep work.
-                    </div>
+                          ))}
+                        </div>
+                        <div className="mt-5 rounded-xl bg-[#F7F6FF] p-4 text-sm font-semibold leading-6 text-[#5F5E5A]">
+                          <span className="font-extrabold text-[#3C3489]">NudgeAI career summary:</span> {isSandbox
+                            ? 'You are strongest on focused execution days and your most productive pattern is Tuesday morning deep work.'
+                            : growthSummary?.summary || 'Your growth summary will appear after more real check-ins and completed tasks.'}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="mt-5">
+                        {renderEmptyState({
+                          title: 'Your story is just beginning',
+                          sub: 'Keep checking in daily and NudgeAI will start building your growth snapshot.',
+                          Icon: Sparkles
+                        })}
+                      </div>
+                    )}
                   </section>
                   <section className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
                     <h2 className="text-xl font-extrabold text-[#2C2C2A]">Personal wins</h2>
-                    <div className="mt-5 space-y-3">
-                      {[
-                        ['Resolved blocker without escalation', Zap, '#FFF3E0', '#F59E0B'],
-                        ['9-day check-in streak', Trophy, '#FFFDE7', '#D97706'],
-                        ['Helped teammate unblock', Star, '#EEEDFE', '#7F77DD']
-                      ].map(([win, Icon, bg, color]) => (
+                    {employeePersonalWins.length ? (
+                      <div className="mt-5 space-y-3">
+                        {employeePersonalWins.map(([win, Icon, bg, color]) => (
                         <div key={win} className="flex items-center gap-3 rounded-xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
                           <span className="flex h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: bg, color }}>
                             <Icon className="h-5 w-5" />
                           </span>
                           <p className="text-sm font-extrabold text-[#2C2C2A]">{win}</p>
                         </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="mt-5">
+                        {renderEmptyState({
+                          title: 'Your story is just beginning',
+                          sub: 'Recognition and personal wins will show here once your team starts using NudgeHQ.',
+                          Icon: Star
+                        })}
+                      </div>
+                    )}
                   </section>
                 </div>
               )}
@@ -5561,9 +5846,13 @@ function App() {
                     <div className="flex items-center justify-between gap-4">
                       <div>
                         <h2 className="text-xl font-extrabold text-[#2C2C2A]">Profile</h2>
-                        <p className="mt-1 text-sm font-semibold text-[#8A8894]">Update your demo identity and workspace avatar.</p>
+                        <p className="mt-1 text-sm font-semibold text-[#8A8894]">
+                          {isSandbox ? 'Update your demo identity and workspace avatar.' : 'Update your display name and workspace avatar.'}
+                        </p>
                       </div>
-                      <span className="rounded-full bg-[#E8F7F1] px-3 py-1 text-xs font-extrabold text-[#1D9E75]">Editable</span>
+                      <span className="rounded-full bg-[#E8F7F1] px-3 py-1 text-xs font-extrabold text-[#1D9E75]">
+                        {isSandbox ? 'Editable demo' : 'Email locked'}
+                      </span>
                     </div>
                     <div className="mt-5 rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-5">
                       <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
@@ -5598,8 +5887,14 @@ function App() {
                         <label className="block">
                           <span className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#8A8894]">Display name</span>
                           <input
-                            value={demoProfileName}
-                            onChange={(event) => setDemoProfileName(event.target.value)}
+                            value={demoDisplayName}
+                            onChange={(event) => {
+                              if (isSandbox) {
+                                setDemoProfileName(event.target.value);
+                                return;
+                              }
+                              setUser((current) => current ? { ...current, name: event.target.value } : current);
+                            }}
                             className="mt-2 w-full rounded-xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm font-bold text-[#2C2C2A] outline-none transition focus:border-[#7F77DD]"
                             placeholder="Kunal"
                           />
@@ -5607,17 +5902,28 @@ function App() {
                         <label className="block">
                           <span className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#8A8894]">Work email</span>
                           <input
-                            value={demoProfileEmail}
-                            onChange={(event) => setDemoProfileEmail(event.target.value)}
-                            className="mt-2 w-full rounded-xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm font-bold text-[#2C2C2A] outline-none transition focus:border-[#7F77DD]"
+                            value={profileDisplayEmail}
+                            onChange={(event) => {
+                              if (isSandbox) setDemoProfileEmail(event.target.value);
+                            }}
+                            disabled={!isSandbox}
+                            className={`mt-2 w-full rounded-xl border border-[#DAD7FB] px-4 py-3 text-sm font-bold text-[#2C2C2A] outline-none transition focus:border-[#7F77DD] ${isSandbox ? 'bg-white' : 'cursor-not-allowed bg-[#F7F7FB] text-[#5F5E5A]'}`}
                             placeholder="employee@nudgehq.com"
                           />
+                          {!isSandbox && (
+                            <p className="mt-2 text-xs font-semibold text-[#8A8894]">
+                              This is your registered login email. Ask HR or Admin to change it.
+                            </p>
+                          )}
                         </label>
                       </div>
 
                       <button
                         type="button"
-                        onClick={() => showToast('Profile changes saved in demo.', 'success')}
+                        onClick={() => {
+                          if (!isSandbox && user) window.localStorage.setItem('nudgehq_auth_user', JSON.stringify(user));
+                          showToast(isSandbox ? 'Profile changes saved in demo.' : 'Profile changes saved.', 'success');
+                        }}
                         className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#7F77DD] px-4 py-3 text-sm font-extrabold text-white transition hover:bg-[#3C3489]"
                       >
                         <CheckCircle2 className="h-4 w-4" />
@@ -5655,6 +5961,26 @@ function App() {
                         <ArrowRight className="h-4 w-4" />
                       </button>
                     </div>
+                    {!isSandbox && (
+                      <div className="mt-5 rounded-2xl border border-rose-100 bg-rose-50 p-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <h3 className="text-sm font-extrabold text-rose-700">Sign out of this workspace</h3>
+                            <p className="mt-1 text-xs font-semibold leading-5 text-rose-500">
+                              You will stay signed in on refresh. Use this only when you want to end your session.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleLogout}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-extrabold text-rose-600 transition hover:bg-rose-100"
+                          >
+                            <LogOut className="h-4 w-4" />
+                            Sign out
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </section>
                 </div>
               )}
@@ -5850,7 +6176,7 @@ function App() {
                                 color: selectedDemoTask.color,
                               }
                             }));
-                            showToast(`Demo task update submitted${proofCount ? ` with ${proofCount} proof item${proofCount > 1 ? 's' : ''}` : ''}.`, 'success');
+                            showToast(`${isSandbox ? 'Demo task' : 'Task'} update submitted${proofCount ? ` with ${proofCount} proof item${proofCount > 1 ? 's' : ''}` : ''}.`, 'success');
                             setSelectedDemoTask(null);
                           }}
                           className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#7F77DD] px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#3C3489]"
@@ -5892,7 +6218,7 @@ function App() {
         </section>
       )}
 
-      {currentView === 'dashboard' && !isSandbox && (
+      {currentView === 'dashboard' && !isSandbox && !isEmployeeDashboard && (
         <section
           className={`workspace-surface workspace-surface-${dashboardRole} relative mx-auto max-w-[96rem] overflow-hidden px-5 py-8 sm:px-6 lg:px-8`}
           style={{
@@ -6040,364 +6366,380 @@ function App() {
 
           {/* --- SUBVIEW: EMPLOYEE WORKSPACE --- */}
           {isEmployeeDashboard && (
-            <div className="mt-8 grid gap-7 lg:grid-cols-[minmax(0,1.08fr)_minmax(22rem,0.92fr)]">
-              
-              {/* Employee Left Column */}
-              <div className="space-y-7">
-                <div className="workspace-card rounded-2xl p-7">
-                  <h3 className="text-lg font-bold text-[#2C2C2A] flex items-center gap-2">
-                    <Activity className="h-5 w-5 text-[#1D9E75]" />
-                    Smart Presence Check-in
-                  </h3>
-                  <form onSubmit={handleCheckinSubmit} className="mt-5 grid gap-4">
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <select value={workLocation} onChange={(e) => setWorkLocation(e.target.value)} className="rounded-md border border-[#DAD7FB] bg-white px-3 py-2.5 text-sm outline-none">
-                        <option value="office">Office</option>
-                        <option value="home">Home</option>
-                        <option value="client_site">Client site</option>
-                        <option value="travel">Travel</option>
-                      </select>
-                      <div className="grid grid-cols-3 gap-2">
-                        {['high', 'medium', 'low'].map((level) => (
-                          <button key={level} type="button" onClick={() => setEnergyLevel(level)} className={`rounded-md border px-3 py-2 text-xs font-bold capitalize ${energyLevel === level ? 'border-[#7F77DD] bg-[#F4F3FF] text-[#3C3489]' : 'border-[#EEEDFE] text-[#5F5E5A]'}`}>
-                            {level === 'high' ? '⚡' : level === 'medium' ? '🙂' : '🔋'} {level}
-                          </button>
-                        ))}
+            <div className="mt-8 space-y-7">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {realEmployeeStatCards.map(([label, value, Icon, color, trend, trendType]) => (
+                  <div key={label} className="workspace-card metric-lift rounded-2xl p-5 transition hover:shadow-lg hover:shadow-[#3C3489]/10">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-extrabold text-[#5F5E5A]">{label}</p>
+                        <p className="mt-3 text-4xl font-black text-[#111827]">{value}</p>
                       </div>
+                      <span className="flex h-12 w-12 items-center justify-center rounded-2xl" style={{ backgroundColor: `${color}14`, color }}>
+                        <Icon className="h-5 w-5" />
+                      </span>
                     </div>
-                    <div className="grid gap-3">
+                    <p className={`mt-3 text-xs font-extrabold ${trendType === 'up' ? 'text-[#1D9E75]' : trendType === 'down' ? 'text-rose-500' : 'text-[#8A8894]'}`}>
+                      {trend}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid gap-7 xl:grid-cols-[minmax(0,1.45fr)_minmax(26rem,0.85fr)]">
+                <div className="workspace-card rounded-2xl p-6 transition hover:shadow-lg hover:shadow-[#3C3489]/10">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h3 className="text-2xl font-black text-[#2C2C2A]">My Tasks</h3>
+                      <p className="mt-1 text-sm font-semibold text-[#8A8894]">Only work assigned to you appears here.</p>
+                    </div>
+                    <span className="w-fit rounded-full bg-[#EEEDFE] px-4 py-2 text-xs font-black text-[#3C3489]">
+                      {realEmployeeTaskRows.length || 0} active signals
+                    </span>
+                  </div>
+
+                  <div className="mt-6 space-y-4">
+                    {!realEmployeeTaskRows.length ? renderEmptyState({
+                      title: 'No tasks assigned yet',
+                      sub: 'Your manager will assign tasks soon. Check back here!',
+                      Icon: ClipboardCheck
+                    }) : realEmployeeTaskRows.map((task) => {
+                      const progress = realEmployeeProgressForStatus(task.status);
+                      const color = realEmployeeColorForStatus(task.status);
+                      return (
+                        <div key={task.id} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4 transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-[#3C3489]/8">
+                          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="flex min-w-0 items-start gap-4">
+                              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-sm font-black text-white" style={{ backgroundColor: color }}>
+                                {(task.title || 'T').slice(0, 1).toUpperCase()}
+                              </span>
+                              <div className="min-w-0">
+                                <p className="truncate text-base font-black text-[#2C2C2A]">{task.title || 'Untitled task'}</p>
+                                <p className="mt-1 line-clamp-2 text-sm font-semibold leading-6 text-[#8A8894]">
+                                  {task.description || 'Manager description will appear here once added.'}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="min-w-[14rem]">
+                              <div className="flex items-center gap-3">
+                                <div className="h-2 flex-1 rounded-full bg-[#ECEAF8]">
+                                  <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progress}%`, backgroundColor: color }} />
+                                </div>
+                                <span className="w-10 text-right text-sm font-black text-[#2C2C2A]">{progress}%</span>
+                              </div>
+                              <div className="mt-3 flex flex-wrap justify-end gap-2">
+                                <span className={`rounded-full px-3 py-1 text-xs font-black ${realEmployeeStatusClass(task.status)}`}>
+                                  {realEmployeeStatusLabel(task.status)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 flex flex-wrap gap-2 border-t border-[#EEEDFE] pt-4">
+                            {[
+                              ['todo', 'Not started'],
+                              ['in_progress', 'Start'],
+                              ['completed', 'Mark done'],
+                              ['blocked', 'Flag blocker'],
+                            ].map(([status, label]) => (
+                              <button
+                                key={status}
+                                type="button"
+                                onClick={() => handleUpdateStatusClick(task, status)}
+                                disabled={normalizeTaskStatus(task.status) === status}
+                                className={`rounded-xl border px-3 py-2 text-xs font-black transition ${
+                                  normalizeTaskStatus(task.status) === status
+                                    ? 'border-[#7F77DD] bg-[#7F77DD] text-white'
+                                    : 'border-[#DAD7FB] bg-white text-[#3C3489] hover:bg-[#EEEDFE]'
+                                }`}
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="workspace-card rounded-2xl p-6 transition hover:shadow-lg hover:shadow-[#3C3489]/10">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-2xl font-black text-[#2C2C2A]">Today&apos;s Check-in</h3>
+                      <p className="mt-1 text-sm font-semibold text-[#8A8894]">Share location, goals, proof, and progress.</p>
+                    </div>
+                    <Sparkles className="h-6 w-6 text-[#7F77DD]" />
+                  </div>
+
+                  <form onSubmit={handleCheckinSubmit} className="mt-5 space-y-4 rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                    <div className="flex flex-wrap gap-2">
+                      {realEmployeeLocationPills.map(([value, label]) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setWorkLocation(value)}
+                          className={`rounded-full px-4 py-2 text-xs font-black transition ${
+                            workLocation === value
+                              ? 'bg-[#7F77DD] text-white shadow-lg shadow-[#7F77DD]/20'
+                              : 'border border-[#D3D1C7] bg-white text-[#5F5E5A] hover:bg-[#EEEDFE]'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {['high', 'medium', 'low'].map((level) => (
+                        <button key={level} type="button" onClick={() => setEnergyLevel(level)} className={`rounded-xl border px-3 py-2 text-xs font-black capitalize ${energyLevel === level ? 'border-[#7F77DD] bg-[#EEEDFE] text-[#3C3489]' : 'border-[#E8E6F8] bg-white text-[#5F5E5A]'}`}>
+                          {level === 'high' ? 'High' : level === 'medium' ? 'Medium' : 'Low'}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="grid gap-2">
                       {goals.map((goal, index) => (
                         <input
                           key={index}
                           value={goal}
                           onChange={(e) => setGoals(goals.map((item, i) => i === index ? e.target.value : item))}
-                          placeholder={`Today's goal ${index + 1}`}
-                          className="rounded-md border border-[#DAD7FB] px-3.5 py-2.5 text-sm outline-none focus:border-[#7F77DD]"
+                          placeholder={`Goal ${index + 1}`}
+                          className="rounded-xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#7F77DD]"
                         />
                       ))}
                     </div>
-                    <button type="submit" className="w-fit rounded-md bg-[#3C3489] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#7F77DD]">
-                      Save Check-in
+                    <button type="submit" className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#3C3489] px-5 py-3 text-sm font-black text-white transition hover:bg-[#7F77DD]">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Save daily check-in
                     </button>
                   </form>
-                </div>
-                
-                {/* Submit Daily Update */}
-                <div className="workspace-card rounded-2xl p-7">
-                  <h3 className="text-lg font-bold text-[#2C2C2A] flex items-center gap-2">
-                    <Send className="h-5 w-5 text-[#7F77DD]" />
-                    Share Daily Progress Update
-                  </h3>
+
                   <form onSubmit={handleProgressSubmit} className="mt-5 space-y-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-[#5F5E5A]">Link this update to a Task (Optional)</label>
-                      <select
-                        value={selectedTaskId}
-                        onChange={(e) => setSelectedTaskId(e.target.value)}
-                        className="mt-1.5 block w-full rounded-md border border-[#DAD7FB] bg-white px-3 py-2 text-sm outline-none focus:border-[#7F77DD]"
-                      >
-                        <option value="">General update / No task link</option>
-                        {empTasks.map(t => (
-                          <option key={t.id} value={t.id}>{t.title} ({t.status})</option>
-                        ))}
+                    <select
+                      value={selectedTaskId}
+                      onChange={(e) => setSelectedTaskId(e.target.value)}
+                      className="block w-full rounded-xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#7F77DD]"
+                    >
+                      <option value="">General update / no task link</option>
+                      {realEmployeeTasks.map((task) => (
+                        <option key={task.id} value={task.id}>{task.title} ({realEmployeeStatusLabel(task.status)})</option>
+                      ))}
+                    </select>
+                    <textarea
+                      value={progressText}
+                      onChange={(e) => setProgressText(e.target.value)}
+                      placeholder="Write what changed, what got done, and what is blocked..."
+                      className="block min-h-28 w-full rounded-xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#7F77DD]"
+                      required
+                    />
+                    <div className="grid gap-3 sm:grid-cols-[1fr_8rem]">
+                      <input
+                        type="text"
+                        value={focusText}
+                        onChange={(e) => setFocusText(e.target.value)}
+                        placeholder="Main focus right now"
+                        className="rounded-xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#7F77DD]"
+                      />
+                      <select value={focusEta} onChange={(e) => setFocusEta(e.target.value)} className="rounded-xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm font-semibold outline-none">
+                        <option value="today">Today</option>
+                        <option value="tomorrow">Tomorrow</option>
+                        <option value="this_week">This Week</option>
                       </select>
                     </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-[#5F5E5A]">What did you accomplish today? *</label>
-                      <textarea
-                        value={progressText}
-                        onChange={(e) => setProgressText(e.target.value)}
-                        placeholder="Detail accomplishments, milestones, or current focus..."
-                        className="mt-1.5 block min-h-24 w-full rounded-md border border-[#DAD7FB] px-3.5 py-2.5 text-sm outline-none focus:border-[#7F77DD]"
-                        required
-                      />
-                    </div>
-
-                    <div className="grid gap-3 rounded-md border border-[#EEEDFE] bg-[#FCFCFF] p-4 sm:grid-cols-[1fr_auto]">
-                      <div>
-                        <label className="block text-xs font-semibold text-[#5F5E5A]">What is your main focus right now?</label>
-                        <input
-                          type="text"
-                          value={focusText}
-                          onChange={(e) => setFocusText(e.target.value)}
-                          placeholder="One clear focus for Focus Pulse"
-                          className="mt-1.5 block w-full rounded-md border border-[#DAD7FB] px-3.5 py-2.5 text-sm outline-none focus:border-[#7F77DD]"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-[#5F5E5A]">ETA</label>
-                        <select value={focusEta} onChange={(e) => setFocusEta(e.target.value)} className="mt-1.5 block w-full rounded-md border border-[#DAD7FB] bg-white px-3 py-2.5 text-sm outline-none">
-                          <option value="today">Today</option>
-                          <option value="tomorrow">Tomorrow</option>
-                          <option value="this_week">This Week</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-[#5F5E5A]">Proof/Deliverable Link (Optional)</label>
-                      <input
-                        type="url"
-                        value={proofLink}
-                        onChange={(e) => setProofLink(e.target.value)}
-                        placeholder="https://github.com/... or https://docs.google.com/..."
-                        className="mt-1.5 block w-full rounded-md border border-[#DAD7FB] px-3.5 py-2.5 text-sm outline-none focus:border-[#7F77DD]"
-                      />
-                    </div>
-
+                    <input
+                      type="url"
+                      value={proofLink}
+                      onChange={(e) => setProofLink(e.target.value)}
+                      placeholder="Proof link: docs, drive, github, screenshot URL..."
+                      className="block w-full rounded-xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#7F77DD]"
+                    />
                     <button
                       type="submit"
                       disabled={isSubmittingUpdate}
-                      className="inline-flex items-center gap-2 rounded-md bg-[#7F77DD] px-5 py-3 text-sm font-semibold text-white shadow hover:bg-[#3C3489] transition disabled:opacity-50"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#7F77DD] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#7F77DD]/20 transition hover:bg-[#3C3489] disabled:opacity-50"
                     >
-                      {isSubmittingUpdate ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                      Log Progress Update
+                      {isSubmittingUpdate ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      Submit progress update
                     </button>
                     {qualityTip ? (
-                      <div className="rounded-md border border-[#DAD7FB] bg-[#F4F3FF] p-3 text-xs font-semibold leading-6 text-[#3C3489]">
-                        <span className="font-bold">NudgeAI tip:</span> {qualityTip}
+                      <div className="rounded-xl border border-[#DAD7FB] bg-[#F4F3FF] p-3 text-xs font-bold leading-6 text-[#3C3489]">
+                        <span className="font-black">NudgeAI tip:</span> {qualityTip}
                       </div>
                     ) : null}
                   </form>
                 </div>
+              </div>
 
-                {/* Task Status Transition Modal for Blockers */}
-                {activeBlockTask && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1A1035]/45 px-5 py-8">
-                    <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-2xl">
-                      <div className="flex items-start justify-between">
-                        <h4 className="text-lg font-bold text-rose-600">Declare Task Blocker</h4>
-                        <button onClick={() => setActiveBlockTask(null)} className="text-[#5F5E5A] hover:text-[#2C2C2A]">
-                          <X className="h-5 w-5" />
-                        </button>
-                      </div>
-                      <p className="mt-2 text-xs text-[#5F5E5A]">
-                        Task: <strong>{activeBlockTask.title}</strong>
-                      </p>
-                      
-                      <div className="mt-4">
-                        <label className="block text-xs font-semibold text-[#5F5E5A]">What is blocking your progress?</label>
-                        <textarea
-                          value={blockerTextVal}
-                          onChange={(e) => setBlockerTextVal(e.target.value)}
-                          placeholder="Provide details about credentials needed, dependencies on other teams, or server issues..."
-                          className="mt-1.5 block min-h-20 w-full rounded-md border border-[#DAD7FB] px-3 py-2 text-sm outline-none focus:border-rose-500"
-                          required
-                        />
-                      </div>
-
-                      <div className="mt-5 flex justify-end gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setActiveBlockTask(null)}
-                          className="rounded-md border border-[#DAD7FB] px-4 py-2 text-xs font-semibold text-[#5F5E5A] hover:bg-[#EEEDFE]"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => updateTaskStatusApi(activeBlockTask.id, 'blocked', blockerTextVal)}
-                          disabled={!blockerTextVal.trim()}
-                          className="rounded-md bg-rose-600 px-4 py-2 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-50"
-                        >
-                          Submit Blocker
-                        </button>
-                      </div>
+              <div className="grid gap-7 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+                <div className="workspace-card rounded-2xl p-6 transition hover:shadow-lg hover:shadow-[#3C3489]/10">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-2xl font-black text-[#2C2C2A]">My Progress</h3>
+                      <p className="mt-1 text-sm font-semibold text-[#8A8894]">Your weekly completion curve.</p>
                     </div>
+                    <LineChartIcon className="h-6 w-6 text-[#7F77DD]" />
                   </div>
-                )}
-
-                {/* Progress Check-in History */}
-                <div className="workspace-card rounded-2xl p-7">
-                  <h3 className="text-lg font-bold text-[#2C2C2A] flex items-center gap-2">
-                    <ClipboardCheck className="h-5 w-5 text-[#3C3489]" />
-                    Your Progress Update History
-                  </h3>
-                  <div className="mt-5 divide-y divide-[#EEEDFE] max-h-96 overflow-y-auto pr-2">
-                    {empHistory.length === 0 ? (
-                      <p className="text-sm text-[#5F5E5A] py-4">No progress logs found in database history.</p>
-                    ) : (
-                      empHistory.map(h => (
-                        <div key={h.id} className="py-4 first:pt-0 last:pb-0">
-                          <div className="flex justify-between text-xs text-[#5F5E5A]">
-                            <span>{h.tasks ? `Task: ${h.tasks.title}` : 'General Update'}</span>
-                            <span>{formatDisplayDate(h.created_at)}</span>
-                          </div>
-                          <p className="mt-2 text-sm text-[#2C2C2A] font-medium leading-relaxed">{h.progress_text}</p>
-                          {h.quality_score ? (
-                            <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-[#F4F3FF] px-3 py-1 text-[11px] font-bold text-[#3C3489]">
-                              Powered by NudgeAI
-                              <span>Quality {h.quality_score}/10</span>
-                            </div>
-                          ) : null}
-                          {h.proof_link && (
-                            <a
-                              href={h.proof_link}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="mt-2.5 inline-flex items-center gap-1 text-xs font-bold text-[#7F77DD] hover:underline"
-                            >
-                              <ExternalLink className="h-3 w-3" />
-                              View Deliverable Proof
-                            </a>
-                          )}
-                        </div>
-                      ))
-                    )}
+                  <div className="mt-5 h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RechartsLineChart data={weeklyProgressData} margin={{ top: 10, right: 18, left: -18, bottom: 0 }}>
+                        <CartesianGrid stroke="#EEEDFE" strokeDasharray="4 4" />
+                        <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fill: '#8A8894', fontSize: 12, fontWeight: 700 }} />
+                        <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{ fill: '#8A8894', fontSize: 12, fontWeight: 700 }} />
+                        <Tooltip formatter={(value) => [`${value} tasks completed`, 'Progress']} contentStyle={{ borderRadius: 14, borderColor: '#DAD7FB' }} />
+                        <Line type="monotone" dataKey="tasks" stroke="#7F77DD" strokeWidth={4} dot={{ r: 5, fill: '#7F77DD', strokeWidth: 3, stroke: '#fff' }} activeDot={{ r: 7 }} />
+                      </RechartsLineChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
 
+                <div className="workspace-card rounded-2xl p-6 transition hover:shadow-lg hover:shadow-[#3C3489]/10">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-2xl font-black text-[#2C2C2A]">Recent Activity</h3>
+                    <Activity className="h-6 w-6 text-[#7F77DD]" />
+                  </div>
+                  <div className="mt-5 space-y-3">
+                    {!realEmployeeRecentActivity.length ? (
+                      <div className="rounded-2xl border border-dashed border-[#DAD7FB] bg-[#FCFCFF] p-6 text-center text-sm font-bold text-[#8A8894]">
+                        No activity yet - submit your first check-in to get started!
+                      </div>
+                    ) : realEmployeeRecentActivity.map(({ id, Icon, color, title, copy, when }) => (
+                      <div key={id} className="flex items-start gap-3 rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: `${color}14`, color }}>
+                          <Icon className="h-5 w-5" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="truncate text-sm font-black text-[#2C2C2A]">{title}</p>
+                            <span className="shrink-0 text-[11px] font-bold text-[#8A8894]">{when}</span>
+                          </div>
+                          <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-[#8A8894]">{copy}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
 
-              {/* Employee Right Column: Task Status Desk */}
-              <div className="space-y-7">
-                <div className="workspace-card rounded-2xl p-7">
-                  <h3 className="flex items-center gap-2 text-lg font-bold text-[#2C2C2A]">
+              <div className="grid gap-7 xl:grid-cols-3">
+                <div className="workspace-card rounded-2xl p-6 transition hover:shadow-lg hover:shadow-[#3C3489]/10">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-xl font-black text-[#2C2C2A]">Growth Portal</h3>
+                    <PoweredByNudgeAi />
+                  </div>
+                  <button type="button" onClick={loadGrowthSummary} className="mt-4 inline-flex items-center gap-2 rounded-xl border border-[#DAD7FB] px-4 py-2.5 text-xs font-black text-[#3C3489] transition hover:bg-[#EEEDFE]">
+                    <Sparkles className="h-4 w-4" />
+                    {growthLoading ? 'Building summary...' : 'Generate 90-day summary'}
+                  </button>
+                  {growthSummary ? (
+                    <div className="mt-4 space-y-3 text-sm">
+                      <p className="rounded-xl bg-[#FCFCFF] p-4 font-semibold leading-6 text-[#2C2C2A]">{growthSummary.summary}</p>
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <span className="rounded-xl bg-[#E8F7F1] p-3 text-xs font-black text-[#1D9E75]">{growthSummary.completed_tasks} tasks</span>
+                        <span className="rounded-xl bg-[#F4F3FF] p-3 text-xs font-black text-[#3C3489]">{growthSummary.completion_rate}%</span>
+                        <span className="rounded-xl bg-amber-50 p-3 text-xs font-black text-amber-700">{growthSummary.streak_days?.length || 0} streak</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-4 rounded-xl bg-[#FCFCFF] p-4 text-sm font-semibold leading-6 text-[#8A8894]">
+                      Your story is just beginning. Keep checking in daily and NudgeAI will start building your growth snapshot.
+                    </p>
+                  )}
+                </div>
+
+                <div className="workspace-card rounded-2xl p-6 transition hover:shadow-lg hover:shadow-[#3C3489]/10">
+                  <h3 className="flex items-center gap-2 text-xl font-black text-[#2C2C2A]">
                     <Clock3 className="h-5 w-5 text-[#7F77DD]" />
-                    Deep Work Mode
+                    Deep Work
                   </h3>
                   {activeDeepWork ? (
-                    <div className="mt-4 rounded-md bg-[#F4F3FF] p-4">
-                      <p className="text-sm font-bold text-[#3C3489]">In Deep Work until {formatDisplayDate(activeDeepWork.end_time)}</p>
-                      <p className="mt-1 text-xs text-[#5F5E5A]">{activeDeepWork.focus_declared}</p>
+                    <div className="mt-4 rounded-2xl bg-[#F4F3FF] p-4">
+                      <p className="text-sm font-black text-[#3C3489]">In Deep Work until {formatDisplayDate(activeDeepWork.end_time)}</p>
+                      <p className="mt-1 text-xs font-semibold text-[#5F5E5A]">{activeDeepWork.focus_declared}</p>
                       <textarea
                         value={deepWorkOutput}
                         onChange={(e) => setDeepWorkOutput(e.target.value)}
-                        placeholder="Deep work session complete! What did you accomplish?"
-                        className="mt-4 block min-h-20 w-full rounded-md border border-[#DAD7FB] px-3 py-2 text-sm outline-none"
+                        placeholder="What did you accomplish?"
+                        className="mt-4 block min-h-24 w-full rounded-xl border border-[#DAD7FB] px-3 py-2 text-sm font-semibold outline-none"
                       />
-                      <button type="button" onClick={endDeepWorkSession} className="mt-3 rounded-md bg-[#3C3489] px-4 py-2 text-xs font-bold text-white hover:bg-[#7F77DD]">
-                        Log Output
+                      <button type="button" onClick={endDeepWorkSession} className="mt-3 rounded-xl bg-[#3C3489] px-4 py-2.5 text-xs font-black text-white transition hover:bg-[#7F77DD]">
+                        Log output
                       </button>
                     </div>
                   ) : (
                     <form onSubmit={startDeepWorkSession} className="mt-4 grid gap-3">
-                      <input value={deepWorkFocus} onChange={(e) => setDeepWorkFocus(e.target.value)} placeholder="What will you work on?" className="rounded-md border border-[#DAD7FB] px-3 py-2 text-sm outline-none" />
-                      <select value={deepWorkDuration} onChange={(e) => setDeepWorkDuration(e.target.value)} className="rounded-md border border-[#DAD7FB] bg-white px-3 py-2 text-sm outline-none">
+                      <input value={deepWorkFocus} onChange={(e) => setDeepWorkFocus(e.target.value)} placeholder="What will you work on?" className="rounded-xl border border-[#DAD7FB] px-4 py-3 text-sm font-semibold outline-none focus:border-[#7F77DD]" />
+                      <select value={deepWorkDuration} onChange={(e) => setDeepWorkDuration(e.target.value)} className="rounded-xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm font-semibold outline-none">
                         <option value={60}>1 hr</option>
                         <option value={120}>2 hr</option>
                         <option value={180}>3 hr</option>
                         <option value={45}>Custom: 45 min</option>
                       </select>
-                      <button type="submit" className="rounded-md bg-[#7F77DD] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#3C3489]">
+                      <button type="submit" className="rounded-xl bg-[#7F77DD] px-4 py-3 text-xs font-black text-white transition hover:bg-[#3C3489]">
                         Start Deep Work
                       </button>
                     </form>
                   )}
                 </div>
 
-                <div className="workspace-card rounded-2xl p-7">
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-lg font-bold text-[#2C2C2A]">My Growth Portal</h3>
-                    <PoweredByNudgeAi />
-                  </div>
-                  <button type="button" onClick={loadGrowthSummary} className="mt-4 rounded-md border border-[#DAD7FB] px-4 py-2 text-xs font-bold text-[#3C3489] hover:bg-[#EEEDFE]">
-                    {growthLoading ? 'Loading...' : 'Generate 90-day summary'}
-                  </button>
-                  {growthSummary ? (
-                    <div className="mt-4 space-y-3 text-sm">
-                      <p className="rounded-md bg-[#FCFCFF] p-3 leading-6 text-[#2C2C2A]">{growthSummary.summary}</p>
-                      <div className="grid grid-cols-3 gap-2 text-center">
-                        <span className="rounded-md bg-[#E8F7F1] p-2 text-xs font-bold text-[#1D9E75]">{growthSummary.completed_tasks} tasks</span>
-                        <span className="rounded-md bg-[#F4F3FF] p-2 text-xs font-bold text-[#3C3489]">{growthSummary.completion_rate}% complete</span>
-                        <span className="rounded-md bg-amber-50 p-2 text-xs font-bold text-amber-700">{growthSummary.streak_days?.length || 0} streak days</span>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-
-                {notifications.length > 0 ? (
-                  <div className="workspace-card rounded-2xl p-7">
-                    <h3 className="flex items-center gap-2 text-lg font-bold text-[#2C2C2A]">
-                      <Sparkles className="h-5 w-5 text-[#F59E0B]" />
-                      Recognition
-                    </h3>
-                    <div className="mt-4 space-y-3">
-                      {notifications.map((notification) => (
-                        <div key={notification.id} className="rounded-md border border-[#EEEDFE] bg-[#FCFCFF] p-4">
-                          <p className="text-sm font-semibold leading-6 text-[#2C2C2A]">{notification.message}</p>
-                          <p className="mt-2 text-[11px] font-semibold text-[#5F5E5A]">{formatDisplayDate(notification.created_at)}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-                
-                {/* Stats Dashboard mini */}
-                {empStats && (
-                  <div className="workspace-card-quiet rounded-2xl p-7">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-[#5F5E5A]">Assigned Task Ratios</h4>
-                    <div className="mt-4 grid grid-cols-4 gap-2 text-center">
-                      <div className="bg-white border border-[#EEEDFE] rounded p-2.5">
-                        <span className="text-xl font-bold text-[#2C2C2A]">{empStats.todo + empStats.inProgress + empStats.completed + empStats.blocked}</span>
-                        <p className="text-[10px] font-semibold text-[#5F5E5A] uppercase tracking-wider mt-1">Total</p>
-                      </div>
-                      <div className="bg-[#E8F7F1] border border-[#1D9E75]/20 rounded p-2.5">
-                        <span className="text-xl font-bold text-[#1D9E75]">{empStats.completed}</span>
-                        <p className="text-[10px] font-semibold text-[#1D9E75] uppercase tracking-wider mt-1">Done</p>
-                      </div>
-                      <div className="bg-[#F4F3FF] border border-[#7F77DD]/20 rounded p-2.5">
-                        <span className="text-xl font-bold text-[#7F77DD]">{empStats.inProgress}</span>
-                        <p className="text-[10px] font-semibold text-[#7F77DD] uppercase tracking-wider mt-1">Active</p>
-                      </div>
-                      <div className="bg-rose-50 border border-rose-200 rounded p-2.5">
-                        <span className="text-xl font-bold text-rose-600">{empStats.blocked}</span>
-                        <p className="text-[10px] font-semibold text-rose-600 uppercase tracking-wider mt-1">Block</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Assigned Tasks Card */}
-                <div className="workspace-card rounded-2xl p-7">
-                  <h3 className="text-lg font-bold text-[#2C2C2A] flex items-center gap-2">
-                    <ListTodo className="h-5 w-5 text-[#1D9E75]" />
-                    Assigned Task Registry
+                <div className="workspace-card rounded-2xl p-6 transition hover:shadow-lg hover:shadow-[#3C3489]/10">
+                  <h3 className="flex items-center gap-2 text-xl font-black text-[#2C2C2A]">
+                    <Trophy className="h-5 w-5 text-[#F59E0B]" />
+                    Recognition
                   </h3>
-                  <div className="mt-5 space-y-4">
-                    {empTasks.length === 0 ? (
-                      <p className="text-sm text-[#5F5E5A]">No tasks assigned to you currently.</p>
-                    ) : (
-                      empTasks.map(task => (
-                        <div key={task.id} className="rounded-md border border-[#EEEDFE] p-4 bg-[#FCFCFF]">
-                          <div className="flex items-start justify-between gap-4">
-                            <h4 className="text-sm font-bold text-[#2C2C2A]">{task.title}</h4>
-                            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
-                              task.status === 'completed' ? 'bg-[#E8F7F1] text-[#1D9E75]' :
-                              task.status === 'blocked' ? 'bg-rose-50 text-rose-600 border border-rose-200' :
-                              task.status === 'in_progress' ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-600'
-                            }`}>
-                              {task.status}
-                            </span>
-                          </div>
-                          {task.description && <p className="mt-2 text-xs text-[#5F5E5A]">{task.description}</p>}
-                          
-                          <div className="mt-4 flex flex-wrap gap-2 border-t border-[#EEEDFE]/60 pt-3">
-                            <span className="text-[10px] font-bold text-[#5F5E5A] w-full mb-1">Set status:</span>
-                            {['todo', 'in_progress', 'completed', 'blocked'].map(st => (
-                              <button
-                                key={st}
-                                type="button"
-                                onClick={() => handleUpdateStatusClick(task, st)}
-                                disabled={task.status === st}
-                                className={`text-[10px] font-bold px-2 py-1 rounded border transition ${
-                                  task.status === st 
-                                    ? 'bg-[#3C3489] text-white border-[#3C3489]' 
-                                    : 'bg-white border-[#DAD7FB] text-[#3C3489] hover:bg-[#EEEDFE]'
-                                }`}
-                              >
-                                {st.replace('_', ' ')}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ))
+                  <div className="mt-4 space-y-3">
+                    {notifications.length ? notifications.slice(0, 3).map((notification) => (
+                      <div key={notification.id} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                        <p className="text-sm font-bold leading-6 text-[#2C2C2A]">{notification.message}</p>
+                        <p className="mt-2 text-[11px] font-bold text-[#8A8894]">{formatDisplayDate(notification.created_at)}</p>
+                      </div>
+                    )) : (
+                      <p className="rounded-2xl bg-[#FCFCFF] p-4 text-sm font-semibold leading-6 text-[#8A8894]">
+                        Recognition from your manager or HR will appear here.
+                      </p>
                     )}
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setDemoAiHelperOpen(true)}
+                    className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#15112E] px-4 py-3 text-sm font-black text-white transition hover:bg-[#3C3489]"
+                  >
+                    Stuck anywhere? Use NudgeAI
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
                 </div>
-
               </div>
+
+              {activeBlockTask && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1A1035]/45 px-5 py-8 backdrop-blur-sm">
+                  <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h4 className="text-xl font-black text-rose-600">Declare Task Blocker</h4>
+                        <p className="mt-2 text-sm font-semibold text-[#5F5E5A]">
+                          Task: <strong>{activeBlockTask.title}</strong>
+                        </p>
+                      </div>
+                      <button onClick={() => setActiveBlockTask(null)} className="rounded-full p-2 text-[#5F5E5A] hover:bg-[#F4F3FF] hover:text-[#2C2C2A]">
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+                    <textarea
+                      value={blockerTextVal}
+                      onChange={(e) => setBlockerTextVal(e.target.value)}
+                      placeholder="What is blocking this task? Mention what you tried and who can unblock it."
+                      className="mt-5 block min-h-28 w-full rounded-xl border border-[#DAD7FB] px-4 py-3 text-sm font-semibold outline-none focus:border-rose-500"
+                      required
+                    />
+                    <div className="mt-5 flex justify-end gap-3">
+                      <button type="button" onClick={() => setActiveBlockTask(null)} className="rounded-xl border border-[#DAD7FB] px-4 py-2.5 text-xs font-black text-[#5F5E5A] hover:bg-[#EEEDFE]">
+                        Cancel
+                      </button>
+                      <button type="button" onClick={() => updateTaskStatusApi(activeBlockTask.id, 'blocked', blockerTextVal)} disabled={!blockerTextVal.trim()} className="rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-black text-white hover:bg-rose-700 disabled:opacity-50">
+                        Submit Blocker
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
