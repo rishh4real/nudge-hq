@@ -5637,6 +5637,24 @@ function App() {
                         </div>
                       ))}
                     </div>
+                    <div className="mt-5 overflow-hidden rounded-2xl border border-[#DAD7FB] bg-gradient-to-br from-[#3C3489] via-[#7F77DD] to-[#1D9E75] p-5 text-white shadow-lg shadow-[#7F77DD]/20">
+                      <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.16em] text-white/80">
+                        <Sparkles className="h-4 w-4" />
+                        NudgeAI always on
+                      </span>
+                      <h3 className="mt-4 text-2xl font-extrabold">Stuck anywhere?</h3>
+                      <p className="mt-2 text-sm font-semibold leading-6 text-white/80">
+                        Use NudgeAI for task clarity, code doubts, update writing, blockers, or quick planning.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setDemoAiHelperOpen(true)}
+                        className="mt-4 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]"
+                      >
+                        Ask NudgeAI
+                        <ArrowRight className="h-4 w-4" />
+                      </button>
+                    </div>
                   </section>
                 </div>
               )}
