@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import Ferrofluid from './Ferrofluid'
 import {
   Activity,
   ArrowRight,
@@ -1119,6 +1120,20 @@ function App() {
 
     return () => window.clearInterval(timer)
   }, [])
+
+  useEffect(() => {
+    const scrollToHash = () => {
+      const hash = window.location.hash?.slice(1)
+      if (!hash) return
+      window.setTimeout(() => {
+        document.getElementById(hash)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 80)
+    }
+
+    scrollToHash()
+    window.addEventListener('hashchange', scrollToHash)
+    return () => window.removeEventListener('hashchange', scrollToHash)
+  }, [currentView])
 
   // --- DASHBOARD DATA STATES ---
   // Employee Workspace
@@ -3940,7 +3955,7 @@ function App() {
             </div>
           </section>
 
-          <section className="relative overflow-hidden bg-[#0F0B28] px-5 py-24 text-white sm:px-6 lg:px-8">
+          <section id="signal-gallery" className="relative overflow-hidden bg-[#0F0B28] px-5 py-24 text-white sm:px-6 lg:px-8">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_12%,rgba(127,119,221,0.48),transparent_32%),radial-gradient(circle_at_78%_72%,rgba(29,158,117,0.24),transparent_30%)]" />
             <div className="soft-grid absolute inset-0 opacity-10" />
             <div className="relative mx-auto max-w-6xl">
@@ -3983,6 +3998,23 @@ function App() {
                       </button>
                     </div>
                     <div className="nudge-dome-stage">
+                      <Ferrofluid
+                        className="nudge-dome-fluid"
+                        colors={['#7F77DD', '#1D9E75', '#EEEDFE']}
+                        speed={0.28}
+                        scale={1.45}
+                        turbulence={0.85}
+                        fluidity={0.08}
+                        rimWidth={0.22}
+                        sharpness={2.3}
+                        shimmer={1.35}
+                        glow={1.85}
+                        flowDirection="down"
+                        opacity={0.75}
+                        mouseInteraction
+                        mouseStrength={0.75}
+                        mouseRadius={0.36}
+                      />
                       <div className="nudge-dome-grid">
                         {[
                           ['Daily update', 'Kunal submitted progress', '#7F77DD', '✓'],
