@@ -39,6 +39,9 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(20) NOT NULL CHECK (role IN ('employee', 'manager', 'hr', 'admin')) DEFAULT 'employee',
     department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+    phone_number VARCHAR(40),
+    whatsapp_nudge_sent_at TIMESTAMPTZ,
+    last_whatsapp_nudge TIMESTAMPTZ,
     avatar_url TEXT,
     onboarding_complete BOOLEAN DEFAULT FALSE NOT NULL,
     is_verified BOOLEAN DEFAULT FALSE NOT NULL,
@@ -99,6 +102,7 @@ CREATE TABLE IF NOT EXISTS employee_invitations (
     name VARCHAR(100),
     role VARCHAR(20) DEFAULT 'employee' CHECK (role IN ('employee', 'manager', 'hr', 'admin')),
     department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+    phone_number VARCHAR(40),
     invited_by UUID REFERENCES users(id) ON DELETE SET NULL,
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     token TEXT,
@@ -196,11 +200,42 @@ CREATE TABLE IF NOT EXISTS deep_work_sessions (
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+-- 16. NudgeSpace Posts
+CREATE TABLE IF NOT EXISTS nudgespace_posts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+    author_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    space VARCHAR(20) NOT NULL CHECK (space IN ('social', 'u_space')) DEFAULT 'social',
+    visibility_scope VARCHAR(20) NOT NULL CHECK (visibility_scope IN ('company', 'people', 'department', 'private')) DEFAULT 'company',
+    post_type VARCHAR(30) NOT NULL DEFAULT 'status',
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+-- 17. WhatsApp Notification Logs
+CREATE TABLE IF NOT EXISTS whatsapp_notification_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    phone_number VARCHAR(40),
+    status VARCHAR(30) NOT NULL DEFAULT 'queued',
+    notification_type VARCHAR(40) NOT NULL DEFAULT 'daily_nudge',
+    triggered_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    task_id UUID REFERENCES tasks(id) ON DELETE SET NULL,
+    twilio_sid TEXT,
+    error_message TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
 -- Backfill-safe migrations for existing Supabase projects
 ALTER TABLE departments ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number VARCHAR(40);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_nudge_sent_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_whatsapp_nudge TIMESTAMPTZ;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_complete BOOLEAN DEFAULT FALSE NOT NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE NOT NULL;
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS owner_id UUID;
@@ -223,8 +258,16 @@ ALTER TABLE employee_invitations ADD COLUMN IF NOT EXISTS company_id UUID REFERE
 ALTER TABLE employee_invitations ADD COLUMN IF NOT EXISTS name VARCHAR(100);
 ALTER TABLE employee_invitations ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'employee';
 ALTER TABLE employee_invitations ADD COLUMN IF NOT EXISTS department_id UUID REFERENCES departments(id) ON DELETE SET NULL;
+ALTER TABLE employee_invitations ADD COLUMN IF NOT EXISTS phone_number VARCHAR(40);
 ALTER TABLE employee_invitations ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMPTZ;
 ALTER TABLE departments DROP CONSTRAINT IF EXISTS departments_name_key;
+ALTER TABLE nudgespace_posts ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE nudgespace_posts ADD COLUMN IF NOT EXISTS department_id UUID REFERENCES departments(id) ON DELETE SET NULL;
+ALTER TABLE nudgespace_posts ADD COLUMN IF NOT EXISTS author_id UUID REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE nudgespace_posts ADD COLUMN IF NOT EXISTS space VARCHAR(20) DEFAULT 'social';
+ALTER TABLE nudgespace_posts ADD COLUMN IF NOT EXISTS visibility_scope VARCHAR(20) DEFAULT 'company';
+ALTER TABLE nudgespace_posts ADD COLUMN IF NOT EXISTS post_type VARCHAR(30) DEFAULT 'status';
+ALTER TABLE nudgespace_posts ADD COLUMN IF NOT EXISTS content TEXT;
 
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
 ALTER TABLE users
@@ -232,6 +275,12 @@ ALTER TABLE users
 ALTER TABLE employee_invitations DROP CONSTRAINT IF EXISTS employee_invitations_role_check;
 ALTER TABLE employee_invitations
   ADD CONSTRAINT employee_invitations_role_check CHECK (role IN ('employee', 'manager', 'hr', 'admin'));
+ALTER TABLE nudgespace_posts DROP CONSTRAINT IF EXISTS nudgespace_posts_space_check;
+ALTER TABLE nudgespace_posts
+  ADD CONSTRAINT nudgespace_posts_space_check CHECK (space IN ('social', 'u_space'));
+ALTER TABLE nudgespace_posts DROP CONSTRAINT IF EXISTS nudgespace_posts_visibility_scope_check;
+ALTER TABLE nudgespace_posts
+  ADD CONSTRAINT nudgespace_posts_visibility_scope_check CHECK (visibility_scope IN ('company', 'people', 'department', 'private'));
 
 ALTER TABLE organizations
   DROP CONSTRAINT IF EXISTS organizations_owner_id_fkey;
@@ -248,6 +297,8 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_organization ON users(organization_id);
 CREATE INDEX IF NOT EXISTS idx_users_company ON users(company_id);
 CREATE INDEX IF NOT EXISTS idx_users_department ON users(department_id);
+CREATE INDEX IF NOT EXISTS idx_users_phone_number ON users(phone_number);
+CREATE INDEX IF NOT EXISTS idx_users_last_whatsapp_nudge ON users(last_whatsapp_nudge);
 CREATE INDEX IF NOT EXISTS idx_departments_organization ON departments(organization_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_departments_org_name ON departments(organization_id, name);
 CREATE INDEX IF NOT EXISTS idx_tasks_assignee ON tasks(assignee_id);
@@ -275,3 +326,13 @@ CREATE INDEX IF NOT EXISTS idx_focus_sessions_updated ON focus_sessions(last_upd
 CREATE INDEX IF NOT EXISTS idx_daily_checkins_user_date ON daily_checkins(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_deep_work_sessions_user ON deep_work_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_deep_work_sessions_end ON deep_work_sessions(end_time);
+CREATE INDEX IF NOT EXISTS idx_nudgespace_posts_organization ON nudgespace_posts(organization_id);
+CREATE INDEX IF NOT EXISTS idx_nudgespace_posts_department ON nudgespace_posts(department_id);
+CREATE INDEX IF NOT EXISTS idx_nudgespace_posts_author ON nudgespace_posts(author_id);
+CREATE INDEX IF NOT EXISTS idx_nudgespace_posts_space ON nudgespace_posts(space);
+CREATE INDEX IF NOT EXISTS idx_nudgespace_posts_created ON nudgespace_posts(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_notification_logs_organization ON whatsapp_notification_logs(organization_id);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_notification_logs_user ON whatsapp_notification_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_notification_logs_type ON whatsapp_notification_logs(notification_type);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_notification_logs_task ON whatsapp_notification_logs(task_id);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_notification_logs_created ON whatsapp_notification_logs(created_at DESC);

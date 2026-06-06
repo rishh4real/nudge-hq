@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { supabase } from '../config/supabase.js';
 import { sendEmployeeInviteEmail } from '../utils/mailer.js';
+import { isValidPhoneNumber } from '../services/whatsapp.js';
 
 const TEMP_PASSWORD = 'nudgehq123';
 const VALID_INVITE_ROLES = ['employee', 'manager', 'hr', 'admin'];
@@ -137,7 +138,7 @@ export const getEmployees = async (req, res) => {
 
     let query = supabase
       .from('users')
-      .select('id, name, email, role, department_id, created_at, departments(name)')
+      .select('id, name, email, phone_number, role, department_id, created_at, departments(name)')
       .eq('organization_id', orgId)
       .order('name', { ascending: true });
 
@@ -290,10 +291,18 @@ export const deleteDepartment = async (req, res) => {
  */
 export const inviteEmployee = async (req, res) => {
   try {
-    const { name, email, department_id, role = 'employee' } = req.body;
+    const { name, email, phone_number, department_id, role = 'employee' } = req.body;
     const normalizedEmail = email.toLowerCase().trim();
+    const normalizedPhone = phone_number ? String(phone_number).trim() : null;
     const adminOrgId = req.user.organization_id;
     const inviteRole = VALID_INVITE_ROLES.includes(role) ? role : 'employee';
+
+    if (normalizedPhone && !isValidPhoneNumber(normalizedPhone)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number must start with country code, for example +919999999999.'
+      });
+    }
 
     // Check if user already exists. Existing accounts can still be invited to a
     // new workspace; accepting the invite will attach/update that account.
@@ -349,6 +358,7 @@ export const inviteEmployee = async (req, res) => {
           company_id: adminOrgId,
           email: normalizedEmail,
           name: name || null,
+          phone_number: normalizedPhone,
           role: inviteRole,
           department_id: department_id || null,
           invited_by: req.user.id,
@@ -375,6 +385,7 @@ export const inviteEmployee = async (req, res) => {
         id: existingUser?.id || invitation.id,
         name: invitation.name || name || normalizedEmail.split('@')[0],
         email: invitation.email,
+        phone_number: invitation.phone_number || normalizedPhone || null,
         role: invitation.role,
         department_id: invitation.department_id
       },

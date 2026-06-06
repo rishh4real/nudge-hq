@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { supabase } from '../config/supabase.js';
 import { sendVerificationEmail, sendResetPasswordEmail, sendWorkspaceInviteEmail } from '../utils/mailer.js';
+import { isValidPhoneNumber, sendWhatsAppWelcome } from '../services/whatsapp.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -736,7 +737,7 @@ export const getInviteStatus = async (req, res) => {
 
     const { data: invitation, error } = await supabase
       .from('employee_invitations')
-      .select('id, email, name, role, department_id, organization_id, company_id, status, expires_at')
+      .select('id, email, name, phone_number, role, department_id, organization_id, company_id, status, expires_at, organizations!employee_invitations_organization_id_fkey(name)')
       .eq('token', token)
       .maybeSingle();
 
@@ -838,11 +839,12 @@ export const acceptInvite = async (req, res) => {
           organization_id: organizationId,
           company_id: companyId,
           department_id: invitation.department_id || null,
+          phone_number: invitation.phone_number || null,
           onboarding_complete: true,
           is_verified: true
         }))
         .eq('id', existingUser.id)
-        .select('id, name, email, role, organization_id, company_id, department_id')
+        .select('id, name, email, phone_number, role, organization_id, company_id, department_id')
         .single();
 
       if (updateUserError) throw updateUserError;
@@ -874,11 +876,12 @@ export const acceptInvite = async (req, res) => {
             organization_id: organizationId,
             company_id: companyId,
             department_id: invitation.department_id || null,
+            phone_number: invitation.phone_number || null,
             onboarding_complete: true,
             is_verified: true // Magic link serves as verification
           })
         ])
-        .select('id, name, email, role, organization_id, company_id, department_id')
+        .select('id, name, email, phone_number, role, organization_id, company_id, department_id')
         .single();
 
       if (userError) throw userError;
@@ -890,6 +893,18 @@ export const acceptInvite = async (req, res) => {
       .from('employee_invitations')
       .update({ status: 'accepted', user_id: newUser.id, accepted_at: new Date().toISOString() })
       .eq('id', invitation.id);
+
+    if (newUser.phone_number) {
+      try {
+        await sendWhatsAppWelcome({
+          phone: newUser.phone_number,
+          name: newUser.name,
+          companyName: invitation.organizations?.name || 'your company',
+        });
+      } catch (whatsappError) {
+        console.warn('WhatsApp welcome skipped:', whatsappError.message);
+      }
+    }
 
     // Generate login token directly
     const jwtToken = jwt.sign(
@@ -1083,11 +1098,17 @@ export const completeOnboarding = async (req, res) => {
       const inviteToken = crypto.randomUUID();
       const deptId = employee.department_id || deptByName.get(String(employee.department || '').toLowerCase()) || null;
       const employeeRole = VALID_ROLES.includes(employee.role) ? employee.role : 'employee';
+      const employeePhone = employee.phone_number ? String(employee.phone_number).trim() : null;
+      if (employeePhone && !isValidPhoneNumber(employeePhone)) {
+        skippedInvites.push({ email: normalizedEmployeeEmail, reason: 'invalid_phone_number' });
+        continue;
+      }
       inviteRows.push({
         organization_id: orgId,
         company_id: orgId,
         email: normalizedEmployeeEmail,
         name: employee.name || null,
+        phone_number: employeePhone,
         role: employeeRole,
         department_id: deptId,
         invited_by: adminId,

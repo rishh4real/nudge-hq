@@ -4,6 +4,7 @@ dotenv.config();
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
+import cron from 'node-cron';
 
 // Import Routes
 import authRoutes from './routes/auth.routes.js';
@@ -18,6 +19,9 @@ import deepworkRoutes from './routes/deepwork.routes.js';
 import reportRoutes from './routes/report.routes.js';
 import paymentRoutes from './routes/payment.routes.js';
 import contactRoutes from './routes/contact.routes.js';
+import nudgeSpaceRoutes from './routes/nudgespace.routes.js';
+import notificationRoutes from './routes/notifications.routes.js';
+import { sendPendingWhatsAppNudges, sendWeeklyWhatsAppWins } from './controllers/notifications.controller.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -25,6 +29,7 @@ const PORT = process.env.PORT || 5000;
 // Global Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // API Routing Mountpoints
@@ -41,6 +46,8 @@ app.use('/api/deepwork', deepworkRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/nudgespace', nudgeSpaceRoutes);
+app.use('/api/notify', notificationRoutes);
 
 // Base Health Check endpoint
 app.get('/health', (req, res) => {
@@ -85,6 +92,28 @@ app.listen(PORT, () => {
   console.log(` Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(` Health: http://localhost:${PORT}/health`);
   console.log(`========================================`);
+});
+
+cron.schedule('0 17 * * *', async () => {
+  try {
+    const result = await sendPendingWhatsAppNudges();
+    console.log(`WhatsApp daily nudge cron completed: ${result.sent} sent, ${result.skipped} skipped, ${result.failed} failed.`);
+  } catch (error) {
+    console.error('WhatsApp daily nudge cron failed:', error.message);
+  }
+}, {
+  timezone: 'Asia/Kolkata',
+});
+
+cron.schedule('0 18 * * 5', async () => {
+  try {
+    const result = await sendWeeklyWhatsAppWins();
+    console.log(`WhatsApp weekly wins cron completed: ${result.sent} sent, ${result.failed} failed.`);
+  } catch (error) {
+    console.error('WhatsApp weekly wins cron failed:', error.message);
+  }
+}, {
+  timezone: 'Asia/Kolkata',
 });
 
 export default app;

@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase.js';
+import { sendWhatsAppBlockerAlert } from '../services/whatsapp.js';
 
 /**
  * Create a new task (Admin only)
@@ -146,7 +147,7 @@ export const updateTaskStatus = async (req, res) => {
     // Fetch original task
     const { data: task, error: fetchError } = await supabase
       .from('tasks')
-      .select('id, status, assignee_id, assignee:users(department_id)')
+      .select('id, title, status, assignee_id, assignee:users(id, name, department_id)')
       .eq('id', taskId)
       .eq('organization_id', orgId)
       .maybeSingle();
@@ -198,6 +199,58 @@ export const updateTaskStatus = async (req, res) => {
         ]);
 
       if (blockError) throw blockError;
+
+      const { data: existingAlert } = await supabase
+        .from('whatsapp_notification_logs')
+        .select('id')
+        .eq('task_id', taskId)
+        .eq('notification_type', 'blocker_alert')
+        .eq('status', 'sent')
+        .maybeSingle();
+
+      if (!existingAlert && task.assignee?.department_id) {
+        const { data: manager } = await supabase
+          .from('users')
+          .select('id, name, phone_number, organization_id')
+          .eq('organization_id', orgId)
+          .eq('department_id', task.assignee.department_id)
+          .eq('role', 'manager')
+          .not('phone_number', 'is', null)
+          .limit(1)
+          .maybeSingle();
+
+        if (manager?.phone_number) {
+          try {
+            const message = await sendWhatsAppBlockerAlert({
+              phone: manager.phone_number,
+              employeeName: task.assignee?.name || req.user.name || 'A teammate',
+              taskTitle: task.title || 'Untitled task',
+              blockerText: blocker_text,
+            });
+            await supabase.from('whatsapp_notification_logs').insert([{
+              organization_id: orgId,
+              user_id: manager.id,
+              phone_number: manager.phone_number,
+              status: 'sent',
+              notification_type: 'blocker_alert',
+              triggered_by: userId,
+              task_id: taskId,
+              twilio_sid: message.sid,
+            }]);
+          } catch (alertError) {
+            await supabase.from('whatsapp_notification_logs').insert([{
+              organization_id: orgId,
+              user_id: manager.id,
+              phone_number: manager.phone_number,
+              status: 'failed',
+              notification_type: 'blocker_alert',
+              triggered_by: userId,
+              task_id: taskId,
+              error_message: alertError.message,
+            }]);
+          }
+        }
+      }
     }
 
     // 2. Transitioning FROM blocked status (resolving active blocker logs)

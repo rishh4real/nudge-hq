@@ -79,6 +79,9 @@ const getDashboardLabel = (role) => ({
   employee: 'Employee Workspace',
 }[role] || 'Employee Workspace')
 
+const getNudgeAiHelperIntro = (name = 'there') =>
+  `Hi ${name}, I am NudgeAI. Ask me anything: work updates, coding doubts, writing, planning, ideas, or general questions.`
+
 const getDashboardHeadline = (role) => ({
   admin: 'Run every team, role, and signal from one calm HQ.',
   hr: 'Keep company health, performance, and people signals visible.',
@@ -259,6 +262,73 @@ const hypeSlides = [
   },
 ]
 
+const whatsAppFeatureSlides = [
+  {
+    eyebrow: 'Daily Nudge',
+    title: 'Employees get a smart WhatsApp reminder',
+    stat: '5 PM',
+    accent: '#1D9E75',
+    chips: ['Personalized by NudgeAI', 'No app install', '1 nudge/day'],
+    floating: [
+      ['NudgeAI Prompt', "Hey Kunal! 🏆 6-day streak. Don't break it now."],
+      ['Employee', 'Will update in 2 mins.'],
+      ['Saved', 'Reminder logged for today']
+    ],
+    messages: [
+      ['bot', "Hey Kunal! 🏆\n6-day streak! Don't break it now.\nToday's check-in → nudgehq.app", '05:00 PM'],
+      ['user', 'On it. Finishing launch QA now.', '05:02 PM'],
+    ],
+  },
+  {
+    eyebrow: 'Two-way Check-in',
+    title: 'Replies become daily updates automatically',
+    stat: '2 mins',
+    accent: '#7F77DD',
+    chips: ['Reply in WhatsApp', 'Saved to dashboard', 'No duplicate work'],
+    floating: [
+      ['User Response', 'Completed CRM dashboard polish. Blocked on webhook test.'],
+      ['Auto Saved', 'Progress update created'],
+      ['Dashboard', 'Check-in marked submitted']
+    ],
+    messages: [
+      ['bot', "Don't forget today's NudgeHQ check-in.\nTakes under 2 mins → nudgehq.app", '09:30 AM'],
+      ['user', 'Completed CRM dashboard polish. Blocked on webhook test.', '09:32 AM'],
+      ['bot', '✅ Got it Kunal! Your update has been saved to NudgeHQ.\nHave a productive day! 🚀', '09:32 AM'],
+    ],
+  },
+  {
+    eyebrow: 'Blocker Alert',
+    title: 'Managers get instant WhatsApp alerts',
+    stat: 'Instant',
+    accent: '#EF4444',
+    chips: ['Blocker reason', 'Task context', 'Manager route'],
+    floating: [
+      ['Blocker detected', 'Stripe webhook test is blocked'],
+      ['Manager Alert', 'Resolve before standup'],
+      ['No duplicate spam', 'One alert per task blocker']
+    ],
+    messages: [
+      ['bot', "🚨 NudgeHQ Blocker Alert\n\nRahul is blocked on:\n'Stripe webhook test'\n\nReason: 'Waiting for staging keys'\n\nResolve here → nudgehq.app/dashboard/manager", '11:18 AM'],
+      ['user', 'I will unblock this now.', '11:20 AM'],
+    ],
+  },
+  {
+    eyebrow: 'Weekly Wins',
+    title: 'Friday summaries celebrate momentum',
+    stat: 'Fri 6 PM',
+    accent: '#F59E0B',
+    chips: ['Tasks completed', 'Blockers resolved', 'Streak recap'],
+    floating: [
+      ['Weekly Win', '8 tasks completed'],
+      ['NudgeAI', 'Better than last week'],
+      ['Progress', 'Full report in dashboard']
+    ],
+    messages: [
+      ['bot', "🏆 Your NudgeHQ week in review!\n\n✅ 8 tasks completed\n⚡ 2 blockers resolved\n🔥 7-day check-in streak\n\n📈 Better than last week! Keep it up!\n\nSee your full progress → nudgehq.app\n— NudgeAI", '06:00 PM'],
+    ],
+  },
+]
+
 const faqs = [
   {
     category: 'Basics',
@@ -295,6 +365,7 @@ const faqs = [
 const faqCategories = ['All Inquiries', 'Basics', 'NudgeAI', 'Roles', 'Pricing', 'Support']
 
 const AUTH_INPUT_CLASS = 'block w-full rounded-2xl border border-[#DAD7FB] bg-white px-4 py-3.5 text-sm shadow-[0_1px_0_rgba(60,52,137,0.03)] outline-none transition placeholder:text-[#A09F9A] focus:border-[#7F77DD] focus:shadow-[0_0_0_4px_rgba(127,119,221,0.12)]'
+const STARTER_EMPLOYEE_LIMIT = 15
 
 function PasswordField({ label, value, onChange, placeholder = 'Enter password', className = '', labelClassName = '', inputClassName = '', required = true }) {
   const [visible, setVisible] = useState(false)
@@ -1007,7 +1078,10 @@ const fetchApi = async (endpoint, options = {}, token = null) => {
 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(data.message || 'API request failed.');
+        const error = new Error(data.message || data.error || 'API request failed.');
+        error.status = response.status;
+        error.data = data;
+        throw error;
       }
       return { data, port };
     } catch (err) {
@@ -1047,8 +1121,28 @@ function App() {
   const [serverPort, setServerPort] = useState(null)
   const [isSandbox, setIsSandbox] = useState(false)
   const [statusMessage, setStatusMessage] = useState(null)
+  const [mobilePhoneTilt, setMobilePhoneTilt] = useState({ x: 5, y: -14 })
+  const [activeMobileTab, setActiveMobileTab] = useState('Pulse')
+  const [mobileTasks, setMobileTasks] = useState([
+    { id: 1, title: 'Draft release notes', done: true },
+    { id: 2, title: 'Review login flow', done: false },
+    { id: 3, title: 'Fix dashboard UI', done: false }
+  ])
+  const [mobileAiConversations, setMobileAiConversations] = useState([
+    { sender: 'AI', text: "Hey Kunal! Rahul has been inactive for 4 hours. Should we nudge him?" }
+  ])
+  const [whatsappTilt, setWhatsappTilt] = useState({ x: -5, y: 12 })
+  const [activeWhatsAppSlide, setActiveWhatsAppSlide] = useState(0)
+
   const [demoEmployeeSection, setDemoEmployeeSection] = useState('My Dashboard')
+  const [demoNudgeSpaceView, setDemoNudgeSpaceView] = useState('Social')
+  const [nudgeSpacePosts, setNudgeSpacePosts] = useState([])
+  const [nudgeSpaceLoading, setNudgeSpaceLoading] = useState(false)
+  const [nudgeSpaceSaving, setNudgeSpaceSaving] = useState(false)
+  const [nudgeSpaceDraft, setNudgeSpaceDraft] = useState('')
+  const [nudgeSpacePostType, setNudgeSpacePostType] = useState('status')
   const [selectedDemoTask, setSelectedDemoTask] = useState(null)
+  const [expandedManagerActivity, setExpandedManagerActivity] = useState(null)
   const [demoTaskUpdate, setDemoTaskUpdate] = useState('')
   const [demoProofLink, setDemoProofLink] = useState('')
   const [demoProofFiles, setDemoProofFiles] = useState([])
@@ -1061,7 +1155,7 @@ function App() {
   const [demoAiHelperMessages, setDemoAiHelperMessages] = useState([
     {
       from: 'assistant',
-      text: 'Hi Kunal, I am NudgeAI. Ask me anything: work updates, coding doubts, writing, planning, ideas, or general questions.',
+      text: getNudgeAiHelperIntro(),
     },
   ])
   const [demoProfileName, setDemoProfileName] = useState('Kunal')
@@ -1094,11 +1188,17 @@ function App() {
   const [paymentLoading, setPaymentLoading] = useState(false)
   const [onboardingStep, setOnboardingStep] = useState(1)
   const [companyDetails, setCompanyDetails] = useState({ name: '', logo_url: '', industry: 'Tech', size: '1-10', country: 'India', city: '' })
+  const [companyIndustryOther, setCompanyIndustryOther] = useState('')
   const [onboardingDepartments, setOnboardingDepartments] = useState([{ name: '', description: '' }])
-  const [inviteEmployees, setInviteEmployees] = useState([{ name: '', email: '', department: '', role: 'employee' }])
+  const [inviteEmployees, setInviteEmployees] = useState([{ name: '', email: '', phone_number: '', department: '', role: 'employee' }])
   const [csvPreview, setCsvPreview] = useState([])
   const [magicInviteLink, setMagicInviteLink] = useState('')
   const [onboardingLoading, setOnboardingLoading] = useState(false)
+  const filledManualInviteCount = inviteEmployees.filter((employee) => employee.email).length
+  const usedInviteSlots = inviteEmployees.length + csvPreview.length
+  const totalInviteCount = filledManualInviteCount + csvPreview.length
+  const visibleInviteEmployees = inviteEmployees.slice(0, Math.max(STARTER_EMPLOYEE_LIMIT - csvPreview.length, 0))
+  const canAddInviteEmployee = usedInviteSlots < STARTER_EMPLOYEE_LIMIT
 
   useEffect(() => {
     if (token) window.localStorage.setItem('nudgehq_auth_token', token);
@@ -1114,6 +1214,16 @@ function App() {
     if (authRole) window.localStorage.setItem('nudgehq_auth_role', authRole);
     else window.localStorage.removeItem('nudgehq_auth_role');
   }, [authRole])
+
+  const clearAuthSession = () => {
+    setUser(null);
+    setToken(null);
+    setAuthRole(null);
+    setIsSandbox(false);
+    window.localStorage.removeItem('nudgehq_auth_token');
+    window.localStorage.removeItem('nudgehq_auth_user');
+    window.localStorage.removeItem('nudgehq_auth_role');
+  };
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -1174,6 +1284,7 @@ function App() {
   const [adminUsers, setAdminUsers] = useState([]) // List of employees for task assignment
   const [inviteName, setInviteName] = useState('')
   const [inviteEmail, setInviteEmail] = useState('')
+  const [invitePhone, setInvitePhone] = useState('')
   const [inviteRole, setInviteRole] = useState('employee')
   const [inviteDepartmentId, setInviteDepartmentId] = useState('')
   const [inviteLoading, setInviteLoading] = useState(false)
@@ -1184,6 +1295,10 @@ function App() {
   const [presenceInsight, setPresenceInsight] = useState('')
   const [deepWorkTeam, setDeepWorkTeam] = useState(null)
   const [boardPackLoading, setBoardPackLoading] = useState(false)
+  const [whatsappNudgeLoading, setWhatsappNudgeLoading] = useState(false)
+  const [whatsappPreviewOpen, setWhatsappPreviewOpen] = useState(false)
+  const [whatsappPreviewEmployees, setWhatsappPreviewEmployees] = useState([])
+  const [selectedWhatsAppEmployees, setSelectedWhatsAppEmployees] = useState([])
 
   // AI Summary Results
   const [aiReportType, setAiReportType] = useState(null) // 'summary' | 'delays' | 'inactivity'
@@ -1303,7 +1418,7 @@ function App() {
     else if (currentView === 'onboarding') targetPath = '/onboarding';
     else if (currentView === 'join_workspace') targetPath = currentPath.startsWith('/join/') ? currentPath : '/join';
     else if (currentView === 'demo_console') targetPath = '/demo';
-    else if (currentView === 'dashboard') targetPath = getDashboardPath(authRole);
+    else if (currentView === 'dashboard') targetPath = getDashboardPath(user?.role || authRole || 'employee');
     else if (currentView === 'verify_email') targetPath = '/verify-email';
     else if (currentView === 'forgot_password') targetPath = '/forgot-password';
     else if (currentView === 'reset_password') targetPath = '/reset-password';
@@ -1327,11 +1442,17 @@ function App() {
   useEffect(() => {
     if (currentView !== 'landing') return undefined;
 
-    const timer = window.setInterval(() => {
+    const storyTimer = window.setInterval(() => {
       setActiveStory((story) => (story + 1) % productScenarios.length);
     }, 5200);
+    const whatsAppTimer = window.setInterval(() => {
+      setActiveWhatsAppSlide((slide) => (slide + 1) % whatsAppFeatureSlides.length);
+    }, 4600);
 
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(storyTimer);
+      window.clearInterval(whatsAppTimer);
+    };
   }, [currentView]);
 
   // --- MOCK DATA SETUP (Sandbox Mode) ---
@@ -1475,8 +1596,74 @@ function App() {
         runNudgeAiFeature('standup', false);
         if (authRole !== 'manager') runNudgeAiFeature('skillGap', false);
       }
+
+      await loadNudgeSpacePosts();
     } catch (err) {
-      showToast('Error syncing live dashboard values: ' + err.message, 'error');
+      const message = err.message || '';
+      const isAuthError =
+        err.status === 401 ||
+        /invalid or expired authentication token|access denied|no token provided|unauthorized/i.test(message);
+
+      if (isAuthError) {
+        clearAuthSession();
+        if (currentView === 'dashboard') {
+          setCurrentView('signin');
+          window.history.pushState({}, '', '/login');
+        }
+        return;
+      }
+
+      showToast('Error syncing live dashboard values: ' + message, 'error');
+    }
+  };
+
+  const getActiveNudgeSpace = () => demoNudgeSpaceView === 'U Space' ? 'u_space' : 'social';
+
+  const loadNudgeSpacePosts = async (space = getActiveNudgeSpace()) => {
+    if (isSandbox || !token) return;
+    setNudgeSpaceLoading(true);
+    try {
+      const { data } = await fetchApi(`/nudgespace/posts?space=${space}`, { method: 'GET' }, token);
+      setNudgeSpacePosts(data.posts || []);
+    } catch (error) {
+      showToast(error.message || 'Could not load NudgeSpace posts.', 'error');
+      setNudgeSpacePosts([]);
+    } finally {
+      setNudgeSpaceLoading(false);
+    }
+  };
+
+  const submitNudgeSpacePost = async () => {
+    const content = nudgeSpaceDraft.trim();
+    if (!content) {
+      showToast('Write something before posting to NudgeSpace.', 'error');
+      return;
+    }
+
+    if (isSandbox) {
+      showToast('Demo NudgeSpace posting stays in sandbox.', 'info');
+      return;
+    }
+
+    setNudgeSpaceSaving(true);
+    const space = getActiveNudgeSpace();
+    try {
+      const { data } = await fetchApi('/nudgespace/posts', {
+        method: 'POST',
+        body: JSON.stringify({
+          space,
+          post_type: space === 'u_space' ? 'goal' : nudgeSpacePostType,
+          content,
+        }),
+      }, token);
+
+      setNudgeSpacePosts((posts) => [data.post, ...posts]);
+      setNudgeSpaceDraft('');
+      showToast(data.message || 'NudgeSpace post saved.', 'success');
+    } catch (error) {
+      showToast(error.message || 'Could not save NudgeSpace post.', 'error');
+    } finally {
+      setNudgeSpaceSaving(false);
     }
   };
 
@@ -1660,6 +1847,20 @@ function App() {
     } finally {
       setSignupLoading(false);
     }
+  };
+
+  const fillDemoSignupCredentials = () => {
+    const alias = `hello.nudgehq+demo${Date.now()}@gmail.com`;
+    const password = 'NudgeHQ@2026';
+
+    setSignupCompany('NudgeHQ Demo');
+    setSignupName('Demo Founder');
+    setSignupEmail(alias);
+    setSignupPassword(password);
+    setSignupConfirm(password);
+    setSignupAgree(true);
+    setSignupError(null);
+    showToast('Demo signup credentials filled. Verification will land in hello.nudgehq@gmail.com.', 'success');
   };
 
   const handleContactSubmit = async (e) => {
@@ -1869,6 +2070,7 @@ function App() {
         id: `emp-${Date.now()}`,
         name: inviteName,
         email: inviteEmail,
+        phone_number: invitePhone,
         role: inviteRole,
         department_id: inviteDepartmentId || null
       };
@@ -1876,6 +2078,7 @@ function App() {
       setInviteResult({ email: inviteEmail, temporary_password: 'nudgehq123', sandbox: true });
       setInviteName('');
       setInviteEmail('');
+      setInvitePhone('');
       setInviteRole('employee');
       setInviteDepartmentId('');
       setInviteLoading(false);
@@ -1889,6 +2092,7 @@ function App() {
         body: JSON.stringify({
           name: inviteName,
           email: inviteEmail,
+          phone_number: invitePhone || null,
           role: inviteRole,
           department_id: inviteDepartmentId || null
         })
@@ -1898,6 +2102,7 @@ function App() {
       setInviteResult({ email: data.employee.email, temporary_password: data.temporary_password, sandbox: false });
       setInviteName('');
       setInviteEmail('');
+      setInvitePhone('');
       setInviteRole('employee');
       setInviteDepartmentId('');
       showToast('Employee invite created successfully.', 'success');
@@ -1905,6 +2110,77 @@ function App() {
       showToast(err.message || 'Failed to invite employee.', 'error');
     } finally {
       setInviteLoading(false);
+    }
+  };
+
+  const openWhatsAppNudgePreview = async () => {
+    setWhatsappNudgeLoading(true);
+
+    if (isSandbox) {
+      setTimeout(() => {
+        const employees = [
+          { id: 'demo-priya', name: 'Priya Singh', submitted_today: false, already_nudged_today: false, last_seen_label: 'Last seen 2 days ago', phone_number: '+919999999999' },
+          { id: 'demo-karan', name: 'Karan Arora', submitted_today: false, already_nudged_today: false, last_seen_label: 'Never submitted', phone_number: '+919888888888' },
+          { id: 'demo-rahul', name: 'Rahul Mehta', submitted_today: true, already_nudged_today: false, last_seen_label: 'Submitted 1h ago', phone_number: '+919777777777' },
+        ];
+        setWhatsappPreviewEmployees(employees);
+        setSelectedWhatsAppEmployees(employees.filter((employee) => !employee.submitted_today).map((employee) => employee.id));
+        setWhatsappPreviewOpen(true);
+        setWhatsappNudgeLoading(false);
+      }, 600);
+      return;
+    }
+
+    try {
+      const { data } = await fetchApi('/notify/whatsapp/preview', { method: 'GET' }, token);
+      const employees = data.employees || [];
+      setWhatsappPreviewEmployees(employees);
+      setSelectedWhatsAppEmployees(
+        employees
+          .filter((employee) => !employee.submitted_today && !employee.already_nudged_today && employee.phone_number)
+          .map((employee) => employee.id)
+      );
+      setWhatsappPreviewOpen(true);
+    } catch (error) {
+      showToast(error.message || 'Could not preview WhatsApp nudges.', 'error');
+    } finally {
+      setWhatsappNudgeLoading(false);
+    }
+  };
+
+  const sendWhatsAppNudges = async () => {
+    setWhatsappNudgeLoading(true);
+
+    if (isSandbox) {
+      setTimeout(() => {
+        const count = selectedWhatsAppEmployees.length;
+        setWhatsappNudgeLoading(false);
+        setWhatsappPreviewOpen(false);
+        showToast(`WhatsApp nudge sent to ${count} employees.`, 'success');
+      }, 600);
+      return;
+    }
+
+    try {
+      const { data } = await fetchApi('/notify/whatsapp', {
+        method: 'POST',
+        body: JSON.stringify({ employee_ids: selectedWhatsAppEmployees }),
+      }, token);
+      const sentCount = data.sent || 0;
+      const failedCount = data.failed || 0;
+      const skippedCount = data.skipped || 0;
+      if (sentCount > 0) {
+        setWhatsappPreviewOpen(false);
+        showToast(data.message || `WhatsApp nudge sent to ${sentCount} employees.`, 'success');
+      } else if (failedCount > 0) {
+        showToast('WhatsApp nudges failed. Check Twilio credentials and phone numbers.', 'error');
+      } else {
+        showToast(`No WhatsApp nudges sent. ${skippedCount} employees were skipped.`, 'info');
+      }
+    } catch (error) {
+      showToast(error.message || 'Could not send WhatsApp nudges.', 'error');
+    } finally {
+      setWhatsappNudgeLoading(false);
     }
   };
 
@@ -2366,17 +2642,26 @@ function App() {
         .filter(Boolean)
         .slice(1)
         .map((row) => {
-          const [name, email, department, role] = row.split(',').map((cell) => cell?.trim() || '');
-          return { name, email, department, role: role || 'employee' };
+          const [name, email, department, role, phone_number] = row.split(',').map((cell) => cell?.trim() || '');
+          return { name, email, department, role: role || 'employee', phone_number };
         })
         .filter((row) => row.email);
-      setCsvPreview(rows);
+      const availableSlots = Math.max(STARTER_EMPLOYEE_LIMIT - inviteEmployees.length, 0);
+      if (!availableSlots) {
+        setCsvPreview([]);
+        showToast(`Starter allows up to ${STARTER_EMPLOYEE_LIMIT} employees. Remove a manual invite before uploading CSV employees.`, 'error');
+        return;
+      }
+      setCsvPreview(rows.slice(0, availableSlots));
+      if (rows.length > availableSlots) {
+        showToast(`Only ${availableSlots} CSV invite${availableSlots === 1 ? '' : 's'} added because Starter allows up to ${STARTER_EMPLOYEE_LIMIT} employees.`, 'info');
+      }
     };
     reader.readAsText(file);
   }
 
   const downloadSampleCsv = () => {
-    const sample = 'Name,Email,Department,Role\nKunal Sharma,kunal@company.com,Sales Operations,employee\nPriya Mehta,priya@company.com,Engineering,employee\n';
+    const sample = 'Name,Email,Department,Role,Phone\nKunal Sharma,kunal@company.com,Sales Operations,employee,+919999999999\nPriya Mehta,priya@company.com,Engineering,employee,+919888888888\n';
     const blob = new Blob([sample], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -2384,6 +2669,22 @@ function App() {
     link.download = 'nudgehq-employee-invite-sample.csv';
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  const handleCompanyLogoUpload = (file) => {
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast('Please upload an image file for the company logo.', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCompanyDetails((current) => ({ ...current, logo_url: reader.result }));
+      showToast('Company logo preview added.', 'success');
+    };
+    reader.readAsDataURL(file);
   }
 
   const finishOnboarding = async () => {
@@ -2396,12 +2697,23 @@ function App() {
 
     setOnboardingLoading(true);
     try {
-      const employees = [...inviteEmployees, ...csvPreview]
+      const validEmployees = [...inviteEmployees, ...csvPreview]
         .filter((employee) => employee.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(employee.email));
+      if (validEmployees.length > STARTER_EMPLOYEE_LIMIT) {
+        showToast(`Starter allows up to ${STARTER_EMPLOYEE_LIMIT} employees. Please remove extra invites before finishing setup.`, 'error');
+        return;
+      }
+      const employees = validEmployees.slice(0, STARTER_EMPLOYEE_LIMIT);
+      const companyPayload = {
+        ...companyDetails,
+        industry: companyDetails.industry === 'Other' && companyIndustryOther.trim()
+          ? companyIndustryOther.trim()
+          : companyDetails.industry,
+      };
       const { data } = await fetchApi('/auth/onboarding/complete', {
         method: 'POST',
         body: JSON.stringify({
-          company: companyDetails,
+          company: companyPayload,
           departments: onboardingDepartments.filter((dept) => dept.name),
           employees,
           generate_invite_link: true
@@ -2418,10 +2730,11 @@ function App() {
     }
   }
 
-  const navigateDashboard = (role = authRole) => {
-    const path = getDashboardPath(role);
+  const navigateDashboard = (role = null) => {
+    const nextRole = role || user?.role || authRole || 'employee';
+    const path = getDashboardPath(nextRole);
     window.history.pushState({}, '', path);
-    setAuthRole(role || 'employee');
+    setAuthRole(nextRole);
     setCurrentView('dashboard');
   }
 
@@ -2437,6 +2750,7 @@ function App() {
   const showNextStory = () => setActiveStory((story) => (story + 1) % productScenarios.length)
 
   const currentStory = productScenarios[activeStory]
+  const currentWhatsAppSlide = whatsAppFeatureSlides[activeWhatsAppSlide]
   const assistantSnapshot = currentView === 'dashboard'
     ? {
         role: authRole,
@@ -2617,27 +2931,31 @@ function App() {
         ['NudgeAI Desk', 'Forecasts, standups, risks, and skill gaps.', Sparkles, '#7F77DD'],
         ['Team Focus Feed', 'See what people are focused on right now.', Activity, '#1D9E75'],
         ['Employee Ops', 'Invite people, create tasks, and manage teams.', UsersRound, '#3C3489'],
-        ['Board Pack', 'Generate clean monthly leadership reports.', FileCheck2, '#F59E0B']
+        ['Board Pack', 'Generate clean monthly leadership reports.', FileCheck2, '#F59E0B'],
+        ['NudgeSpace', 'Company posts, wins, and async team culture.', MessageSquareText, '#1D9E75']
       ]
     : authRole === 'hr'
       ? [
           ['People Health', 'Burnout, energy, attendance, and trend signals.', ShieldCheck, '#7F77DD'],
           ['Skill Gaps', 'NudgeAI groups recurring blocker themes.', Workflow, '#1D9E75'],
           ['Growth Views', 'Review employee growth and performance patterns.', LineChartIcon, '#3C3489'],
-          ['HR Reports', 'Export board packs and people summaries.', FileCheck2, '#F59E0B']
+          ['HR Reports', 'Export board packs and people summaries.', FileCheck2, '#F59E0B'],
+          ['NudgeSpace', 'Recognitions, culture posts, and people pulse.', MessageSquareText, '#7F77DD']
         ]
       : authRole === 'manager'
         ? [
             ['Team Tasks', 'Assign and track only your department work.', ListTodo, '#7F77DD'],
             ['Blocker Alerts', 'See risks for your team before they drag.', AlertCircle, '#F59E0B'],
             ['Standup Brief', 'NudgeAI summarizes your team only.', Sparkles, '#3C3489'],
-            ['Appreciation', 'Send recognition to your team members.', UserCheck, '#1D9E75']
+            ['Appreciation', 'Send recognition to your team members.', UserCheck, '#1D9E75'],
+            ['NudgeSpace', 'Team posts, daily goals, and async context.', MessageSquareText, '#1D9E75']
           ]
         : [
             ['Daily Check-in', 'Share work location, energy, and top goals.', Activity, '#1D9E75'],
             ['Progress Update', 'Log work, proof links, blockers, and focus.', Send, '#7F77DD'],
             ['Deep Work', 'Declare focused time without noisy nudges.', Clock3, '#3C3489'],
-            ['Growth Portal', 'Build your personal performance summary.', LineChartIcon, '#F59E0B']
+            ['Growth Portal', 'Build your personal performance summary.', LineChartIcon, '#F59E0B'],
+            ['NudgeSpace', 'Share wins, ask peers, and track personal goals.', MessageSquareText, '#7F77DD']
           ];
   const leaderTaskCount = empTasks.length;
   const leaderCompletedTasks = empTasks.filter((task) => task.status === 'completed').length;
@@ -2646,6 +2964,16 @@ function App() {
   const leaderCompletionRate = leaderTaskCount ? Math.round((leaderCompletedTasks / leaderTaskCount) * 100) : analytics?.summary?.completionRate || 0;
   const todayIsoDate = new Date().toDateString();
   const todayUpdatesCount = allUpdates.filter((update) => new Date(update.created_at).toDateString() === todayIsoDate).length;
+  const managerTeamSize = Math.max(
+    adminUsers.length || teamPresence.length || 0,
+    (isSandbox || dashboardRole === 'manager') ? 5 : 0
+  );
+  const managerActiveToday = Math.min(
+    todayUpdatesCount || ((isSandbox || dashboardRole === 'manager') ? 4 : 0),
+    managerTeamSize || 0
+  );
+  const managerActiveTodayLabel = managerTeamSize ? `${managerActiveToday} of ${managerTeamSize} members` : '0 of 0 members';
+  const managerBlockerCountForCards = (isSandbox || dashboardRole === 'manager') && !leaderBlockedTasks ? 1 : leaderBlockedTasks;
   const lowEnergyCount = teamPresence.filter((item) => item.energy_level === 'low').length;
   const averageQuality = (() => {
     const scores = allUpdates.map((update) => Number(update.quality_score)).filter(Boolean);
@@ -2654,10 +2982,10 @@ function App() {
   })();
   const leaderSummaryCards = authRole === 'manager'
     ? [
-        ['Team Members', adminUsers.length, UsersRound, 'People in your department'],
-        ['Open Tasks', leaderOpenTasks, ListTodo, 'Only your team scope'],
-        ['Blocked Work', leaderBlockedTasks, AlertCircle, 'Needs manager action'],
-        ['Completion', `${leaderCompletionRate}%`, CheckCircle2, 'Department task rate']
+        ['Team Tasks', leaderTaskCount || 15, ListTodo, 'Across your team'],
+        ['Completion Rate', `${leaderCompletionRate || 67}%`, CheckCircle2, '▲ 8% vs yesterday'],
+        ['Active Blockers', managerBlockerCountForCards, AlertCircle, managerBlockerCountForCards ? 'needs attention' : 'all clear'],
+        ['Active Today', managerActiveTodayLabel, UsersRound, 'Live check-ins']
       ]
     : authRole === 'hr'
       ? [
@@ -2680,7 +3008,24 @@ function App() {
     return matchesCategory && searchText.includes(faqSearch.trim().toLowerCase());
   });
   const managerBlockedTasks = empTasks.filter((task) => task.status === 'blocked').slice(0, 4);
-  const managerUnassignedTasks = empTasks.filter((task) => !task.assignee).slice(0, 4);
+  const managerDemoBlockers = [
+    {
+      id: 'demo-blocker-rahul',
+      title: 'CRM import access issue',
+      assignee: { name: 'Rahul Mehta', email: 'rahul@nudgehq.app' },
+      blockedAgo: 'Blocked 2h 30m ago'
+    }
+  ];
+  const managerActiveBlockers = (authRole === 'manager' || dashboardRole === 'manager')
+    ? (managerBlockedTasks.length
+        ? managerBlockedTasks.map((task, index) => ({
+            id: task.id || `blocker-${index}`,
+            title: task.title || 'Blocked task',
+            assignee: task.assignee || { name: 'Team member', email: 'hello.nudgehq@gmail.com' },
+            blockedAgo: 'Blocked 2h 30m ago'
+          }))
+        : ((isSandbox || dashboardRole === 'manager') ? managerDemoBlockers : []))
+    : [];
   const hrPeopleSignals = [
     ['Low energy check-ins', lowEnergyCount, lowEnergyCount ? 'Review these teams with care.' : 'No low-energy check-ins yet.'],
     ['Recent update quality', averageQuality, averageQuality === '—' ? 'Waiting for scored updates.' : 'Use this for coaching, not pressure.'],
@@ -2694,34 +3039,145 @@ function App() {
   const indiaHour = Number.parseInt(indiaClock, 10);
   const dashboardGreeting = indiaHour < 12 ? 'Good morning' : indiaHour < 17 ? 'Good afternoon' : indiaHour < 21 ? 'Good evening' : 'Good night';
   const dashboardDateLabel = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' });
-  const dashboardRoleLabel = dashboardRole === 'hr' ? 'HR' : dashboardRole.charAt(0).toUpperCase() + dashboardRole.slice(1);
-  const demoDisplayName = dashboardRole === 'employee'
-    ? (isSandbox ? demoProfileName.trim() || 'Kunal' : user?.name || 'Employee User')
-    : user?.name || 'Demo User';
+const dashboardRoleLabel = dashboardRole === 'hr' ? 'HR' : dashboardRole.charAt(0).toUpperCase() + dashboardRole.slice(1);
+const signedInEmployeeName = user?.name || user?.email?.split('@')[0] || 'Employee User';
+const demoDisplayName = dashboardRole === 'employee'
+  ? (isSandbox ? demoProfileName.trim() || 'Kunal' : signedInEmployeeName)
+  : user?.name || getDemoUserFromRole(dashboardRole).name || 'Demo User';
+const demoDisplayFirstName = demoDisplayName.split(' ').filter(Boolean)[0] || 'there';
+const demoEmployeeCanNavigate = dashboardRole === 'employee';
+const demoDashboardCanNavigate = isSandbox || dashboardRole === 'employee';
+const selectedDemoSection = demoDashboardCanNavigate
+  ? (dashboardRole === 'employee' ? demoEmployeeSection : (demoEmployeeSection === 'My Dashboard' ? 'Dashboard' : demoEmployeeSection))
+  : 'Dashboard';
+const employeeSectionsWithStatCards = ['My Dashboard', 'My Tasks', 'Check-in'];
+const shouldShowDemoStatCards = dashboardRole === 'employee'
+  ? employeeSectionsWithStatCards.includes(selectedDemoSection)
+  : selectedDemoSection !== 'Settings';
+const openDemoAiHelper = () => {
+  const introText = getNudgeAiHelperIntro(demoDisplayFirstName);
+  setDemoAiHelperMessages((messages) => {
+    const hasUserMessages = messages.some((message) => message.from === 'user');
+    return hasUserMessages ? messages : [{ from: 'assistant', text: introText }];
+  });
+  setDemoAiHelperOpen(true);
+};
   const profileDisplayEmail = isSandbox
     ? demoProfileEmail
     : user?.email || 'Registered email unavailable';
   const demoInitials = demoDisplayName.split(' ').filter(Boolean).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'K';
-  const demoSidebarItems = dashboardRole === 'employee'
+  const leaderDemoSidebarItems = [
+    ['Dashboard', LayoutDashboard],
+    ['Tasks', CheckCircle2],
+    ['Projects', Building2],
+    ['People', UsersRound],
+    ['NudgeSpace', MessageSquareText],
+    ['Reports', LineChartIcon],
+    ['NudgeAI', Zap],
+    ['Integrations', Workflow],
+    ['Settings', Shield],
+  ];
+const demoSidebarItems = dashboardRole === 'employee'
     ? [
         ['My Dashboard', LayoutDashboard],
         ['My Tasks', CheckCircle2],
         ['Check-in', ClipboardCheck],
         ['My Progress', LineChartIcon],
         ['Growth Portal', Sparkles],
+        ['NudgeSpace', MessageSquareText],
         ['NudgeAI', Zap],
         ['Settings', Shield],
       ]
-    : [
-        ['Dashboard', LayoutDashboard],
-        ['Tasks', CheckCircle2],
-        ['Projects', Building2],
-        ['People', UsersRound],
-        ['Reports', LineChartIcon],
-        ['NudgeAI', Zap],
-        ['Integrations', Workflow],
-        ['Settings', Shield],
-      ];
+    : leaderDemoSidebarItems.filter(([label]) => dashboardRole !== 'manager' || label !== 'Integrations');
+  const sandboxNudgeSpaceSocialPosts = [
+    {
+      name: demoDisplayName,
+      handle: '@' + demoDisplayFirstName.toLowerCase(),
+      badge: 'Now',
+      time: '2m ago',
+      color: '#7F77DD',
+      title: 'Locked in on launch polish',
+      copy: 'Finishing dashboard polish, tightening the invite flow, and keeping docs crisp before the next demo.',
+      tags: ['focus mode', 'ship today'],
+      metric: '24 hype',
+      action: 'Tap in',
+    },
+    {
+      name: 'Priya Singh',
+      handle: '@priya.design',
+      badge: 'Win',
+      time: '18m ago',
+      color: '#1D9E75',
+      title: 'CRM blocker cleared',
+      copy: 'Resolved the CRM blocker and attached proof so the team can move without another follow-up thread.',
+      tags: ['unblocked', 'receipts attached'],
+      metric: '39 claps',
+      action: 'Celebrate',
+    },
+    {
+      name: 'Aman Verma',
+      handle: '@aman.ops',
+      badge: 'Need eyes',
+      time: '42m ago',
+      color: '#F59E0B',
+      title: 'Quick peer review request',
+      copy: 'Can someone sanity-check the export CSV before evening so I can lock the rollout note?',
+      tags: ['peer review', 'before 6pm'],
+      metric: '12 replies',
+      action: 'Reply',
+    }
+  ];
+  const sandboxNudgeSpaceTodoCards = [
+    {
+      title: 'Ship manager polish',
+      status: 'In flight',
+      tone: '#7F77DD',
+      detail: 'Tighten spacing, fix CTA rhythm, and keep the demo smooth.',
+    },
+    {
+      title: 'Review employee invite flow',
+      status: 'Next up',
+      tone: '#1D9E75',
+      detail: 'Sanity check sandbox onboarding before the next walkthrough.',
+    },
+    {
+      title: 'Draft launch note',
+      status: 'Brain dump',
+      tone: '#F59E0B',
+      detail: 'Capture the tone, key features, and founder-ready recap.',
+    }
+  ];
+  const nudgeSpaceRoleCopy = {
+    admin: {
+      title: 'Company-wide NudgeSpace',
+      eyebrow: 'Workspace social layer',
+      copy: 'Announcements, wins, questions, and async culture signals across the whole company.',
+      visibility: 'Admin can see every space, moderate posts, and turn strong updates into leadership notes.'
+    },
+    hr: {
+      title: 'People-first NudgeSpace',
+      eyebrow: 'Culture and recognition',
+      copy: 'Recognitions, team pulse posts, onboarding notes, and lightweight people moments in one place.',
+      visibility: 'HR sees company culture signals without entering day-to-day task management.'
+    },
+    manager: {
+      title: 'Team NudgeSpace',
+      eyebrow: 'Department feed',
+      copy: 'A focused team feed for daily goals, blocker context, quick wins, and peer help requests.',
+      visibility: 'Managers see their department only, so updates stay useful and scoped.'
+    },
+    employee: {
+      title: 'My NudgeSpace',
+      eyebrow: 'Peer space',
+      copy: 'Share wins, ask for help, post ideas, and keep a personal day board without leaving work.',
+      visibility: 'Employees see their workspace feed and their own personal goals.'
+    }
+  }[dashboardRole] || {
+    title: 'NudgeSpace',
+    eyebrow: 'Workspace social layer',
+    copy: 'A calm internal feed for team updates, goals, wins, and help requests.',
+    visibility: 'Every role sees the right scope.'
+  };
   const demoStatCards = dashboardRole === 'employee'
     ? [
         ['Total Tasks', leaderTaskCount || 6, ListTodo, '#7F77DD', '▲ 12% vs yesterday', 'up'],
@@ -2729,6 +3185,13 @@ function App() {
         ['In Progress', Math.max(leaderOpenTasks - leaderBlockedTasks, 2), Clock3, '#F59E0B', '— No change', 'flat'],
         ['Blocked', leaderBlockedTasks || 1, AlertCircle, '#EF4444', leaderBlockedTasks ? '▼ needs attention' : '— Clear', leaderBlockedTasks ? 'down' : 'flat'],
       ]
+    : dashboardRole === 'manager'
+      ? [
+          ['Team Tasks', leaderTaskCount || 15, ListTodo, '#7F77DD', '▲ 12% vs yesterday', 'up'],
+          ['Completion Rate', `${leaderCompletionRate || 67}%`, CheckCircle2, '#1D9E75', '▲ 8% vs yesterday', 'up'],
+          ['Active Blockers', managerBlockerCountForCards, AlertCircle, '#EF4444', managerBlockerCountForCards ? '▼ needs attention' : '▲ all clear', managerBlockerCountForCards ? 'down' : 'up'],
+          ['Active Today', managerActiveTodayLabel, UsersRound, '#1D9E75', 'Live check-ins', 'flat'],
+        ]
     : [
         ['Total Tasks', leaderTaskCount || 42, ListTodo, '#7F77DD', '▲ 12% vs yesterday', 'up'],
         ['Completed', leaderCompletedTasks || 28, CheckCircle2, '#1D9E75', '▲ 18% vs yesterday', 'up'],
@@ -2741,6 +3204,13 @@ function App() {
     ['Rahul Mehta', 'Market Research', 60, 'In Progress', '#F59E0B'],
     ['Neha Gupta', 'Content Strategy', 40, 'In Progress', '#F59E0B'],
     ['Karan Arora', 'Competitor Analysis', 20, 'Overdue', '#EF4444'],
+  ];
+  const managerProgressRows = [
+    ['Aman Verma', 'Landing Page', 100, 'Completed', '#1D9E75', '2m ago', 'green'],
+    ['Priya Singh', 'Client Deck', 80, 'In Progress', '#7F77DD', '1h ago', 'orange'],
+    ['Rahul Mehta', 'Market Research', 60, 'Blocked', '#EF4444', '3h+ ago', 'red'],
+    ['Neha Gupta', 'Content Strategy', 40, 'In Progress', '#F59E0B', 'No update today', 'redBold'],
+    ['Karan Arora', 'Competitor Analysis', 20, 'Overdue', '#EF4444', '3h+ ago', 'red'],
   ];
   const baseEmployeeTaskRows = [
     ['Today', 'Verify customer email lists', 88, 'In Progress', '#7F77DD'],
@@ -2785,14 +3255,25 @@ function App() {
     ['Neha added a comment on', 'Content Strategy', '45m ago', MessageSquareText, '#F59E0B'],
     ['Karan missed a deadline on', 'Competitor Analysis', '1h ago', AlertCircle, '#EF4444'],
   ];
+  const managerActivityRows = [
+    ['Aman completed', 'Landing Page', '2m ago', CheckCircle2, '#1D9E75', 'Aman moved the landing page QA checklist to done and attached final screenshots.'],
+    ['Priya updated progress on', 'Client Deck', '15m ago', Activity, '#7F77DD', 'Priya updated the client deck with stakeholder notes and marked two slides for review.'],
+    ['Rahul uploaded', 'Market Research', '32m ago', ClipboardCheck, '#F59E0B', 'Rahul attached research notes but flagged missing CRM export access.'],
+    ['Neha added a comment on', 'Content Strategy', '45m ago', MessageSquareText, '#F59E0B', 'Neha added next-step ideas for the content calendar and asked for priority order.'],
+    ['Karan missed a deadline on', 'Competitor Analysis', '1h ago', AlertCircle, '#EF4444', 'The competitor report missed the noon cutoff and needs manager follow-up.'],
+  ];
+  const getManagerLastUpdateClass = (tone) => {
+    if (tone === 'green') return 'text-[#1D9E75]';
+    if (tone === 'orange') return 'text-[#F59E0B]';
+    if (tone === 'redBold') return 'font-black text-[#EF4444]';
+    return 'text-[#EF4444]';
+  };
   const employeeRecentActivityRows = [
     ['Completed task', 'Verify customer email lists', '2m ago', CheckCircle2, '#1D9E75'],
     ['Progress update submitted', 'Daily check-in', '1h ago', Activity, '#3B82F6'],
     ['Proof uploaded', 'Cleaned email sheet PDF', 'Yesterday', FileCheck2, '#F59E0B'],
     ['Blocker flagged', 'CRM import access issue', 'Yesterday', AlertCircle, '#EF4444'],
   ];
-  const demoEmployeeCanNavigate = dashboardRole === 'employee';
-  const selectedDemoSection = demoEmployeeCanNavigate ? demoEmployeeSection : 'Dashboard';
   const demoWorkQueueRows = [
     ['Today', 'Landing page polish', 74, 'In Progress', '#7F77DD'],
     ['Today', 'Verify Supabase auth', 42, 'In Progress', '#7F77DD'],
@@ -2957,6 +3438,64 @@ function App() {
       ) : null}
     </div>
   );
+  const renderNudgeSpacePostList = ({ emptyTitle, emptySub, emptyIcon = MessageSquareText }) => {
+    if (nudgeSpaceLoading) {
+      return (
+        <div className="flex min-h-56 items-center justify-center rounded-2xl border border-[#DAD7FB] bg-[#FCFCFF] p-8 text-center">
+          <div>
+            <RefreshCw className="mx-auto h-8 w-8 animate-spin text-[#7F77DD]" />
+            <p className="mt-3 text-sm font-extrabold text-[#5F5E5A]">Loading NudgeSpace...</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (!nudgeSpacePosts.length) {
+      return renderEmptyState({ title: emptyTitle, sub: emptySub, Icon: emptyIcon });
+    }
+
+    return (
+      <div className="space-y-4">
+        {nudgeSpacePosts.map((post) => {
+          const authorName = post.author?.name || post.author?.email || 'NudgeHQ user';
+          const initials = authorName.split(' ').filter(Boolean).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'N';
+          const createdLabel = post.created_at
+            ? new Date(post.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+            : 'Just now';
+          const typeLabel = String(post.post_type || 'status').replace(/_/g, ' ');
+
+          return (
+            <article key={post.id} className="rounded-[28px] border border-[#E4DEFF] bg-white p-5 shadow-[0_16px_40px_rgba(127,119,221,0.12)]">
+              <div className="flex items-start gap-4">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[#7F77DD] text-sm font-black text-white">
+                  {initials}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-black text-[#1C1739]">{authorName}</p>
+                      <p className="mt-1 text-xs font-bold text-[#8A8894]">{createdLabel}</p>
+                    </div>
+                    <span className="rounded-full bg-[#F6F4FF] px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#6D63D9]">
+                      {typeLabel}
+                    </span>
+                  </div>
+                  <p className="mt-4 whitespace-pre-wrap text-sm font-semibold leading-6 text-[#5F5E5A]">{post.content}</p>
+                  <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-[#F0ECFF] pt-4">
+                    <span className="rounded-full bg-[#F7FFFB] px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#1D9E75]">
+                      {post.space === 'u_space' ? 'Private U Space' : `${post.visibility_scope || 'company'} scope`}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    );
+  };
+  const activeSessionRole = user?.role || authRole || 'employee';
+  const activeSessionName = user?.name || user?.email || 'workspace';
 
   return (
     <main className="min-h-screen overflow-x-clip bg-white text-[#2C2C2A] font-sans">
@@ -3135,22 +3674,41 @@ function App() {
                 </a>
               </div>
               <div className="flex items-center gap-2 sm:gap-3">
-                <button
-                  type="button"
-                  onClick={openSignin}
-                  className={`inline-flex items-center rounded-full px-3 py-2.5 text-sm font-semibold transition hover:bg-[#EEEDFE] ${
-                    currentView === 'signin' ? 'text-[#7F77DD]' : 'text-[#3C3489]'
-                  }`}
-                >
-                  Log in
-                </button>
-                <button
-                  type="button"
-                  onClick={openSignup}
-                  className="inline-flex items-center rounded-full border border-[#111827] bg-[#111827] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#3C3489] sm:px-5"
-                >
-                  Join Now
-                </button>
+                {token ? (
+                  <>
+                    <span className="hidden max-w-[180px] truncate rounded-full border border-[#EEEDFE] bg-[#FCFCFF] px-3 py-2 text-xs font-bold text-[#5F5E5A] sm:inline-flex">
+                      Signed in as {activeSessionName}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => navigateDashboard(activeSessionRole)}
+                      className="inline-flex items-center gap-2 rounded-full border border-[#111827] bg-[#111827] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#3C3489] sm:px-5"
+                      title={`Open ${getDashboardLabel(activeSessionRole)}`}
+                    >
+                      Go to workspace
+                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={openSignin}
+                      className={`inline-flex items-center rounded-full px-3 py-2.5 text-sm font-semibold transition hover:bg-[#EEEDFE] ${
+                        currentView === 'signin' ? 'text-[#7F77DD]' : 'text-[#3C3489]'
+                      }`}
+                    >
+                      Log in
+                    </button>
+                    <button
+                      type="button"
+                      onClick={openSignup}
+                      className="inline-flex items-center rounded-full border border-[#111827] bg-[#111827] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#3C3489] sm:px-5"
+                    >
+                      Join Now
+                    </button>
+                  </>
+                )}
               </div>
             </>
           ) : (
@@ -3296,11 +3854,11 @@ function App() {
                     </div>
                   )}
                 </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
+	                </div>
+	              </div>
+	          </div>
+	        </section>
+	      )}
 
       {currentView === 'contact' && (
         <section className="relative isolate overflow-hidden bg-[#F7FAFF] px-5 py-16 sm:px-6 lg:px-8">
@@ -3571,36 +4129,88 @@ function App() {
       )}
 
       {currentView === 'payment' && (
-        <section className="mx-auto max-w-2xl px-5 py-20">
-          <div className="rounded-2xl border border-[#DAD7FB] bg-white p-8 shadow-2xl shadow-[#3C3489]/10">
-            <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#1D9E75]">Payment</p>
-            <h1 className="mt-3 text-3xl font-extrabold text-[#2C2C2A]">{selectedPlan === 'starter' ? 'Starter Plan' : 'Starter Plan'} - Rs. 2,000/month</h1>
-            <div className="mt-8 rounded-lg bg-[#FCFCFF] p-5">
-              <div className="flex items-center justify-between border-b border-[#EEEDFE] pb-4">
-                <span className="font-bold text-[#2C2C2A]">Starter Plan</span>
-                <span className="font-extrabold text-[#3C3489]">Rs. 2,000/month</span>
-              </div>
-              <div className="flex items-center justify-between pt-4 text-sm font-bold text-[#1D9E75]">
-                <span>First 14 days</span>
-                <span>Free</span>
+        <section className="relative isolate min-h-[calc(100svh-5rem)] overflow-hidden px-5 py-16 sm:py-20">
+          <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_22%_18%,rgba(127,119,221,0.18),transparent_30%),radial-gradient(circle_at_78%_28%,rgba(29,158,117,0.14),transparent_28%),linear-gradient(135deg,#F8FBFF_0%,#FFFFFF_48%,#F1FCF8_100%)]" />
+          <div className="soft-grid absolute inset-0 -z-10 opacity-40" />
+
+          <div className="mx-auto grid max-w-5xl overflow-hidden rounded-[2rem] border border-[#DAD7FB] bg-white/90 shadow-2xl shadow-[#3C3489]/10 backdrop-blur lg:grid-cols-[0.95fr_1.05fr]">
+            <div className="relative overflow-hidden bg-[linear-gradient(150deg,#191348_0%,#3C3489_48%,#7F77DD_100%)] p-8 text-white sm:p-10">
+              <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+              <div className="absolute -bottom-20 left-8 h-48 w-48 rounded-full bg-[#1D9E75]/25 blur-3xl" />
+              <div className="relative">
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-extrabold uppercase tracking-[0.16em] text-white/90">
+                  <Sparkles className="h-4 w-4 text-[#BFEFDF]" aria-hidden="true" />
+                  Trial ready
+                </span>
+                <h1 className="mt-8 text-4xl font-extrabold leading-tight sm:text-5xl">
+                  Start NudgeHQ free for 14 days.
+                </h1>
+                <p className="mt-5 max-w-md text-sm font-semibold leading-7 text-white/75">
+                  Set up your workspace, invite your team, and test the full Starter workflow before adding billing.
+                </p>
+                <div className="mt-10 grid gap-3 text-sm font-bold">
+                  {['No payment charged today', 'Starter features unlocked', 'Cancel or upgrade anytime'].map((item) => (
+                    <div key={item} className="flex items-center gap-3 rounded-2xl border border-white/12 bg-white/10 px-4 py-3">
+                      <CheckCircle2 className="h-5 w-5 text-[#8DE4C3]" aria-hidden="true" />
+                      {item}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={activateStarterPlan}
-              disabled={paymentLoading}
-              className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-md bg-[#7F77DD] px-5 py-3.5 text-sm font-extrabold text-white transition hover:bg-[#3C3489] disabled:opacity-50"
-            >
-              {paymentLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-              Pay with Razorpay Test
-            </button>
+
+            <div className="p-8 sm:p-10">
+              <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#1D9E75]">Continue free</p>
+              <h2 className="mt-3 text-3xl font-extrabold text-[#2C2C2A]">
+                {selectedPlan === 'starter' ? 'Starter Plan' : 'Starter Plan'}
+              </h2>
+              <p className="mt-3 text-sm font-semibold leading-6 text-[#5F5E5A]">
+                Your first 14 days are free. We will ask for payment only when you decide to keep using NudgeHQ after the trial.
+              </p>
+              <div className="mt-8 rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-5">
+                <div className="flex items-center justify-between border-b border-[#EEEDFE] pb-4">
+                  <span className="font-bold text-[#2C2C2A]">Starter Plan</span>
+                  <span className="font-extrabold text-[#3C3489]">Rs. 2,000/month</span>
+                </div>
+                <div className="flex items-center justify-between border-b border-[#EEEDFE] py-4 text-sm font-bold text-[#1D9E75]">
+                  <span>First 14 days</span>
+                  <span>Free</span>
+                </div>
+                <div className="flex items-center justify-between pt-4 text-sm font-bold text-[#5F5E5A]">
+                  <span>Due today</span>
+                  <span className="text-[#2C2C2A]">Rs. 0</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={activateStarterPlan}
+                disabled={paymentLoading}
+                className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#7F77DD] px-5 py-4 text-sm font-extrabold text-white shadow-xl shadow-[#7F77DD]/20 transition hover:-translate-y-0.5 hover:bg-[#3C3489] disabled:translate-y-0 disabled:opacity-50"
+              >
+                {paymentLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                {paymentLoading ? 'Starting your trial...' : 'Continue with 14-day free trial'}
+              </button>
+              <p className="mt-4 text-center text-xs font-semibold text-[#7A7974]">
+                No credit card required during beta. Billing setup comes later.
+              </p>
+            </div>
           </div>
         </section>
       )}
 
       {currentView === 'onboarding' && (
-        <section className="relative isolate overflow-hidden bg-[#F7FAFF] px-5 py-12 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-5xl rounded-2xl border border-[#DAD7FB] bg-white p-7 shadow-2xl shadow-[#3C3489]/10">
+        <section className="relative isolate min-h-[calc(100svh-5rem)] overflow-hidden bg-[#F7FAFF] px-5 py-12 sm:px-6 lg:px-8">
+          <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_18%_12%,rgba(127,119,221,0.18),transparent_34%),radial-gradient(circle_at_84%_20%,rgba(29,158,117,0.16),transparent_28%),linear-gradient(135deg,#F8FBFF_0%,#FFFFFF_46%,#EEFDF7_100%)]" />
+          <div className="soft-grid absolute inset-0 -z-10 opacity-35" />
+          <div className="onboarding-motion-bg">
+            <span className="onboarding-orb onboarding-orb-purple" />
+            <span className="onboarding-orb onboarding-orb-teal" />
+            <span className="onboarding-orb onboarding-orb-ink" />
+            <span className="onboarding-floating-card onboarding-floating-card-one" />
+            <span className="onboarding-floating-card onboarding-floating-card-two" />
+          </div>
+
+          <div className="mx-auto max-w-5xl overflow-hidden rounded-[2rem] border border-[#DAD7FB] bg-white/90 p-7 shadow-2xl shadow-[#3C3489]/10 backdrop-blur">
             <div className="flex flex-col gap-3 border-b border-[#EEEDFE] pb-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#1D9E75]">Step {onboardingStep} of 3</p>
@@ -3612,30 +4222,95 @@ function App() {
             </div>
 
             {onboardingStep === 1 ? (
-              <div className="mt-7 grid gap-5 sm:grid-cols-2">
-                <input className="rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD] sm:col-span-2" placeholder="Company name" value={companyDetails.name} onChange={(e) => setCompanyDetails({ ...companyDetails, name: e.target.value })} />
-                <input className="rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" placeholder="Company logo URL (optional)" value={companyDetails.logo_url} onChange={(e) => setCompanyDetails({ ...companyDetails, logo_url: e.target.value })} />
-                <select className="rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none" value={companyDetails.industry} onChange={(e) => setCompanyDetails({ ...companyDetails, industry: e.target.value })}>
-                  {['Tech', 'Finance', 'Healthcare', 'Logistics', 'Retail', 'Manufacturing', 'Consulting', 'Education', 'Other'].map((item) => <option key={item}>{item}</option>)}
-                </select>
-                <select className="rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none" value={companyDetails.size} onChange={(e) => setCompanyDetails({ ...companyDetails, size: e.target.value })}>
-                  {['1-10', '11-50', '51-200', '200+'].map((item) => <option key={item}>{item}</option>)}
-                </select>
-                <input className="rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" placeholder="Country" value={companyDetails.country} onChange={(e) => setCompanyDetails({ ...companyDetails, country: e.target.value })} />
-                <input className="rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD] sm:col-span-2" placeholder="City" value={companyDetails.city} onChange={(e) => setCompanyDetails({ ...companyDetails, city: e.target.value })} />
-                <button type="button" onClick={() => setOnboardingStep(2)} className="rounded-md bg-[#7F77DD] px-5 py-3 text-sm font-bold text-white sm:col-span-2">Continue</button>
+              <div className="mt-7 grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
+                <div className="rounded-[1.5rem] border border-[#EEEDFE] bg-[linear-gradient(160deg,#1B164A_0%,#4E45B2_56%,#7F77DD_100%)] p-5 text-white shadow-xl shadow-[#3C3489]/15">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="rounded-full bg-white/14 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-white">Logo setup</span>
+                    <Sparkles className="h-5 w-5 text-[#BFEFDF]" aria-hidden="true" />
+                  </div>
+                  <div className="mt-6 rounded-[1.25rem] border border-white/20 bg-white/12 p-5 backdrop-blur">
+                    <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-white/70">Company logo</p>
+                    <div className="mx-auto grid h-28 w-28 place-items-center overflow-hidden rounded-[1.4rem] bg-white text-[#3C3489] shadow-2xl shadow-black/20">
+                      {companyDetails.logo_url ? (
+                        <img src={companyDetails.logo_url} alt="Company logo preview" className="h-full w-full object-cover" />
+                      ) : (
+                        <Building2 className="h-10 w-10" aria-hidden="true" />
+                      )}
+                    </div>
+                    <p className="mt-5 text-center text-lg font-extrabold">Upload company logo</p>
+                    <p className="mt-2 text-center text-sm leading-6 text-white/72">Add a PNG or JPG now. In production this will save to Supabase storage.</p>
+                    <label className="mt-5 inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]">
+                      <Download className="h-4 w-4" aria-hidden="true" />
+                      Choose logo file
+                      <input type="file" accept="image/*" className="sr-only" onChange={(e) => handleCompanyLogoUpload(e.target.files?.[0])} />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="grid gap-5 rounded-[1.5rem] border border-[#EEEDFE] bg-[#FCFCFF]/90 p-5 shadow-sm sm:grid-cols-2">
+                  <label className="space-y-2 sm:col-span-2">
+                    <span className="block text-xs font-extrabold uppercase tracking-[0.16em] text-[#2C2C2A]">Company name</span>
+                    <input className={AUTH_INPUT_CLASS} value={companyDetails.name} onChange={(e) => setCompanyDetails({ ...companyDetails, name: e.target.value })} />
+                  </label>
+                  <label className="space-y-2 sm:col-span-2">
+                    <span className="block text-xs font-extrabold uppercase tracking-[0.16em] text-[#2C2C2A]">Logo URL optional</span>
+                    <input className={AUTH_INPUT_CLASS} value={companyDetails.logo_url?.startsWith('data:') ? '' : companyDetails.logo_url} onChange={(e) => setCompanyDetails({ ...companyDetails, logo_url: e.target.value })} />
+                    <span className="block text-xs font-semibold text-[#77756F]">Upload from the purple panel or paste a hosted logo link here.</span>
+                  </label>
+                  <label className="space-y-2">
+                    <span className="block text-xs font-extrabold uppercase tracking-[0.16em] text-[#2C2C2A]">Company type</span>
+                    <select className={AUTH_INPUT_CLASS} value={companyDetails.industry} onChange={(e) => setCompanyDetails({ ...companyDetails, industry: e.target.value })}>
+                      {['Tech', 'Finance', 'Healthcare', 'Logistics', 'Retail', 'Manufacturing', 'Consulting', 'Education', 'Other'].map((item) => <option key={item}>{item}</option>)}
+                    </select>
+                  </label>
+                  <label className="space-y-2">
+                    <span className="block text-xs font-extrabold uppercase tracking-[0.16em] text-[#2C2C2A]">Company size</span>
+                    <select className={AUTH_INPUT_CLASS} value={companyDetails.size} onChange={(e) => setCompanyDetails({ ...companyDetails, size: e.target.value })}>
+                      {['1-10', '11-50', '51-200', '200+'].map((item) => <option key={item}>{item}</option>)}
+                    </select>
+                  </label>
+                  {companyDetails.industry === 'Other' ? (
+                    <label className="space-y-2 sm:col-span-2">
+                      <span className="block text-xs font-extrabold uppercase tracking-[0.16em] text-[#2C2C2A]">Tell us your company type</span>
+                      <input className={AUTH_INPUT_CLASS} value={companyIndustryOther} onChange={(e) => setCompanyIndustryOther(e.target.value)} />
+                    </label>
+                  ) : null}
+                  <label className="space-y-2">
+                    <span className="block text-xs font-extrabold uppercase tracking-[0.16em] text-[#2C2C2A]">Country</span>
+                    <input className={AUTH_INPUT_CLASS} value={companyDetails.country} onChange={(e) => setCompanyDetails({ ...companyDetails, country: e.target.value })} />
+                  </label>
+                  <label className="space-y-2">
+                    <span className="block text-xs font-extrabold uppercase tracking-[0.16em] text-[#2C2C2A]">City</span>
+                    <input className={AUTH_INPUT_CLASS} value={companyDetails.city} onChange={(e) => setCompanyDetails({ ...companyDetails, city: e.target.value })} />
+                  </label>
+                  <button type="button" onClick={() => setOnboardingStep(2)} className="rounded-2xl bg-[#7F77DD] px-5 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-[#7F77DD]/20 transition hover:bg-[#3C3489] sm:col-span-2">Continue</button>
+                </div>
               </div>
             ) : null}
 
             {onboardingStep === 2 ? (
-              <div className="mt-7 space-y-4">
+              <div className="mt-7 space-y-5">
+                <div className="rounded-[1.4rem] border border-[#EEEDFE] bg-[#FCFCFF]/90 p-5 shadow-sm">
+                  <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#1D9E75]">Departments</p>
+                  <h2 className="mt-2 text-xl font-extrabold text-[#2C2C2A]">Create your team structure</h2>
+                  <p className="mt-1 text-sm font-semibold text-[#77756F]">Add departments now, or skip and create them later from Admin settings.</p>
+                </div>
                 {onboardingDepartments.map((dept, index) => (
-                  <div key={`dept-${index}`} className="grid gap-3 sm:grid-cols-2">
-                    <input className="rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" placeholder="Department name" value={dept.name} onChange={(e) => setOnboardingDepartments((items) => items.map((item, i) => i === index ? { ...item, name: e.target.value } : item))} />
-                    <input className="rounded-md border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" placeholder="Description" value={dept.description} onChange={(e) => setOnboardingDepartments((items) => items.map((item, i) => i === index ? { ...item, description: e.target.value } : item))} />
+                  <div key={`dept-${index}`} className="grid gap-4 rounded-[1.25rem] border border-[#EEEDFE] bg-white p-4 sm:grid-cols-2">
+                    <label className="space-y-2">
+                      <span className="block text-xs font-extrabold uppercase tracking-[0.16em] text-[#2C2C2A]">Department name</span>
+                      <input className={AUTH_INPUT_CLASS} value={dept.name} onChange={(e) => setOnboardingDepartments((items) => items.map((item, i) => i === index ? { ...item, name: e.target.value } : item))} />
+                    </label>
+                    <label className="space-y-2">
+                      <span className="block text-xs font-extrabold uppercase tracking-[0.16em] text-[#2C2C2A]">Description</span>
+                      <input className={AUTH_INPUT_CLASS} value={dept.description} onChange={(e) => setOnboardingDepartments((items) => items.map((item, i) => i === index ? { ...item, description: e.target.value } : item))} />
+                    </label>
                   </div>
                 ))}
                 <div className="flex flex-wrap gap-3">
+                  <button type="button" onClick={() => setOnboardingStep(1)} className="rounded-md border border-[#DAD7FB] bg-white px-4 py-2 text-sm font-bold text-[#3C3489] transition hover:bg-[#F4F3FF]">
+                    ← Back
+                  </button>
                   <button type="button" disabled={onboardingDepartments.length >= 5} onClick={() => setOnboardingDepartments((items) => [...items, { name: '', description: '' }])} className="rounded-md border border-[#DAD7FB] px-4 py-2 text-sm font-bold text-[#3C3489]">+ Add another department</button>
                   <button type="button" onClick={() => setOnboardingStep(3)} className="rounded-md px-4 py-2 text-sm font-bold text-[#5F5E5A]">Skip for now</button>
                   <button type="button" onClick={() => setOnboardingStep(3)} className="ml-auto rounded-md bg-[#7F77DD] px-5 py-2 text-sm font-bold text-white">Continue</button>
@@ -3645,29 +4320,66 @@ function App() {
 
             {onboardingStep === 3 ? (
               <div className="mt-7 space-y-7">
-                <div className="rounded-lg border border-[#DAD7FB] bg-[#FCFCFF] p-4">
-                  <p className="font-bold text-[#2C2C2A]">Your Starter plan allows up to 15 employees</p>
-                  <p className="mt-1 text-sm font-semibold text-[#3C3489]">{inviteEmployees.filter((employee) => employee.email).length + csvPreview.length} of 15 employees added</p>
+                <div className="rounded-[1.4rem] border border-[#DAD7FB] bg-[#FCFCFF] p-5 shadow-sm">
+                  <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#1D9E75]">Invite team</p>
+                  <h2 className="mt-2 text-xl font-extrabold text-[#2C2C2A]">Bring employees into the workspace</h2>
+                  <p className="mt-2 font-bold text-[#2C2C2A]">Your Starter plan allows up to {STARTER_EMPLOYEE_LIMIT} employees</p>
+                  <p className="mt-1 text-sm font-semibold text-[#3C3489]">{Math.min(totalInviteCount, STARTER_EMPLOYEE_LIMIT)} of {STARTER_EMPLOYEE_LIMIT} employees added</p>
+                  {totalInviteCount >= STARTER_EMPLOYEE_LIMIT ? (
+                    <p className="mt-2 inline-flex rounded-full bg-[#EEEDFE] px-3 py-1 text-xs font-extrabold uppercase tracking-[0.12em] text-[#3C3489]">Employee limit reached</p>
+                  ) : null}
                 </div>
                 <div>
                   <h3 className="font-bold text-[#2C2C2A]">Way 1 - Manual invite</h3>
                   <div className="mt-3 space-y-3">
-                    {inviteEmployees.map((employee, index) => (
-                      <div key={`emp-${index}`} className="grid gap-2 lg:grid-cols-4">
-                        {['name', 'email', 'department', 'role'].map((field) => (
-                          <input key={field} className="rounded-md border border-[#DAD7FB] px-3 py-2 text-sm outline-none focus:border-[#7F77DD]" placeholder={field === 'email' ? 'Email' : field[0].toUpperCase() + field.slice(1)} value={employee[field]} onChange={(e) => setInviteEmployees((items) => items.map((item, i) => i === index ? { ...item, [field]: e.target.value } : item))} />
-                        ))}
+                    {visibleInviteEmployees.map((employee, index) => (
+                      <div key={`emp-${index}`} className="grid gap-4 rounded-[1.25rem] border border-[#EEEDFE] bg-white p-4 lg:grid-cols-5">
+                        <label className="space-y-2">
+                          <span className="block text-xs font-extrabold uppercase tracking-[0.16em] text-[#2C2C2A]">Employee name</span>
+                          <input className={AUTH_INPUT_CLASS} value={employee.name} onChange={(e) => setInviteEmployees((items) => items.map((item, i) => i === index ? { ...item, name: e.target.value } : item))} />
+                        </label>
+                        <label className="space-y-2">
+                          <span className="block text-xs font-extrabold uppercase tracking-[0.16em] text-[#2C2C2A]">Work email</span>
+                          <input className={AUTH_INPUT_CLASS} value={employee.email} onChange={(e) => setInviteEmployees((items) => items.map((item, i) => i === index ? { ...item, email: e.target.value } : item))} />
+                        </label>
+                        <label className="space-y-2">
+                          <span className="block text-xs font-extrabold uppercase tracking-[0.16em] text-[#2C2C2A]">Phone optional</span>
+                          <input className={AUTH_INPUT_CLASS} placeholder="+919999999999" value={employee.phone_number || ''} onChange={(e) => setInviteEmployees((items) => items.map((item, i) => i === index ? { ...item, phone_number: e.target.value } : item))} />
+                        </label>
+                        <label className="space-y-2">
+                          <span className="block text-xs font-extrabold uppercase tracking-[0.16em] text-[#2C2C2A]">Department</span>
+                          <input className={AUTH_INPUT_CLASS} value={employee.department} onChange={(e) => setInviteEmployees((items) => items.map((item, i) => i === index ? { ...item, department: e.target.value } : item))} />
+                        </label>
+                        <label className="space-y-2">
+                          <span className="block text-xs font-extrabold uppercase tracking-[0.16em] text-[#2C2C2A]">Role</span>
+                          <select className={AUTH_INPUT_CLASS} value={employee.role} onChange={(e) => setInviteEmployees((items) => items.map((item, i) => i === index ? { ...item, role: e.target.value } : item))}>
+                            <option value="employee">Employee</option>
+                            <option value="manager">Manager</option>
+                            <option value="hr">HR</option>
+                            <option value="admin">Admin</option>
+                          </select>
+                        </label>
                       </div>
                     ))}
                   </div>
-                  <button type="button" onClick={() => setInviteEmployees((items) => [...items, { name: '', email: '', department: '', role: 'employee' }])} className="mt-3 rounded-md border border-[#DAD7FB] px-4 py-2 text-sm font-bold text-[#3C3489]">+ Add another employee</button>
+                  <button
+                    type="button"
+                    disabled={!canAddInviteEmployee}
+                    onClick={() => setInviteEmployees((items) => (items.length + csvPreview.length >= STARTER_EMPLOYEE_LIMIT ? items : [...items, { name: '', email: '', phone_number: '', department: '', role: 'employee' }]))}
+                    className="mt-3 rounded-md border border-[#DAD7FB] px-4 py-2 text-sm font-bold text-[#3C3489] transition hover:bg-[#EEEDFE] disabled:cursor-not-allowed disabled:border-[#E8E6F7] disabled:text-[#A09F9A] disabled:hover:bg-white"
+                  >
+                    {canAddInviteEmployee ? '+ Add another employee' : `Max ${STARTER_EMPLOYEE_LIMIT} employees reached`}
+                  </button>
                 </div>
                 <div>
                   <h3 className="font-bold text-[#2C2C2A]">Way 2 - CSV upload</h3>
                   <div className="mt-3 rounded-lg border border-dashed border-[#7F77DD] bg-[#F4F3FF] p-5">
-                    <p className="text-sm font-semibold text-[#3C3489]">Expected format: Name, Email, Department, Role</p>
-                    <input type="file" accept=".csv" className="mt-3 text-sm" onChange={(e) => e.target.files?.[0] && parseEmployeeCsv(e.target.files[0])} />
-                    <button type="button" onClick={downloadSampleCsv} className="ml-0 mt-3 rounded-md bg-white px-3 py-2 text-xs font-bold text-[#3C3489] sm:ml-3">Download sample CSV</button>
+                    <label className="block space-y-2">
+                      <span className="block text-xs font-extrabold uppercase tracking-[0.16em] text-[#2C2C2A]">Upload CSV file</span>
+                      <span className="block text-sm font-semibold text-[#3C3489]">Expected format: Name, Email, Department, Role, Phone</span>
+                      <input type="file" accept=".csv" className="mt-2 text-sm" onChange={(e) => e.target.files?.[0] && parseEmployeeCsv(e.target.files[0])} />
+                    </label>
+                    <button type="button" onClick={downloadSampleCsv} className="mt-3 rounded-md bg-white px-3 py-2 text-xs font-bold text-[#3C3489]">Download sample CSV</button>
                   </div>
                   {csvPreview.length ? <p className="mt-2 text-sm font-bold text-[#1D9E75]">{csvPreview.length} CSV employees ready to invite.</p> : null}
                 </div>
@@ -3676,9 +4388,14 @@ function App() {
                   <p className="mt-1 text-sm text-[#5F5E5A]">Auto-generated after setup. Share it in your company WhatsApp or email.</p>
                   {magicInviteLink ? <p className="mt-3 rounded-md bg-[#EEEDFE] p-3 text-sm font-bold text-[#3C3489]">{magicInviteLink}</p> : null}
                 </div>
-                <button type="button" disabled={onboardingLoading} onClick={finishOnboarding} className="w-full rounded-md bg-[#7F77DD] px-5 py-3.5 text-sm font-extrabold text-white hover:bg-[#3C3489] disabled:opacity-50">
-                  {onboardingLoading ? 'Finishing setup...' : 'Finish setup'}
-                </button>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <button type="button" onClick={() => setOnboardingStep(2)} className="rounded-md border border-[#DAD7FB] bg-white px-5 py-3.5 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#F4F3FF]">
+                    ← Back
+                  </button>
+                  <button type="button" disabled={onboardingLoading} onClick={finishOnboarding} className="flex-1 rounded-md bg-[#7F77DD] px-5 py-3.5 text-sm font-extrabold text-white hover:bg-[#3C3489] disabled:opacity-50">
+                    {onboardingLoading ? 'Finishing setup...' : 'Finish setup'}
+                  </button>
+                </div>
               </div>
             ) : null}
           </div>
@@ -3957,6 +4674,425 @@ function App() {
             </div>
           </section>
 
+          <section id="mobile-app" className="relative overflow-hidden bg-white px-5 py-24 sm:px-6 lg:px-8">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(127,119,221,0.18),transparent_32%),radial-gradient(circle_at_82%_70%,rgba(29,158,117,0.18),transparent_34%)]" />
+            <div className="absolute inset-0 bg-white/78" />
+            <div className="soft-grid absolute inset-0 opacity-45" />
+            <div className="mobile-launch-ambient absolute inset-0" aria-hidden="true" />
+            <motion.div
+              {...cardMotion}
+              onMouseMove={(event) => {
+                const rect = event.currentTarget.getBoundingClientRect();
+                const x = (event.clientX - rect.left) / rect.width - 0.5;
+                const y = (event.clientY - rect.top) / rect.height - 0.5;
+                setMobilePhoneTilt({
+                  x: 5 - y * 10,
+                  y: -14 + x * 18,
+                });
+              }}
+              onMouseLeave={() => setMobilePhoneTilt({ x: 5, y: -14 })}
+              className="mobile-launch-card relative mx-auto grid max-w-6xl gap-12 overflow-hidden rounded-[2rem] border border-[#DAD7FB] bg-[#FCFCFF]/84 p-8 shadow-2xl shadow-[#7F77DD]/10 backdrop-blur-xl lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:p-12"
+            >
+              <div className="mobile-launch-ribbons absolute inset-0" aria-hidden="true">
+                <span className="mobile-launch-ribbon mobile-launch-ribbon-one" />
+                <span className="mobile-launch-ribbon mobile-launch-ribbon-two" />
+                <span className="mobile-launch-ribbon mobile-launch-ribbon-three" />
+              </div>
+              <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(255,255,255,0.96),rgba(255,255,255,0.68)_48%,rgba(238,237,254,0.62))]" />
+              <div className="absolute inset-0 mobile-launch-noise opacity-55" />
+              <div className="relative z-10">
+                <p className="inline-flex items-center gap-2 rounded-full border border-[#DAD7FB] bg-white/90 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.18em] text-[#3C3489] shadow-sm backdrop-blur">
+                  <Sparkles className="h-4 w-4 text-[#1D9E75]" />
+                  Launching soon
+                </p>
+                <h2 className="mt-5 max-w-xl text-4xl font-extrabold tracking-tight text-[#181625] sm:text-5xl">
+                  NudgeHQ mobile app is coming.
+                </h2>
+                <p className="mt-4 max-w-xl text-lg font-semibold leading-8 text-[#5F5E5A]">
+                  Check-ins, focus pulse, blockers, recognitions, and NudgeAI nudges from your phone, built for teams that move between office, home, client sites, and the road.
+                </p>
+                <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                  {[
+                    ['Daily check-ins', 'Submit location, goals, and progress in seconds.'],
+                    ['NudgeAI on mobile', 'Ask for update help, blocker wording, or next focus.'],
+                    ['Manager visibility', 'Leaders see live team signals without chasing.'],
+                    ['Recognition alerts', 'Wins and appreciation land where employees notice them.']
+                  ].map(([title, copy]) => (
+                    <div key={title} className="rounded-2xl border border-[#EEEDFE] bg-white/88 p-4 shadow-sm backdrop-blur transition hover:shadow-md">
+                      <CheckCircle2 className="h-5 w-5 text-[#1D9E75]" />
+                      <p className="mt-3 text-sm font-extrabold text-[#2C2C2A]">{title}</p>
+                      <p className="mt-1 text-xs font-semibold leading-5 text-[#5F5E5A]">{copy}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="relative z-10 flex justify-center lg:justify-end">
+                <div className="absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#7F77DD]/20 blur-3xl" />
+                <div className="absolute right-8 top-10 h-24 w-24 rounded-3xl bg-[#1D9E75]/20 blur-2xl" />
+                <div className="mobile-phone-orbit absolute left-1/2 top-1/2 h-[30rem] w-[30rem] -translate-x-1/2 -translate-y-1/2" aria-hidden="true" />
+                <div
+                  className="mobile-phone-3d relative z-10 rounded-[2.8rem] border-[10px] border-[#121126] bg-[#121126] p-2 shadow-2xl shadow-[#3C3489]/30"
+                  style={{
+                    '--phone-tilt-x': `${mobilePhoneTilt.x}deg`,
+                    '--phone-tilt-y': `${mobilePhoneTilt.y}deg`,
+                  }}
+                >
+                  {/* Floating 3D parallax UI/UX cards */}
+                  <div className="float-card-blocker absolute -left-16 top-16 z-20 w-48 rounded-[22px] border border-[#FDE8E8] bg-white p-4 shadow-xl shadow-[#EF4444]/5 backdrop-blur-xl pointer-events-auto">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#FDF0F0] text-[#EF4444]">
+                        <AlertCircle className="h-3 w-3" />
+                      </span>
+                      <span className="text-[10px] font-black uppercase tracking-[0.12em] text-[#EF4444]">Blocker Alert</span>
+                    </div>
+                    <p className="mt-2 text-xs font-black text-[#2C2C2A]">CRM database access delayed</p>
+                    <p className="mt-1 text-[10px] font-semibold text-[#8A8894]">Escalated to Operations squad</p>
+                  </div>
+
+                  <div className="float-card-insight absolute -right-16 top-40 z-20 w-52 rounded-[22px] border border-[#DAD7FB] bg-[#120F24] p-4 text-white shadow-xl shadow-[#7F77DD]/10 backdrop-blur-xl pointer-events-auto">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/10 text-[#8DE4C3]">
+                        <Sparkles className="h-3 w-3" />
+                      </span>
+                      <span className="text-[10px] font-black uppercase tracking-[0.12em] text-[#8DE4C3]">NudgeAI Profile</span>
+                    </div>
+                    <p className="mt-2 text-xs font-black">Peak Focus: 9AM – 11AM</p>
+                    <p className="mt-1 text-[10px] font-semibold text-white/70">High momentum streak active</p>
+                    <div className="mt-2.5 h-1.5 w-full rounded-full bg-white/10">
+                      <div className="h-full w-[84%] rounded-full bg-gradient-to-r from-[#7F77DD] to-[#8DE4C3]" />
+                    </div>
+                  </div>
+
+                  <div className="float-card-streak absolute -left-12 bottom-12 z-20 w-48 rounded-[22px] border border-[#E1F6ED] bg-white p-4 shadow-xl shadow-[#1D9E75]/5 backdrop-blur-xl pointer-events-auto">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#EAFBF3] text-[#1D9E75]">
+                        <Trophy className="h-3 w-3" />
+                      </span>
+                      <span className="text-[10px] font-black uppercase tracking-[0.12em] text-[#1D9E75]">Daily Streak</span>
+                    </div>
+                    <p className="mt-2 text-xs font-black text-[#2C2C2A]">6 check-ins completed</p>
+                    <div className="mt-2 flex items-center gap-1.5">
+                      <span className="h-2.5 w-2.5 rounded-full bg-[#1D9E75] animate-pulse" />
+                      <span className="text-[10px] font-semibold text-[#5F5E5A]">Appreciated by HR Lead</span>
+                    </div>
+                  </div>
+
+                  {/* Interactive Phone Screen */}
+                  <div className="relative h-[34rem] w-[17rem] overflow-hidden rounded-[2rem] bg-[#F8F8FF] flex flex-col">
+                    <div className="absolute left-1/2 top-2 h-5 w-24 -translate-x-1/2 rounded-full bg-[#121126] z-30" />
+
+                    {activeMobileTab === 'Pulse' && (
+                      <div className="flex-1 flex flex-col pb-16">
+                        <div className="h-40 bg-gradient-to-br from-[#3C3489] via-[#7F77DD] to-[#1D9E75] px-5 pt-12 text-white">
+                          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-white/70">NudgeHQ Mobile</p>
+                          <h3 className="mt-3 text-2xl font-black leading-tight">Good morning, team.</h3>
+                          <p className="mt-2 text-xs font-semibold text-white/75">3 updates due · 1 blocker open</p>
+                        </div>
+                        <div className="-mt-6 px-4">
+                          <div className="rounded-2xl border border-white/80 bg-white p-4 shadow-xl">
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-black text-[#2C2C2A]">Today&apos;s check-in</p>
+                              <span className="rounded-full bg-[#E8F7F1] px-2 py-1 text-[10px] font-black text-[#1D9E75]">Live</span>
+                            </div>
+                            <div className="mt-4 space-y-3">
+                              {[
+                                ['Location', 'Office'],
+                                ['Focus', 'Client deck QA'],
+                                ['Energy', 'High']
+                              ].map(([label, value]) => (
+                                <div key={label} className="flex items-center justify-between rounded-xl bg-[#FCFCFF] px-3 py-2">
+                                  <span className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#8A8894]">{label}</span>
+                                  <span className="text-xs font-black text-[#3C3489]">{value}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-4 px-4">
+                          <div className="rounded-2xl bg-[#15112E] p-4 text-white shadow-lg">
+                            <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#8DE4C3]">NudgeAI</p>
+                            <p className="mt-2 text-[11px] font-bold leading-5">Rahul is blocked on CRM access. Send a quick nudge?</p>
+                            <button
+                              type="button"
+                              onClick={() => showToast("Sent WhatsApp nudge to Rahul.", "success")}
+                              className="mt-3 rounded-full bg-white px-4 py-2 text-[10px] font-black text-[#3C3489] hover:bg-[#EEEDFE] transition"
+                            >
+                              Send nudge
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {activeMobileTab === 'Tasks' && (
+                      <div className="flex-1 flex flex-col pt-12 pb-16 px-4 bg-[#FCFCFF]">
+                        <div className="flex items-center justify-between border-b border-[#EEEDFE] pb-2">
+                          <p className="text-sm font-black text-[#2C2C2A]">My Daily Tasks</p>
+                          <span className="rounded-full bg-[#EEEDFE] px-2.5 py-0.5 text-[10px] font-black text-[#3C3489]">
+                            {mobileTasks.filter(t => !t.done).length} left
+                          </span>
+                        </div>
+                        <div className="mt-4 space-y-3 overflow-y-auto max-h-[22rem]">
+                          {mobileTasks.map(task => (
+                            <button
+                              key={task.id}
+                              type="button"
+                              onClick={() => {
+                                setMobileTasks(mobileTasks.map(t => t.id === task.id ? { ...t, done: !t.done } : t))
+                              }}
+                              className="flex w-full items-center gap-3 rounded-2xl border border-[#EEEDFE] bg-white p-3 text-left shadow-sm transition hover:border-[#DAD7FB]"
+                            >
+                              <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition ${task.done ? 'border-[#1D9E75] bg-[#1D9E75] text-white' : 'border-[#DAD7FB] bg-white'}`}>
+                                {task.done && <Check className="h-3 w-3" />}
+                              </span>
+                              <span className={`text-xs font-bold leading-tight ${task.done ? 'text-[#8A8894] line-through' : 'text-[#2C2C2A]'}`}>{task.title}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {activeMobileTab === 'AI' && (
+                      <div className="flex-1 flex flex-col pt-12 pb-16 bg-[#120F24] text-white">
+                        <div className="flex items-center gap-2 border-b border-white/10 px-4 pb-2">
+                          <Sparkles className="h-4 w-4 text-[#8DE4C3]" />
+                          <p className="text-sm font-black">NudgeAI Assistant</p>
+                        </div>
+                        <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3 max-h-[18rem]">
+                          {mobileAiConversations.map((msg, index) => (
+                            <div key={index} className={`rounded-2xl p-3 text-xs leading-normal ${msg.sender === 'AI' ? 'bg-white/10 text-white/90 mr-4' : 'bg-[#7F77DD] text-white ml-4 text-right'}`}>
+                              {msg.text}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-auto px-4 pb-2">
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (mobileAiConversations.length === 1) {
+                                  setMobileAiConversations([
+                                    ...mobileAiConversations,
+                                    { sender: 'User', text: "Yes, nudge him." },
+                                    { sender: 'AI', text: "Nudge sent! Rahul notified on WhatsApp and Slack." }
+                                  ])
+                                }
+                              }}
+                              disabled={mobileAiConversations.length > 1}
+                              className="rounded-xl bg-[#1D9E75] py-2 text-[10px] font-black text-white hover:bg-[#15795C] disabled:opacity-50 transition"
+                            >
+                              Yes, Nudge
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (mobileAiConversations.length === 1) {
+                                  setMobileAiConversations([
+                                    ...mobileAiConversations,
+                                    { sender: 'User', text: "Draft update" },
+                                    { sender: 'AI', text: "Draft check-in: 'Focus: CRM debug, Status: Completed deck, Energy: High.'" }
+                                  ])
+                                }
+                              }}
+                              disabled={mobileAiConversations.length > 1}
+                              className="rounded-xl bg-white/15 py-2 text-[10px] font-black text-white hover:bg-white/25 disabled:opacity-50 transition"
+                            >
+                              Draft update
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="absolute bottom-4 left-4 right-4 grid grid-cols-3 gap-2">
+                      {['Tasks', 'Pulse', 'AI'].map((item) => (
+                        <button
+                          key={item}
+                          type="button"
+                          onClick={() => setActiveMobileTab(item)}
+                          className={`rounded-xl px-3 py-2 text-center text-[10px] font-black shadow-sm transition ${
+                            activeMobileTab === item
+                              ? 'bg-[#3C3489] text-white'
+                              : 'bg-white text-[#5F5E5A] hover:bg-[#F0ECFF]'
+                          }`}
+                        >
+                          {item}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </section>
+
+          <section id="whatsapp-integration" className="relative overflow-hidden bg-[#F4FAF8] px-5 py-24 sm:px-6 lg:px-8">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(29,158,117,0.15),transparent_35%),radial-gradient(circle_at_20%_80%,rgba(127,119,221,0.12),transparent_30%)]" />
+            <div className="absolute inset-0 bg-white/40" />
+            <div className="soft-grid absolute inset-0 opacity-30" />
+            <motion.div
+              {...cardMotion}
+              onMouseMove={(event) => {
+                const rect = event.currentTarget.getBoundingClientRect();
+                const x = (event.clientX - rect.left) / rect.width - 0.5;
+                const y = (event.clientY - rect.top) / rect.height - 0.5;
+                setWhatsappTilt({
+                  x: -5 - y * 12,
+                  y: 12 + x * 20,
+                });
+              }}
+              onMouseLeave={() => setWhatsappTilt({ x: -5, y: 12 })}
+              className="relative mx-auto grid max-w-6xl gap-12 overflow-hidden rounded-[2.5rem] border border-[#CDEFE0] bg-white/72 p-8 shadow-2xl shadow-[#1D9E75]/5 backdrop-blur-xl lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:p-12"
+            >
+              <div className="relative z-10">
+                <p className="inline-flex items-center gap-2 rounded-full border border-[#BDE7D3] bg-[#E8F7F1] px-4 py-2 text-xs font-extrabold uppercase tracking-[0.18em] text-[#1D9E75] shadow-sm">
+                  <MessageSquareText className="h-4 w-4 text-[#1D9E75]" />
+                  Core WhatsApp workflow
+                </p>
+                <h2 className="mt-5 max-w-xl text-4xl font-extrabold tracking-tight text-[#11261C] sm:text-5xl">
+                  WhatsApp becomes the front door for daily work.
+                </h2>
+                <p className="mt-4 max-w-xl text-lg font-semibold leading-8 text-[#4B5563]">
+                  Employees get smart nudges, reply from WhatsApp, and NudgeHQ saves the update automatically. Managers get blocker alerts instantly, and Friday wins arrive without opening another app.
+                </p>
+                <div className="mt-8 space-y-4">
+                  {[
+                    ['Two-way check-ins', 'Employees reply to the WhatsApp message and the update is saved in NudgeHQ.'],
+                    ['Smart personalized nudges', 'NudgeAI changes the message based on streaks, blockers, first use, and yesterday’s work.'],
+                    ['Manager blocker alerts', 'When someone is blocked, their manager gets a WhatsApp alert with task context.'],
+                    ['Friday weekly wins', 'Employees receive a short NudgeAI summary of tasks, blockers, and streaks.']
+                  ].map(([title, detail]) => (
+                    <div key={title} className="flex gap-4 rounded-2xl border border-[#E8F7F1] bg-white/60 p-4 transition hover:bg-white">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#E8F7F1] text-[#1D9E75]">
+                        <Check className="h-3.5 w-3.5" />
+                      </span>
+                      <div>
+                        <p className="text-sm font-extrabold text-[#11261C]">{title}</p>
+                        <p className="mt-1 text-xs font-semibold leading-5 text-[#5F5E5A]">{detail}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-7 grid gap-3 sm:grid-cols-4">
+                  {whatsAppFeatureSlides.map((slide, index) => (
+                    <button
+                      key={slide.eyebrow}
+                      type="button"
+                      onClick={() => setActiveWhatsAppSlide(index)}
+                      className={`rounded-2xl border px-4 py-3 text-left transition ${
+                        activeWhatsAppSlide === index
+                          ? 'border-[#1D9E75] bg-[#E8F7F1] shadow-lg shadow-[#1D9E75]/10'
+                          : 'border-[#DDEFE6] bg-white/58 hover:bg-white'
+                      }`}
+                    >
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#1D9E75]">{slide.stat}</p>
+                      <p className="mt-1 text-xs font-black text-[#11261C]">{slide.eyebrow}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="relative z-10 flex justify-center">
+                <div className="absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#1D9E75]/10 blur-3xl" />
+
+                <div
+                  className="whatsapp-banner-3d relative z-10 rounded-[2.5rem] border-[8px] border-[#0F1E16] bg-[#07130D] p-2 shadow-2xl shadow-[#1D9E75]/20"
+                  style={{
+                    '--wa-tilt-x': `${whatsappTilt.x}deg`,
+                    '--wa-tilt-y': `${whatsappTilt.y}deg`,
+                  }}
+                >
+                  <div className="float-wa-chat-one absolute -left-12 top-10 z-20 w-44 rounded-2xl border border-white/80 bg-white p-3 shadow-lg shadow-[#1D9E75]/8 backdrop-blur pointer-events-auto">
+                    <p className="text-[10px] font-black uppercase tracking-[0.1em] text-[#1D9E75]">{currentWhatsAppSlide.floating[0][0]}</p>
+                    <p className="mt-1.5 text-xs font-bold leading-normal text-[#2C2C2A]">&quot;{currentWhatsAppSlide.floating[0][1]}&quot;</p>
+                  </div>
+
+                  <div className="float-wa-chat-two absolute -right-12 top-36 z-20 w-48 rounded-2xl border border-white/80 p-3 text-white shadow-lg shadow-[#1D9E75]/12 backdrop-blur pointer-events-auto" style={{ backgroundColor: currentWhatsAppSlide.accent }}>
+                    <p className="text-[10px] font-black uppercase tracking-[0.1em] text-white/75">{currentWhatsAppSlide.floating[1][0]}</p>
+                    <p className="mt-1.5 text-xs font-extrabold leading-normal">&quot;{currentWhatsAppSlide.floating[1][1]}&quot;</p>
+                  </div>
+
+                  <div className="float-wa-chat-three absolute -left-10 bottom-10 z-20 w-48 rounded-2xl border border-white/80 bg-white p-3 shadow-lg shadow-[#3C3489]/8 backdrop-blur pointer-events-auto">
+                    <div className="flex items-center gap-1.5">
+                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#EBF3FF] text-[#5B7CFA]">
+                        <Sparkles className="h-2.5 w-2.5" />
+                      </span>
+                      <p className="text-[10px] font-black uppercase tracking-[0.1em] text-[#5B7CFA]">{currentWhatsAppSlide.floating[2][0]}</p>
+                    </div>
+                    <p className="mt-2 text-xs font-bold text-[#2C2C2A]">{currentWhatsAppSlide.floating[2][1]}</p>
+                    <p className="mt-0.5 text-[10px] font-semibold" style={{ color: currentWhatsAppSlide.accent }}>{currentWhatsAppSlide.title}</p>
+                  </div>
+
+                  {/* WhatsApp Chat screen mockup */}
+                  <div className="relative h-[30rem] w-[15.5rem] overflow-hidden rounded-[2rem] bg-[#E5DDD5]">
+                    {/* Header */}
+                    <div className="px-4 pt-10 pb-3 text-white flex items-center gap-3" style={{ backgroundColor: currentWhatsAppSlide.accent === '#EF4444' ? '#8F1D2C' : '#075E54' }}>
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/20 text-[11px] font-black">{currentWhatsAppSlide.stat.slice(0, 1)}</span>
+                      <div>
+                        <h4 className="text-xs font-black">{currentWhatsAppSlide.eyebrow}</h4>
+                        <p className="text-[9px] font-semibold text-[#87FFD0] flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#87FFD0] animate-pulse" />
+                          NudgeAI WhatsApp
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Chat Bubble Feed */}
+                    <div className="p-3 space-y-3">
+                      {/* System timestamp */}
+                      <div className="text-center">
+                        <span className="rounded bg-white/70 px-2 py-0.5 text-[8px] font-black text-[#5F5E5A] uppercase shadow-sm">Today</span>
+                      </div>
+
+                      <AnimatePresence mode="wait">
+                        <motion.div
+                          key={currentWhatsAppSlide.eyebrow}
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -12 }}
+                          transition={{ duration: 0.28 }}
+                          className="space-y-3"
+                        >
+                          {currentWhatsAppSlide.messages.map(([sender, text, time], index) => (
+                            <div key={`${sender}-${index}`} className={`flex ${sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                              <div className={`relative max-w-[88%] whitespace-pre-line rounded-lg p-2.5 text-[11px] font-semibold leading-normal text-[#2C2C2A] shadow-sm ${sender === 'user' ? 'bg-[#DCF8C6]' : 'bg-white'}`}>
+                                {sender === 'bot' && index > 0 ? (
+                                  <div className="mb-1 flex items-center gap-1 border-b border-[#EEEDFE] pb-1">
+                                    <Sparkles className="h-3 w-3 text-[#1D9E75]" />
+                                    <span className="text-[9px] font-black text-[#1D9E75]">NudgeAI</span>
+                                  </div>
+                                ) : null}
+                                <p>{text}</p>
+                                <p className={`mt-1 text-right text-[8px] font-semibold ${sender === 'user' ? 'text-[#5B883D]' : 'text-[#8A8894]'}`}>{time}{sender === 'user' ? ' ✓✓' : ''}</p>
+                              </div>
+                            </div>
+                          ))}
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {currentWhatsAppSlide.chips.map((chip) => (
+                              <span key={chip} className="rounded-full bg-white/70 px-2 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-[#075E54] shadow-sm">
+                                {chip}
+                              </span>
+                            ))}
+                          </div>
+                        </motion.div>
+                      </AnimatePresence>
+                    </div>
+
+                    {/* Bottom message box */}
+                    <div className="absolute bottom-0 left-0 right-0 bg-[#F4F0EB] p-2 flex items-center gap-2">
+                      <div className="flex-1 bg-white rounded-full px-3 py-2 text-[10px] font-semibold text-[#8A8894] shadow-sm">
+                        Type a reply...
+                      </div>
+                      <span className="h-7 w-7 rounded-full bg-[#075E54] flex items-center justify-center text-white shadow-sm text-[10px] font-black">✓</span>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </motion.div>
+          </section>
+
           <section id="signal-gallery" className="relative overflow-hidden bg-[#0F0B28] px-5 py-24 text-white sm:px-6 lg:px-8">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_12%,rgba(127,119,221,0.48),transparent_32%),radial-gradient(circle_at_78%_72%,rgba(29,158,117,0.24),transparent_30%)]" />
             <div className="soft-grid absolute inset-0 opacity-10" />
@@ -4134,7 +5270,7 @@ function App() {
                   ['Is employee data private and secure?', 'Yes. Employees only see their own data. Admins see company-wide data. Everything is encrypted end-to-end.'],
                   ['Can we try before paying?', 'Yes. Full 14-day free trial with no credit card required. Cancel anytime.'],
                   ['What if an employee forgets to submit an update?', 'NudgeAI automatically detects inactivity and sends a gentle nudge. Admin gets alerted too.'],
-                  ['Do you support WhatsApp updates?', 'WhatsApp integration is coming in V2. For now updates are submitted through the web app.'],
+                  ['Do you support WhatsApp updates?', 'Yes. NudgeHQ supports WhatsApp nudges, two-way reply check-ins, manager blocker alerts, and Friday weekly win summaries through Twilio.'],
                   ["What's the difference between Employee and Admin access?", 'Employees see only their own tasks and progress. Admins see the full team dashboard, analytics, and NudgeAI insights.']
                 ].map(([question, answer], index) => (
                   <details key={question} open={index === 0} className="group py-5">
@@ -5082,6 +6218,15 @@ function App() {
                   </div>
                 </div>
 
+                <button
+                  type="button"
+                  onClick={fillDemoSignupCredentials}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#DAD7FB] bg-white px-5 py-3 text-sm font-extrabold text-[#3C3489] shadow-sm transition hover:border-[#7F77DD] hover:bg-[#F4F3FF]"
+                >
+                  <Mail className="h-4 w-4" aria-hidden="true" />
+                  Use demo credentials
+                </button>
+
                 <label className="flex items-start gap-3 rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-3 text-sm text-[#5F5E5A]">
                   <input
                     type="checkbox"
@@ -5385,10 +6530,10 @@ function App() {
                     key={label}
                     type="button"
                     onClick={() => {
-                      if (demoEmployeeCanNavigate) setDemoEmployeeSection(label);
+                      if (demoDashboardCanNavigate) setDemoEmployeeSection(label);
                     }}
                     className={`flex w-full items-center gap-3 rounded-xl border-l-[3px] px-4 py-3 text-sm font-extrabold transition ${
-                      (demoEmployeeCanNavigate ? selectedDemoSection === label : index === 0)
+                      (demoDashboardCanNavigate ? selectedDemoSection === label : index === 0)
                         ? 'border-l-[#7F77DD] bg-[#7F77DD] text-white shadow-lg shadow-[#7F77DD]/22'
                         : 'border-l-transparent text-[#6E6B78] hover:bg-[#EEEDFE] hover:text-[#3C3489]'
                     }`}
@@ -5442,8 +6587,57 @@ function App() {
                 </div>
               </header>
 
-              {selectedDemoSection !== 'Settings' && (
-                <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {dashboardRole === 'manager' && selectedDemoSection === 'Dashboard' && (
+                <div className="mt-7 space-y-4">
+                  <section className="rounded-2xl border border-[#DAD7FB] bg-gradient-to-br from-[#F4F2FF] to-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="text-lg font-extrabold text-[#3C3489]">⚡ NudgeAI Morning Brief</p>
+                        <p className="mt-1 text-xs font-bold text-[#8A8894]">Generated today at 9:00 AM</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => showToast('NudgeAI brief regenerated for your team.', 'success')}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#DAD7FB] bg-white px-4 py-2 text-xs font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        Regenerate
+                      </button>
+                    </div>
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      {[
+                        ['Yesterday', 'The team completed landing page polish, client deck edits, and research notes.'],
+                        ['Today', 'Aman and Priya are moving fast; Rahul needs CRM access before market research can close.'],
+                        ['Needs attention', 'Karan missed the competitor analysis deadline and Neha has no update today.'],
+                        ['Recommendation', 'Send a focused nudge to blocked or inactive members before the afternoon standup.']
+                      ].map(([label, text]) => (
+                        <div key={label} className="rounded-xl border border-[#EEEDFE] bg-white/80 p-4">
+                          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7F77DD]">{label}</p>
+                          <p className="mt-2 text-sm font-semibold leading-6 text-[#5F5E5A]">{text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <button type="button" onClick={() => setDemoEmployeeSection('Tasks')} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#3C3489] px-4 py-3 text-sm font-extrabold text-white transition hover:bg-[#2D266B]">
+                      <Plus className="h-4 w-4" />
+                      Assign Task
+                    </button>
+                    <button type="button" onClick={() => showToast('Manager report export prepared.', 'success')} className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]">
+                      <Download className="h-4 w-4" />
+                      Export Report
+                    </button>
+                    <button type="button" onClick={() => showToast('Team nudge sent to members without today’s update.', 'success')} className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]">
+                      <Mail className="h-4 w-4" />
+                      Send Team Nudge
+                    </button>
+                  </div>
+                </div>
+              )}
+
+{shouldShowDemoStatCards && (
+                <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                   {((!isSandbox && isEmployeeDashboard) ? realEmployeeStatCards : demoStatCards).map(([title, value, Icon, color, trend, trendType]) => (
                     <article key={title} className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
                       <div className="flex items-start justify-between gap-4">
@@ -5463,7 +6657,38 @@ function App() {
                 </div>
               )}
 
-              {(!demoEmployeeCanNavigate || selectedDemoSection === 'My Dashboard') && (
+              {dashboardRole === 'manager' && selectedDemoSection === 'Dashboard' && managerActiveBlockers.length > 0 && (
+                <section className="mt-6 rounded-2xl border border-rose-100 border-l-[3px] border-l-[#EF4444] bg-[#FFF5F5] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                  <h2 className="text-lg font-black text-[#B91C1C]">🚨 Active Blockers — Needs Attention</h2>
+                  <div className="mt-4 space-y-3">
+                    {managerActiveBlockers.map((blocker) => (
+                      <div key={blocker.id} className="grid gap-3 rounded-xl bg-white p-4 sm:grid-cols-[minmax(11rem,1fr)_minmax(10rem,1fr)_9rem_auto] sm:items-center">
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100 text-sm font-black text-rose-600">
+                            {(blocker.assignee?.name || 'TM').split(' ').map((part) => part[0]).join('').slice(0, 2)}
+                          </span>
+                          <div>
+                            <p className="text-sm font-black text-[#2C2C2A]">{blocker.assignee?.name || 'Team member'}</p>
+                            <p className="text-xs font-bold text-[#8A8894]">Team member</p>
+                          </div>
+                        </div>
+                        <p className="text-sm font-extrabold text-[#2C2C2A]">{blocker.title}</p>
+                        <p className="text-xs font-black text-rose-600">{blocker.blockedAgo}</p>
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => showToast('Blocker marked resolved in manager demo.', 'success')} className="rounded-lg bg-[#1D9E75] px-3 py-2 text-xs font-black text-white">
+                            Resolve
+                          </button>
+                          <button type="button" onClick={() => { window.location.href = `mailto:${blocker.assignee?.email || 'hello.nudgehq@gmail.com'}?subject=NudgeHQ blocker follow-up`; }} className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-black text-rose-600">
+                            Message
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {((dashboardRole === 'employee' && selectedDemoSection === 'My Dashboard') || (dashboardRole !== 'employee' && selectedDemoSection === 'Dashboard')) && (
                 <div className="mt-6 grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
                   <section className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
                     <div className="flex items-center justify-between gap-4">
@@ -5478,14 +6703,14 @@ function App() {
                         sub: 'Your manager will assign tasks soon. Check back here!',
                         Icon: ListTodo
                       }) : null}
-                      {(dashboardRole === 'employee' ? employeeDashboardTaskRows : demoProgressRows).map(([name, task, progress, status, color], index) => (
+                      {(dashboardRole === 'employee' ? employeeDashboardTaskRows : dashboardRole === 'manager' ? managerProgressRows : demoProgressRows).map(([name, task, progress, status, color, lastUpdate, updateTone], index) => (
                         <button
                           key={`${name}-${task}`}
                           type="button"
                           onClick={() => {
                             if (dashboardRole === 'employee') openDemoTask([name, task, progress, status, color]);
                           }}
-                          className="grid w-full gap-3 rounded-xl border border-[#F0EFFA] bg-[#FCFCFF] p-3 text-left transition hover:border-[#7F77DD] hover:bg-[#F7F6FF] sm:grid-cols-[minmax(10rem,1fr)_minmax(9rem,0.7fr)_4rem_7rem] sm:items-center"
+                          className={`grid w-full gap-3 rounded-xl border border-[#F0EFFA] bg-[#FCFCFF] p-3 text-left transition hover:border-[#7F77DD] hover:bg-[#F7F6FF] ${dashboardRole === 'manager' ? 'sm:grid-cols-[minmax(10rem,1fr)_minmax(8rem,0.7fr)_4rem_7rem_7rem]' : 'sm:grid-cols-[minmax(10rem,1fr)_minmax(9rem,0.7fr)_4rem_7rem]'} sm:items-center`}
                         >
                           <div className="flex min-w-0 items-center gap-3">
                             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-extrabold text-white" style={{ backgroundColor: ['#7F77DD', '#1D9E75', '#3C3489', '#F59E0B', '#EF4444'][index % 5] }}>
@@ -5507,6 +6732,11 @@ function App() {
                           }`}>
                             {status}
                           </span>
+                          {dashboardRole === 'manager' ? (
+                            <span className={`text-xs font-extrabold ${getManagerLastUpdateClass(updateTone)}`}>
+                              {lastUpdate}
+                            </span>
+                          ) : null}
                         </button>
                       ))}
                     </div>
@@ -5563,19 +6793,40 @@ function App() {
                       </div>
                     ) : (
                       <div className="mt-5 space-y-4">
-                        {demoActivityRows.map(([action, task, time, Icon, color]) => (
-                          <div key={`${action}-${task}`} className="flex items-start gap-3">
+                        {(dashboardRole === 'manager' ? managerActivityRows : demoActivityRows).map(([action, task, time, Icon, color, preview]) => {
+                          const activityKey = `${action}-${task}`;
+                          const isDeadlineMissed = action.includes('Karan missed');
+                          const isExpanded = expandedManagerActivity === activityKey;
+                          return (
+                          <button
+                            key={activityKey}
+                            type="button"
+                            onClick={() => {
+                              if (dashboardRole === 'manager') setExpandedManagerActivity(isExpanded ? null : activityKey);
+                            }}
+                            className={`w-full rounded-xl p-3 text-left transition hover:bg-[#FCFCFF] ${isDeadlineMissed ? 'border-l-4 border-rose-500 bg-rose-50 text-rose-600' : ''}`}
+                          >
+                          <div className="flex items-start gap-3">
                             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${color}16`, color }}>
                               <Icon className="h-4 w-4" />
                             </span>
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm font-extrabold text-[#2C2C2A]">{action}</p>
+                              <p className={`text-sm font-extrabold ${isDeadlineMissed ? 'text-rose-600' : 'text-[#2C2C2A]'}`}>{action}</p>
                               <p className="text-xs font-semibold text-[#8A8894]">{task}</p>
                             </div>
                             <span className="text-xs font-bold text-[#8A8894]">{time}</span>
                           </div>
-                        ))}
-                        <button type="button" className="mt-2 inline-flex items-center gap-2 rounded-xl border border-[#DAD7FB] px-4 py-2 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]">
+                          {dashboardRole === 'manager' && isExpanded ? (
+                            <p className="mt-3 rounded-lg bg-white px-3 py-2 text-xs font-semibold leading-5 text-[#5F5E5A]">{preview}</p>
+                          ) : null}
+                          </button>
+                        )})}
+                        <button type="button" onClick={() => {
+                          if (dashboardRole === 'manager') {
+                            window.history.pushState({}, '', '/manager/activity');
+                            setDemoEmployeeSection('Activity');
+                          }
+                        }} className="mt-2 inline-flex items-center gap-2 rounded-xl border border-[#DAD7FB] px-4 py-2 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]">
                           View all activity
                           <ArrowRight className="h-4 w-4" />
                         </button>
@@ -5583,6 +6834,186 @@ function App() {
                     )}
                   </section>
                 </div>
+              )}
+
+              {dashboardRole === 'manager' && selectedDemoSection === 'Projects' && (
+                <section className="mt-6 rounded-2xl border border-[#EEEDFE] bg-white p-8 text-center shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#EEEDFE] text-[#3C3489]">
+                    <Building2 className="h-7 w-7" />
+                  </div>
+                  <h2 className="mt-4 text-2xl font-black text-[#2C2C2A]">Projects are coming soon</h2>
+                  <p className="mx-auto mt-2 max-w-xl text-sm font-semibold leading-6 text-[#5F5E5A]">
+                    Manager projects will group tasks, blockers, sprint forecasts, and NudgeAI recommendations into one workspace.
+                  </p>
+                </section>
+              )}
+
+              {dashboardRole === 'manager' && selectedDemoSection === 'Activity' && (
+                <section className="mt-6 rounded-2xl border border-[#EEEDFE] bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7F77DD]">Manager activity log</p>
+                      <h2 className="mt-2 text-2xl font-black text-[#2C2C2A]">Every team signal in one timeline</h2>
+                    </div>
+                    <button type="button" onClick={() => setDemoEmployeeSection('Dashboard')} className="rounded-xl border border-[#DAD7FB] px-4 py-2 text-sm font-black text-[#3C3489] hover:bg-[#EEEDFE]">
+                      Back to dashboard
+                    </button>
+                  </div>
+                  <div className="mt-6 space-y-3">
+                    {managerActivityRows.map(([action, task, time, Icon, color, preview]) => (
+                      <div key={`${action}-${task}-full`} className={`rounded-xl border border-[#EEEDFE] bg-[#FCFCFF] p-4 ${action.includes('Karan missed') ? 'border-l-4 border-l-rose-500 bg-rose-50' : ''}`}>
+                        <div className="flex items-start gap-3">
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${color}16`, color }}>
+                            <Icon className="h-5 w-5" />
+                          </span>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className={`text-sm font-black ${action.includes('Karan missed') ? 'text-rose-600' : 'text-[#2C2C2A]'}`}>{action}</p>
+                              <span className="text-xs font-bold text-[#8A8894]">{time}</span>
+                            </div>
+                            <p className="mt-1 text-xs font-bold text-[#8A8894]">{task}</p>
+                            <p className="mt-3 text-sm font-semibold leading-6 text-[#5F5E5A]">{preview}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {!demoEmployeeCanNavigate && selectedDemoSection === 'NudgeSpace' && (
+                <section className="mt-7 grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
+                  <div className="rounded-[1.5rem] border border-[#E6E3FF] bg-white p-5 shadow-sm">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="flex gap-4">
+                        <span
+                          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
+                          style={{ backgroundColor: roleTheme.soft, color: roleAccent }}
+                        >
+                          <MessageSquareText className="h-5 w-5" />
+                        </span>
+                        <div>
+                          <p className="text-xs font-extrabold uppercase tracking-[0.2em]" style={{ color: roleAccent }}>
+                            {nudgeSpaceRoleCopy.eyebrow}
+                          </p>
+                          <h2 className="mt-2 text-2xl font-black text-[#2C2C2A]">{nudgeSpaceRoleCopy.title}</h2>
+                          <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-[#5F5E5A]">{nudgeSpaceRoleCopy.copy}</p>
+                        </div>
+                      </div>
+                      <span className="inline-flex w-fit items-center gap-2 rounded-full bg-[#EEEDFE] px-3 py-1 text-xs font-extrabold text-[#3C3489]">
+                        <ShieldCheck className="h-4 w-4" />
+                        Scoped to {dashboardRoleLabel}
+                      </span>
+                    </div>
+
+                    <div className="mt-5 rounded-2xl border border-[#DAD7FB] bg-[#FCFCFF] p-4">
+                      <div className="mb-3 flex flex-wrap gap-2">
+                        {['Announcement', 'Win', 'Question', 'Idea'].map((type, index) => (
+                          <span
+                            key={type}
+                            className={`rounded-full px-3 py-1 text-xs font-extrabold ${
+                              index === 0 ? 'text-white' : 'border border-[#DAD7FB] bg-white text-[#5F5E5A]'
+                            }`}
+                            style={index === 0 ? { backgroundColor: roleAccent } : undefined}
+                          >
+                            {type}
+                          </span>
+                        ))}
+                      </div>
+                      <textarea
+                        rows={4}
+                        className="w-full resize-none rounded-2xl border border-[#DAD7FB] bg-white p-4 text-sm font-semibold text-[#2C2C2A] outline-none transition focus:border-[#7F77DD] focus:ring-4 focus:ring-[#EEEDFE]"
+                        placeholder="Draft a workspace post, recognition, blocker note, or quick team question..."
+                      />
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-xs font-semibold text-[#8A8894]">Live posting will connect to the NudgeSpace backend later.</p>
+                        <button
+                          type="button"
+                          onClick={() => showToast('NudgeSpace draft ready. Live posting will connect to backend next.', 'success')}
+                          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-extrabold text-white transition hover:opacity-90"
+                          style={{ backgroundColor: roleAccent }}
+                        >
+                          <Send className="h-4 w-4" />
+                          Post to NudgeSpace
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 space-y-3">
+                      {[
+                        [
+                          demoDisplayName,
+                          dashboardRole === 'manager' ? 'posted a team nudge' : dashboardRole === 'hr' ? 'shared a culture pulse' : 'shared an announcement',
+                          dashboardRole === 'manager'
+                            ? 'Sales team, drop blockers here before 4 PM so tomorrow stays clean.'
+                            : dashboardRole === 'hr'
+                              ? 'Friday recognition thread is open. Tag one teammate who helped you this week.'
+                              : 'Mobile app launch banner is ready for review before the next product push.',
+                          'Just now',
+                          roleAccent
+                        ],
+                        ['Priya Singh', 'shared a win', 'Resolved the CRM blocker and attached the proof link for review.', '18m ago', '#1D9E75'],
+                        ['Aman Verma', 'asked for help', 'Can someone review the weekly report export before today evening?', '42m ago', '#F59E0B']
+                      ].map(([name, action, copy, time, color]) => (
+                        <article key={`${name}-${action}`} className="rounded-2xl border border-[#EEEDFE] bg-white p-4 transition hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
+                          <div className="flex items-start gap-3">
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-extrabold text-white" style={{ backgroundColor: color }}>
+                              {name.split(' ').map((part) => part[0]).join('').slice(0, 2)}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="text-sm font-extrabold text-[#2C2C2A]">
+                                  {name} <span className="font-bold text-[#5F5E5A]">{action}</span>
+                                </p>
+                                <span className="text-xs font-bold text-[#8A8894]">{time}</span>
+                              </div>
+                              <p className="mt-2 text-sm leading-6 text-[#5F5E5A]">{copy}</p>
+                            </div>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+
+                  <aside className="space-y-5">
+                    <section className="rounded-[1.5rem] border border-[#E6E3FF] bg-white p-5 shadow-sm">
+                      <p className="text-xs font-extrabold uppercase tracking-[0.2em]" style={{ color: roleAccent }}>Visibility</p>
+                      <h3 className="mt-2 text-xl font-black text-[#2C2C2A]">Right audience, no noise.</h3>
+                      <p className="mt-2 text-sm font-semibold leading-6 text-[#5F5E5A]">{nudgeSpaceRoleCopy.visibility}</p>
+                      <div className="mt-5 grid gap-3">
+                        {[
+                          ['Post scope', dashboardRole === 'admin' ? 'Company-wide' : dashboardRole === 'hr' ? 'People + culture' : 'Department only'],
+                          ['Moderation', dashboardRole === 'admin' ? 'Full control' : dashboardRole === 'hr' ? 'People posts' : 'Team feed'],
+                          ['NudgeAI assist', 'Turn posts into summaries']
+                        ].map(([label, value]) => (
+                          <div key={label} className="flex items-center justify-between gap-4 rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] px-4 py-3">
+                            <span className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#8A8894]">{label}</span>
+                            <span className="text-sm font-extrabold text-[#2C2C2A]">{value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+
+                    <section className="overflow-hidden rounded-[1.5rem] border border-[#DAD7FB] bg-gradient-to-br from-[#3C3489] via-[#7F77DD] to-[#1D9E75] p-5 text-white shadow-sm">
+                      <span className="inline-flex items-center gap-2 rounded-full bg-white/12 px-3 py-1 text-xs font-extrabold uppercase tracking-[0.18em] text-white/80">
+                        <Sparkles className="h-4 w-4" />
+                        NudgeAI + Space
+                      </span>
+                      <h3 className="mt-5 text-2xl font-black">Convert chatter into signals.</h3>
+                      <p className="mt-2 text-sm font-semibold leading-6 text-white/80">
+                        Summarize open questions, spot repeated blockers, and turn raw posts into manager-ready next actions.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={openDemoAiHelper}
+                        className="mt-5 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]"
+                      >
+                        Ask NudgeAI
+                        <ArrowRight className="h-4 w-4" />
+                      </button>
+                    </section>
+                  </aside>
+                </section>
               )}
 
               {demoEmployeeCanNavigate && selectedDemoSection === 'My Tasks' && (
@@ -5846,6 +7277,504 @@ function App() {
                 </div>
               )}
 
+              {demoEmployeeCanNavigate && selectedDemoSection === 'NudgeSpace' && isSandbox && (
+                <div className="mt-6 space-y-6">
+                  <section className="overflow-hidden rounded-[32px] border border-[#D9D6FF] bg-[linear-gradient(135deg,_#ffffff_0%,_#f8f6ff_48%,_#f3fff8_100%)] p-6 shadow-[0_24px_80px_rgba(60,52,137,0.14)]">
+                    <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+                      <div className="max-w-3xl">
+                        <span className="inline-flex items-center gap-2 rounded-full bg-[#1C1739] px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.22em] text-white">
+                          <Sparkles className="h-3.5 w-3.5" />
+                          Demo-only upgrade
+                        </span>
+                        <h2 className="mt-4 text-3xl font-black tracking-[-0.04em] text-[#1C1739] sm:text-4xl">
+                          NudgeSpace is now Social + U Space.
+                        </h2>
+                        <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-[#5F5E5A] sm:text-base">
+                          Social feels like your internal Insta/Twitter/FB mashup. U Space is your private todo and focus zone. This version only shows in the demo account.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-3">
+                        {['Social', 'U Space'].map((view) => (
+                          <button
+                            key={view}
+                            type="button"
+                            onClick={() => {
+                              setDemoNudgeSpaceView(view);
+                              if (!isSandbox) loadNudgeSpacePosts(view === 'U Space' ? 'u_space' : 'social');
+                            }}
+                            className={`inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-extrabold transition ${
+                              demoNudgeSpaceView === view
+                                ? 'bg-[#1C1739] text-white shadow-[0_14px_30px_rgba(28,23,57,0.28)]'
+                                : 'border border-[#D9D6FF] bg-white text-[#5F5E5A] hover:border-[#BEB7FF] hover:text-[#1C1739]'
+                            }`}
+                          >
+                            {view === 'Social' ? <MessageSquareText className="h-4 w-4" /> : <ListTodo className="h-4 w-4" />}
+                            {view}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </section>
+
+                  {demoNudgeSpaceView === 'Social' ? (
+                    <div className="grid gap-6 xl:grid-cols-[1.12fr_0.88fr]">
+                      <section className="space-y-5">
+                        <div className="rounded-[28px] bg-[linear-gradient(145deg,_#140F29,_#2E255E)] p-5 text-white shadow-[0_18px_50px_rgba(20,15,41,0.35)]">
+                          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div>
+                              <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-[#8EF0CD]">Social feed</p>
+                              <h3 className="mt-3 text-2xl font-black tracking-[-0.04em]">Work updates, but with actual energy</h3>
+                              <p className="mt-2 max-w-xl text-sm font-semibold leading-6 text-white/75">
+                                Post wins, asks, ideas, and momentum without making the workspace feel dead.
+                              </p>
+                            </div>
+                            <div className="grid grid-cols-3 gap-3 text-center">
+                              {[
+                                ['96', 'sparks'],
+                                ['14', 'fresh drops'],
+                                ['7', 'need replies']
+                              ].map(([value, label]) => (
+                                <div key={label} className="rounded-2xl border border-white/10 bg-white/10 px-3 py-4">
+                                  <p className="text-xl font-black">{value}</p>
+                                  <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.14em] text-white/60">{label}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="mt-5 rounded-[24px] border border-white/10 bg-white/10 p-4 backdrop-blur">
+                            <div className="mb-3 flex flex-wrap gap-2">
+                              {['Status', 'Win', 'Question', 'Idea'].map((type, index) => (
+                                <span
+                                  key={type}
+                                  className={`rounded-full px-3 py-1 text-xs font-extrabold ${index === 0 ? 'bg-white text-[#120F24]' : 'border border-white/10 bg-white/10 text-white/75'}`}
+                                >
+                                  {type}
+                                </span>
+                              ))}
+                            </div>
+                            <textarea
+                              rows={4}
+                              className="w-full resize-none rounded-[22px] border border-white/10 bg-white p-4 text-sm font-semibold text-[#1C1739] outline-none transition focus:border-[#8EF0CD] focus:ring-4 focus:ring-[#8EF0CD]/20"
+                              placeholder="Drop a sharp update, celebration, or help request..."
+                            />
+                            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                              <p className="text-xs font-bold text-white/65">Internal only. Demo posting for vibe check.</p>
+                              <button
+                                type="button"
+                                onClick={() => showToast('NudgeSpace post drafted. Live posting will connect to backend next.', 'success')}
+                                className="inline-flex items-center gap-2 rounded-full bg-[#8EF0CD] px-5 py-3 text-sm font-extrabold text-[#10211C] transition hover:bg-[#B5F6DE]"
+                              >
+                                <Send className="h-4 w-4" />
+                                Post to Social
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          {sandboxNudgeSpaceSocialPosts.map((post) => (
+                            <article key={`${post.name}-${post.title}`} className="rounded-[28px] border border-[#E4DEFF] bg-white p-5 shadow-[0_16px_40px_rgba(127,119,221,0.12)]">
+                              <div className="flex items-start gap-4">
+                                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] text-sm font-black text-white" style={{ backgroundColor: post.color }}>
+                                  {post.name.split(' ').map((part) => part[0]).join('').slice(0, 2)}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div>
+                                      <p className="text-sm font-black text-[#1C1739]">{post.name}</p>
+                                      <p className="mt-1 text-xs font-bold text-[#8A8894]">{post.handle} • {post.time}</p>
+                                    </div>
+                                    <span className="rounded-full px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.14em]" style={{ backgroundColor: `${post.color}18`, color: post.color }}>
+                                      {post.badge}
+                                    </span>
+                                  </div>
+                                  <h4 className="mt-4 text-xl font-black tracking-[-0.03em] text-[#1C1739]">{post.title}</h4>
+                                  <p className="mt-2 text-sm font-semibold leading-6 text-[#5F5E5A]">{post.copy}</p>
+                                  <div className="mt-4 flex flex-wrap gap-2">
+                                    {post.tags.map((tag) => (
+                                      <span key={tag} className="rounded-full bg-[#F6F4FF] px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#6D63D9]">
+                                        {tag}
+                                      </span>
+                                    ))}
+                                  </div>
+                                  <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[#F0ECFF] pt-4">
+                                    <div className="flex flex-wrap gap-2">
+                                      {['Hype', 'Comment', 'Boost'].map((label) => (
+                                        <button
+                                          key={label}
+                                          type="button"
+                                          onClick={() => showToast(`${label} reaction added in demo.`, 'success')}
+                                          className="inline-flex items-center gap-2 rounded-full border border-[#E4DEFF] px-4 py-2 text-xs font-extrabold text-[#1C1739] transition hover:border-[#BEB7FF] hover:bg-[#F7F4FF]"
+                                        >
+                                          {label}
+                                        </button>
+                                      ))}
+                                    </div>
+                                    <span className="text-xs font-extrabold uppercase tracking-[0.14em] text-[#8A8894]">{post.metric}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      </section>
+
+                      <aside className="space-y-5">
+                        <section className="rounded-[28px] border border-[#D9D6FF] bg-white p-5 shadow-[0_16px_40px_rgba(29,158,117,0.12)]">
+                          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#1D9E75]">Trending inside</p>
+                          <h3 className="mt-2 text-xl font-black tracking-[-0.03em] text-[#1C1739]">What the team is vibing with</h3>
+                          <div className="mt-5 space-y-3">
+                            {[
+                              ['Launch polish', '12 people talking'],
+                              ['Customer win reel', '8 reactions waiting'],
+                              ['Friday demo prep', '4 asks for backup']
+                            ].map(([title, stat], index) => (
+                              <div key={title} className="rounded-2xl bg-[#F7FFFB] p-4">
+                                <div className="flex items-center justify-between gap-3">
+                                  <p className="text-sm font-black text-[#1C1739]">{title}</p>
+                                  <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-extrabold text-[#1D9E75]">0{index + 1}</span>
+                                </div>
+                                <p className="mt-2 text-xs font-semibold text-[#6B7280]">{stat}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </section>
+
+                        <section className="rounded-[28px] bg-[linear-gradient(145deg,_#1C1739,_#12795C)] p-5 text-white shadow-[0_18px_45px_rgba(28,23,57,0.28)]">
+                          <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/75">
+                            <Zap className="h-4 w-4" />
+                            NudgeAI x Social
+                          </span>
+                          <h3 className="mt-5 text-2xl font-black tracking-[-0.04em]">Turn messy thoughts into a post people actually read.</h3>
+                          <p className="mt-3 text-sm font-semibold leading-6 text-white/75">
+                            Draft a cleaner update, blocker post, or celebration in one tap.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={openDemoAiHelper}
+                            className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-extrabold text-[#1C1739] transition hover:bg-[#EEEDFE]"
+                          >
+                            Ask NudgeAI
+                            <ArrowRight className="h-4 w-4" />
+                          </button>
+                        </section>
+                      </aside>
+                    </div>
+                  ) : (
+                    <div className="grid gap-6 xl:grid-cols-[1fr_0.95fr]">
+                      <section className="rounded-[28px] border border-[#D9D6FF] bg-white p-5 shadow-[0_20px_48px_rgba(127,119,221,0.14)]">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                          <div>
+                            <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-[#6D63D9]">U Space</p>
+                            <h3 className="mt-2 text-3xl font-black tracking-[-0.04em] text-[#1C1739]">Your private focus playground</h3>
+                            <p className="mt-3 max-w-xl text-sm font-semibold leading-6 text-[#5F5E5A]">
+                              A personal board for what you are shipping, what is next, and what deserves protected attention today.
+                            </p>
+                          </div>
+                          <div className="rounded-[24px] bg-[linear-gradient(135deg,_#f4f0ff,_#ecfff8)] px-5 py-4 text-right">
+                            <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-[#6D63D9]">Current streak</p>
+                            <p className="mt-1 text-3xl font-black text-[#1C1739]">6 days</p>
+                            <p className="mt-1 text-xs font-bold text-[#6B7280]">Showing up with clean updates</p>
+                          </div>
+                        </div>
+
+                        <div className="mt-6 grid gap-4 md:grid-cols-3">
+                          {[
+                            ['2', 'shipping now'],
+                            ['3', 'queued next'],
+                            ['1', 'needs unblock']
+                          ].map(([value, label]) => (
+                            <div key={label} className="rounded-[24px] border border-[#ECE8FF] bg-[#FBFAFF] p-4">
+                              <p className="text-3xl font-black text-[#1C1739]">{value}</p>
+                              <p className="mt-1 text-xs font-extrabold uppercase tracking-[0.16em] text-[#8A8894]">{label}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="mt-6 space-y-4">
+                          {sandboxNudgeSpaceTodoCards.map((card, index) => (
+                            <div key={card.title} className="rounded-[26px] border border-[#ECE8FF] bg-[linear-gradient(135deg,_#ffffff,_#faf9ff)] p-5">
+                              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="flex items-start gap-4">
+                                  <label className="mt-1 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-2" style={{ borderColor: card.tone }}>
+                                    <input type="checkbox" defaultChecked={index === 0} className="h-4 w-4 accent-[#7F77DD]" />
+                                  </label>
+                                  <div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <h4 className="text-lg font-black tracking-[-0.03em] text-[#1C1739]">{card.title}</h4>
+                                      <span className="rounded-full px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.12em]" style={{ backgroundColor: `${card.tone}18`, color: card.tone }}>
+                                        {card.status}
+                                      </span>
+                                    </div>
+                                    <p className="mt-2 text-sm font-semibold leading-6 text-[#5F5E5A]">{card.detail}</p>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => showToast(`${card.title} opened in demo view.`, 'success')}
+                                  className="inline-flex items-center gap-2 rounded-full border border-[#D9D6FF] px-4 py-2 text-xs font-extrabold text-[#1C1739] transition hover:border-[#BEB7FF] hover:bg-[#F7F4FF]"
+                                >
+                                  Open card
+                                  <ArrowRight className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+
+                      <aside className="space-y-5">
+                        <section className="rounded-[28px] bg-[#120F24] p-5 text-white shadow-[0_18px_55px_rgba(18,15,36,0.35)]">
+                          <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-[#8EF0CD]">Today map</p>
+                          <h3 className="mt-3 text-2xl font-black tracking-[-0.04em]">Protect the hours that matter</h3>
+                          <div className="mt-5 space-y-3">
+                            {[
+                              ['09:30 - 11:00', 'Deep work sprint', 'Dashboard polish + testing'],
+                              ['11:30 - 12:00', 'Quick sync', 'Invite flow review'],
+                              ['16:00 - 16:45', 'Write mode', 'Launch note first draft']
+                            ].map(([time, title, detail]) => (
+                              <div key={title} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#8EF0CD]">{time}</p>
+                                <p className="mt-2 text-sm font-black">{title}</p>
+                                <p className="mt-1 text-xs font-semibold text-white/70">{detail}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </section>
+
+                        <section className="rounded-[28px] border border-[#D9D6FF] bg-[linear-gradient(160deg,_#ffffff_0%,_#f7fff9_100%)] p-5 shadow-[0_16px_40px_rgba(29,158,117,0.1)]">
+                          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#1D9E75]">Quick adds</p>
+                          <h3 className="mt-2 text-xl font-black tracking-[-0.03em] text-[#1C1739]">Keep your space moving</h3>
+                          <div className="mt-5 grid gap-3">
+                            {[
+                              ['Add a goal', 'Personal goal added in demo. Live goals will save in NudgeSpace.'],
+                              ['Create a focus block', 'Deep work block queued in demo.'],
+                              ['Drop a reminder', 'Reminder added to U Space in demo.']
+                            ].map(([label, toast]) => (
+                              <button
+                                key={label}
+                                type="button"
+                                onClick={() => showToast(toast, 'success')}
+                                className="flex items-center justify-between rounded-2xl border border-[#E4F7EE] bg-white px-4 py-4 text-left transition hover:border-[#B7E9D2] hover:bg-[#F7FFFB]"
+                              >
+                                <span className="text-sm font-black text-[#1C1739]">{label}</span>
+                                <ArrowRight className="h-4 w-4 text-[#1D9E75]" />
+                              </button>
+                            ))}
+                          </div>
+                        </section>
+
+                        <section className="rounded-[28px] bg-[linear-gradient(160deg,_#3C3489_0%,_#7F77DD_60%,_#1D9E75_120%)] p-5 text-white shadow-[0_18px_45px_rgba(60,52,137,0.28)]">
+                          <span className="inline-flex items-center gap-2 rounded-full bg-white/12 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.18em] text-white/80">
+                            <Sparkles className="h-4 w-4" />
+                            NudgeAI for U Space
+                          </span>
+                          <h3 className="mt-4 text-2xl font-black tracking-[-0.04em]">Need a sharper plan for the rest of the day?</h3>
+                          <p className="mt-2 text-sm font-semibold leading-6 text-white/80">Use NudgeAI to turn loose thoughts into a focused plan, priority list, or update draft.</p>
+                          <button
+                            type="button"
+                            onClick={openDemoAiHelper}
+                            className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]"
+                          >
+                            Ask NudgeAI
+                            <ArrowRight className="h-4 w-4" />
+                          </button>
+                        </section>
+                      </aside>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {demoEmployeeCanNavigate && selectedDemoSection === 'NudgeSpace' && !isSandbox && (
+                <div className="mt-6 space-y-6">
+                  <section className="overflow-hidden rounded-[32px] border border-[#D9D6FF] bg-[linear-gradient(135deg,_#ffffff_0%,_#f8f6ff_48%,_#f3fff8_100%)] p-6 shadow-[0_24px_80px_rgba(60,52,137,0.14)]">
+                    <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+                      <div className="max-w-3xl">
+                        <span className="inline-flex items-center gap-2 rounded-full bg-[#1C1739] px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.22em] text-white">
+                          <MessageSquareText className="h-3.5 w-3.5" />
+                          NudgeSpace
+                        </span>
+                        <h2 className="mt-4 text-3xl font-black tracking-[-0.04em] text-[#1C1739] sm:text-4xl">
+                          Social + U Space
+                        </h2>
+                        <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-[#5F5E5A] sm:text-base">
+                          Share workspace updates in Social and keep your private goals, focus blocks, and reminders in U Space.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-3">
+                        {['Social', 'U Space'].map((view) => (
+                          <button
+                            key={view}
+                            type="button"
+                            onClick={() => {
+                              setDemoNudgeSpaceView(view);
+                              if (!isSandbox) loadNudgeSpacePosts(view === 'U Space' ? 'u_space' : 'social');
+                            }}
+                            className={`inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-extrabold transition ${
+                              demoNudgeSpaceView === view
+                                ? 'bg-[#1C1739] text-white shadow-[0_14px_30px_rgba(28,23,57,0.28)]'
+                                : 'border border-[#D9D6FF] bg-white text-[#5F5E5A] hover:border-[#BEB7FF] hover:text-[#1C1739]'
+                            }`}
+                          >
+                            {view === 'Social' ? <MessageSquareText className="h-4 w-4" /> : <ListTodo className="h-4 w-4" />}
+                            {view}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </section>
+
+                  {demoNudgeSpaceView === 'Social' ? (
+                    <div className="grid gap-6 xl:grid-cols-[1.12fr_0.88fr]">
+                      <section className="space-y-5">
+                        <div className="rounded-[28px] bg-[linear-gradient(145deg,_#140F29,_#2E255E)] p-5 text-white shadow-[0_18px_50px_rgba(20,15,41,0.35)]">
+                          <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-[#8EF0CD]">Social feed</p>
+                          <h3 className="mt-3 text-2xl font-black tracking-[-0.04em]">Post updates without another chat thread</h3>
+                          <p className="mt-2 max-w-xl text-sm font-semibold leading-6 text-white/75">
+                            Wins, asks, blockers, and ideas stay visible inside your company workspace.
+                          </p>
+
+                          <div className="mt-5 rounded-[24px] border border-white/10 bg-white/10 p-4 backdrop-blur">
+                            <div className="mb-3 flex flex-wrap gap-2">
+                              {['status', 'win', 'question', 'idea'].map((type) => (
+                                <button
+                                  key={type}
+                                  type="button"
+                                  onClick={() => setNudgeSpacePostType(type)}
+                                  className={`rounded-full px-3 py-1 text-xs font-extrabold capitalize ${nudgeSpacePostType === type ? 'bg-white text-[#120F24]' : 'border border-white/10 bg-white/10 text-white/75'}`}
+                                >
+                                  {type}
+                                </button>
+                              ))}
+                            </div>
+                            <textarea
+                              rows={4}
+                              value={nudgeSpaceDraft}
+                              onChange={(event) => setNudgeSpaceDraft(event.target.value)}
+                              className="w-full resize-none rounded-[22px] border border-white/10 bg-white p-4 text-sm font-semibold text-[#1C1739] outline-none transition focus:border-[#8EF0CD] focus:ring-4 focus:ring-[#8EF0CD]/20"
+                              placeholder="Share a win, ask for help, or post today's focus..."
+                            />
+                            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                              <p className="text-xs font-bold text-white/65">Posts stay inside your company workspace.</p>
+                              <button
+                                type="button"
+                                onClick={submitNudgeSpacePost}
+                                disabled={nudgeSpaceSaving}
+                                className="inline-flex items-center gap-2 rounded-full bg-[#8EF0CD] px-5 py-3 text-sm font-extrabold text-[#10211C] transition hover:bg-[#B5F6DE] disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {nudgeSpaceSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                {nudgeSpaceSaving ? 'Posting...' : 'Post to Social'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {renderNudgeSpacePostList({
+                          emptyTitle: 'No Social posts yet',
+                          emptySub: 'Your company feed will appear here once someone posts from an OG account.',
+                          emptyIcon: MessageSquareText
+                        })}
+                      </section>
+
+                      <aside className="space-y-5">
+                        <section className="rounded-[28px] border border-[#D9D6FF] bg-white p-5 shadow-[0_16px_40px_rgba(29,158,117,0.12)]">
+                          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#1D9E75]">Workspace pulse</p>
+                          <h3 className="mt-2 text-xl font-black tracking-[-0.03em] text-[#1C1739]">No trends yet</h3>
+                          <p className="mt-3 text-sm font-semibold leading-6 text-[#5F5E5A]">
+                            Trending topics will appear after your team starts posting in Social.
+                          </p>
+                        </section>
+
+                        <section className="rounded-[28px] bg-[linear-gradient(145deg,_#1C1739,_#12795C)] p-5 text-white shadow-[0_18px_45px_rgba(28,23,57,0.28)]">
+                          <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/75">
+                            <Zap className="h-4 w-4" />
+                            NudgeAI x Social
+                          </span>
+                          <h3 className="mt-5 text-2xl font-black tracking-[-0.04em]">Draft a clearer workspace post.</h3>
+                          <p className="mt-3 text-sm font-semibold leading-6 text-white/75">
+                            Turn a rough update, blocker, or celebration into a sharper post.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={openDemoAiHelper}
+                            className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-extrabold text-[#1C1739] transition hover:bg-[#EEEDFE]"
+                          >
+                            Ask NudgeAI
+                            <ArrowRight className="h-4 w-4" />
+                          </button>
+                        </section>
+                      </aside>
+                    </div>
+                  ) : (
+                    <div className="grid gap-6 xl:grid-cols-[1fr_0.95fr]">
+                      <section className="rounded-[28px] border border-[#D9D6FF] bg-white p-5 shadow-[0_20px_48px_rgba(127,119,221,0.14)]">
+                        <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-[#6D63D9]">U Space</p>
+                        <h3 className="mt-2 text-3xl font-black tracking-[-0.04em] text-[#1C1739]">Your private focus board</h3>
+                        <p className="mt-3 max-w-xl text-sm font-semibold leading-6 text-[#5F5E5A]">
+                          Keep personal goals, reminders, and protected focus blocks separate from the public workspace feed.
+                        </p>
+                        <div className="mt-6 rounded-[24px] border border-[#ECE8FF] bg-[#FBFAFF] p-4">
+                          <textarea
+                            rows={4}
+                            value={nudgeSpaceDraft}
+                            onChange={(event) => setNudgeSpaceDraft(event.target.value)}
+                            className="w-full resize-none rounded-[22px] border border-[#DAD7FB] bg-white p-4 text-sm font-semibold text-[#1C1739] outline-none transition focus:border-[#7F77DD] focus:ring-4 focus:ring-[#EEEDFE]"
+                            placeholder="Add a private goal, reminder, or focus note..."
+                          />
+                          <div className="mt-4 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={submitNudgeSpacePost}
+                              disabled={nudgeSpaceSaving}
+                              className="inline-flex items-center gap-2 rounded-full bg-[#1C1739] px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#3C3489] disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {nudgeSpaceSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                              {nudgeSpaceSaving ? 'Saving...' : 'Save to U Space'}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="mt-6">
+                          {renderNudgeSpacePostList({
+                            emptyTitle: 'No private goals yet',
+                            emptySub: 'Your saved U Space goals and focus blocks will appear here.',
+                            emptyIcon: ListTodo
+                          })}
+                        </div>
+                      </section>
+
+                      <aside className="space-y-5">
+                        <section className="rounded-[28px] bg-[#120F24] p-5 text-white shadow-[0_18px_55px_rgba(18,15,36,0.35)]">
+                          <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-[#8EF0CD]">Today map</p>
+                          <h3 className="mt-3 text-2xl font-black tracking-[-0.04em]">Focus blocks will appear here</h3>
+                          <p className="mt-3 text-sm font-semibold leading-6 text-white/70">
+                            Your saved deep work sessions and reminders will show up once U Space persistence is wired.
+                          </p>
+                        </section>
+
+                        <section className="rounded-[28px] bg-[linear-gradient(160deg,_#3C3489_0%,_#7F77DD_60%,_#1D9E75_120%)] p-5 text-white shadow-[0_18px_45px_rgba(60,52,137,0.28)]">
+                          <span className="inline-flex items-center gap-2 rounded-full bg-white/12 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.18em] text-white/80">
+                            <Sparkles className="h-4 w-4" />
+                            NudgeAI for U Space
+                          </span>
+                          <h3 className="mt-4 text-2xl font-black tracking-[-0.04em]">Need a sharper plan for the rest of the day?</h3>
+                          <p className="mt-2 text-sm font-semibold leading-6 text-white/80">Use NudgeAI to turn loose thoughts into a focused plan, priority list, or update draft.</p>
+                          <button
+                            type="button"
+                            onClick={openDemoAiHelper}
+                            className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]"
+                          >
+                            Ask NudgeAI
+                            <ArrowRight className="h-4 w-4" />
+                          </button>
+                        </section>
+                      </aside>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {demoEmployeeCanNavigate && selectedDemoSection === 'NudgeAI' && (
                 <div className="mt-6 grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
                   <section className="relative overflow-hidden rounded-xl border border-[#DAD7FB] bg-[#3C3489] p-6 text-white shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
@@ -5876,7 +7805,7 @@ function App() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => setDemoAiHelperOpen(true)}
+                        onClick={openDemoAiHelper}
                         className="mt-5 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]"
                       >
                         Open NudgeAI helper
@@ -6022,7 +7951,7 @@ function App() {
                       </p>
                       <button
                         type="button"
-                        onClick={() => setDemoAiHelperOpen(true)}
+                        onClick={openDemoAiHelper}
                         className="mt-4 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]"
                       >
                         Ask NudgeAI
@@ -6390,7 +8319,7 @@ function App() {
               </div>
             </div>
 
-            <div className="relative mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="relative mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
               {roleMetricCards.map(([title, copy, Icon, color]) => (
                 <div key={title} className="metric-lift role-metric-card rounded-2xl border border-white/15 bg-white/10 p-5 shadow-sm backdrop-blur">
                   <div className="flex items-center gap-3">
@@ -6431,6 +8360,203 @@ function App() {
               ))}
             </div>
           </div>
+
+          {!demoEmployeeCanNavigate && selectedDemoSection === 'NudgeSpace' && (
+            <section className="mt-7 space-y-6">
+              <div className="overflow-hidden rounded-[32px] border border-[#D9D6FF] bg-[linear-gradient(135deg,_#ffffff_0%,_#f8f6ff_48%,_#f3fff8_100%)] p-6 shadow-[0_24px_80px_rgba(60,52,137,0.14)]">
+                <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+                  <div className="max-w-3xl">
+                    <span className="inline-flex items-center gap-2 rounded-full bg-[#1C1739] px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.22em] text-white">
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      Scoped to {dashboardRoleLabel}
+                    </span>
+                    <h2 className="mt-4 text-3xl font-black tracking-[-0.04em] text-[#1C1739] sm:text-4xl">
+                      {nudgeSpaceRoleCopy.title}
+                    </h2>
+                    <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-[#5F5E5A] sm:text-base">
+                      {nudgeSpaceRoleCopy.copy}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    {['Social', 'U Space'].map((view) => (
+                      <button
+                        key={view}
+                        type="button"
+                        onClick={() => {
+                          setDemoNudgeSpaceView(view);
+                          if (!isSandbox) loadNudgeSpacePosts(view === 'U Space' ? 'u_space' : 'social');
+                        }}
+                        className={`inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-extrabold transition ${
+                          demoNudgeSpaceView === view
+                            ? 'bg-[#1C1739] text-white shadow-[0_14px_30px_rgba(28,23,57,0.28)]'
+                            : 'border border-[#D9D6FF] bg-white text-[#5F5E5A] hover:border-[#BEB7FF] hover:text-[#1C1739]'
+                        }`}
+                      >
+                        {view === 'Social' ? <MessageSquareText className="h-4 w-4" /> : <ListTodo className="h-4 w-4" />}
+                        {view}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {demoNudgeSpaceView === 'Social' ? (
+                <div className="grid gap-6 xl:grid-cols-[1.12fr_0.88fr]">
+                  <section className="space-y-5">
+                    <div className="rounded-[28px] bg-[linear-gradient(145deg,_#140F29,_#2E255E)] p-5 text-white shadow-[0_18px_50px_rgba(20,15,41,0.35)]">
+                      <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-[#8EF0CD]">Social feed</p>
+                      <h3 className="mt-3 text-2xl font-black tracking-[-0.04em]">Post updates for the right audience</h3>
+                      <p className="mt-2 max-w-xl text-sm font-semibold leading-6 text-white/75">
+                        Announcements, recognitions, blockers, questions, and ideas stay scoped to this dashboard.
+                      </p>
+
+                      <div className="mt-5 rounded-[24px] border border-white/10 bg-white/10 p-4 backdrop-blur">
+                        <div className="mb-3 flex flex-wrap gap-2">
+                          {['announcement', 'win', 'question', 'idea'].map((type) => (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => setNudgeSpacePostType(type)}
+                              className={`rounded-full px-3 py-1 text-xs font-extrabold capitalize ${nudgeSpacePostType === type ? 'bg-white text-[#120F24]' : 'border border-white/10 bg-white/10 text-white/75'}`}
+                            >
+                              {type}
+                            </button>
+                          ))}
+                        </div>
+                        <textarea
+                          rows={4}
+                          value={nudgeSpaceDraft}
+                          onChange={(event) => setNudgeSpaceDraft(event.target.value)}
+                          className="w-full resize-none rounded-[22px] border border-white/10 bg-white p-4 text-sm font-semibold text-[#1C1739] outline-none transition focus:border-[#8EF0CD] focus:ring-4 focus:ring-[#8EF0CD]/20"
+                          placeholder="Draft a workspace post, recognition, blocker note, or quick team question..."
+                        />
+                        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                          <p className="text-xs font-bold text-white/65">{nudgeSpaceRoleCopy.visibility}</p>
+                          <button
+                            type="button"
+                            onClick={submitNudgeSpacePost}
+                            disabled={nudgeSpaceSaving}
+                            className="inline-flex items-center gap-2 rounded-full bg-[#8EF0CD] px-5 py-3 text-sm font-extrabold text-[#10211C] transition hover:bg-[#B5F6DE] disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {nudgeSpaceSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                            {nudgeSpaceSaving ? 'Posting...' : 'Post to Social'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {renderNudgeSpacePostList({
+                      emptyTitle: 'No Social posts yet',
+                      emptySub: 'Scoped workspace posts will appear here once someone posts from an OG account.',
+                      emptyIcon: MessageSquareText
+                    })}
+                  </section>
+
+                  <aside className="space-y-5">
+                    <section className="rounded-[28px] border border-[#D9D6FF] bg-white p-5 shadow-[0_16px_40px_rgba(29,158,117,0.12)]">
+                      <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#1D9E75]">Visibility</p>
+                      <h3 className="mt-2 text-xl font-black tracking-[-0.03em] text-[#1C1739]">Right audience, no noise.</h3>
+                      <div className="mt-5 grid gap-3">
+                        {[
+                          ['Post scope', dashboardRole === 'admin' ? 'Company-wide' : dashboardRole === 'hr' ? 'People + culture' : 'Department only'],
+                          ['Moderation', dashboardRole === 'admin' ? 'Full control' : dashboardRole === 'hr' ? 'People posts' : 'Team feed'],
+                          ['NudgeAI assist', 'Turn posts into summaries']
+                        ].map(([label, value]) => (
+                          <div key={label} className="flex items-center justify-between gap-4 rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] px-4 py-3">
+                            <span className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#8A8894]">{label}</span>
+                            <span className="text-sm font-extrabold text-[#2C2C2A]">{value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+
+                    <section className="rounded-[28px] bg-[linear-gradient(145deg,_#1C1739,_#12795C)] p-5 text-white shadow-[0_18px_45px_rgba(28,23,57,0.28)]">
+                      <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/75">
+                        <Zap className="h-4 w-4" />
+                        NudgeAI x Social
+                      </span>
+                      <h3 className="mt-5 text-2xl font-black tracking-[-0.04em]">Convert posts into signals.</h3>
+                      <p className="mt-3 text-sm font-semibold leading-6 text-white/75">
+                        Summarize open questions, repeated blockers, and useful next actions.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={openDemoAiHelper}
+                        className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-extrabold text-[#1C1739] transition hover:bg-[#EEEDFE]"
+                      >
+                        Ask NudgeAI
+                        <ArrowRight className="h-4 w-4" />
+                      </button>
+                    </section>
+                  </aside>
+                </div>
+              ) : (
+                <div className="grid gap-6 xl:grid-cols-[1fr_0.95fr]">
+                  <section className="rounded-[28px] border border-[#D9D6FF] bg-white p-5 shadow-[0_20px_48px_rgba(127,119,221,0.14)]">
+                    <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-[#6D63D9]">U Space</p>
+                    <h3 className="mt-2 text-3xl font-black tracking-[-0.04em] text-[#1C1739]">Private planning for this role</h3>
+                    <p className="mt-3 max-w-xl text-sm font-semibold leading-6 text-[#5F5E5A]">
+                      Keep private goals, follow-ups, reminders, and focus blocks separate from the shared Social feed.
+                    </p>
+                    <div className="mt-6 rounded-[24px] border border-[#ECE8FF] bg-[#FBFAFF] p-4">
+                      <textarea
+                        rows={4}
+                        value={nudgeSpaceDraft}
+                        onChange={(event) => setNudgeSpaceDraft(event.target.value)}
+                        className="w-full resize-none rounded-[22px] border border-[#DAD7FB] bg-white p-4 text-sm font-semibold text-[#1C1739] outline-none transition focus:border-[#7F77DD] focus:ring-4 focus:ring-[#EEEDFE]"
+                        placeholder="Add a private goal, reminder, or focus note..."
+                      />
+                      <div className="mt-4 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={submitNudgeSpacePost}
+                          disabled={nudgeSpaceSaving}
+                          className="inline-flex items-center gap-2 rounded-full bg-[#1C1739] px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#3C3489] disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {nudgeSpaceSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                          {nudgeSpaceSaving ? 'Saving...' : 'Save to U Space'}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-6">
+                      {renderNudgeSpacePostList({
+                        emptyTitle: 'No private goals yet',
+                        emptySub: 'Role-specific goals and focus blocks saved from this OG account will appear here.',
+                        emptyIcon: ListTodo
+                      })}
+                    </div>
+                  </section>
+
+                  <aside className="space-y-5">
+                    <section className="rounded-[28px] bg-[#120F24] p-5 text-white shadow-[0_18px_55px_rgba(18,15,36,0.35)]">
+                      <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-[#8EF0CD]">Today map</p>
+                      <h3 className="mt-3 text-2xl font-black tracking-[-0.04em]">Focus blocks will appear here</h3>
+                      <p className="mt-3 text-sm font-semibold leading-6 text-white/70">
+                        Saved private planning and reminders will show here once U Space persistence is wired.
+                      </p>
+                    </section>
+
+                    <section className="rounded-[28px] bg-[linear-gradient(160deg,_#3C3489_0%,_#7F77DD_60%,_#1D9E75_120%)] p-5 text-white shadow-[0_18px_45px_rgba(60,52,137,0.28)]">
+                      <span className="inline-flex items-center gap-2 rounded-full bg-white/12 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.18em] text-white/80">
+                        <Sparkles className="h-4 w-4" />
+                        NudgeAI for U Space
+                      </span>
+                      <h3 className="mt-4 text-2xl font-black tracking-[-0.04em]">Need a sharper plan?</h3>
+                      <p className="mt-2 text-sm font-semibold leading-6 text-white/80">Use NudgeAI to turn loose thoughts into a focused priority list or post draft.</p>
+                      <button
+                        type="button"
+                        onClick={openDemoAiHelper}
+                        className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]"
+                      >
+                        Ask NudgeAI
+                        <ArrowRight className="h-4 w-4" />
+                      </button>
+                    </section>
+                  </aside>
+                </div>
+              )}
+            </section>
+          )}
 
           {/* --- SUBVIEW: EMPLOYEE WORKSPACE --- */}
           {isEmployeeDashboard && (
@@ -6767,7 +8893,7 @@ function App() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setDemoAiHelperOpen(true)}
+                    onClick={openDemoAiHelper}
                     className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#15112E] px-4 py-3 text-sm font-black text-white transition hover:bg-[#3C3489]"
                   >
                     Stuck anywhere? Use NudgeAI
@@ -6808,6 +8934,81 @@ function App() {
                   </div>
                 </div>
               )}
+
+              {whatsappPreviewOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1A1035]/45 px-5 py-8 backdrop-blur-sm">
+                  <div className="max-h-[86vh] w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+                    <div className="flex items-start justify-between border-b border-[#EEEDFE] p-6">
+                      <div>
+                        <h4 className="text-2xl font-black text-[#2C2C2A]">Send WhatsApp Nudge</h4>
+                        <p className="mt-2 text-sm font-semibold text-[#5F5E5A]">Choose employees who should receive today&apos;s reminder.</p>
+                      </div>
+                      <button type="button" onClick={() => setWhatsappPreviewOpen(false)} className="rounded-full p-2 text-[#5F5E5A] hover:bg-[#F4F3FF] hover:text-[#2C2C2A]">
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+
+                    <div className="max-h-[52vh] overflow-y-auto p-6">
+                      {whatsappPreviewEmployees.length ? (
+                        <div className="space-y-3">
+                          {whatsappPreviewEmployees.map((employee) => {
+                            const disabled = employee.submitted_today || employee.already_nudged_today || !employee.phone_number;
+                            const checked = selectedWhatsAppEmployees.includes(employee.id);
+                            return (
+                              <label key={employee.id} className={`flex items-center gap-4 rounded-2xl border p-4 ${disabled ? 'border-[#EEEDFE] bg-[#F7F7FA] opacity-60' : 'border-[#DAD7FB] bg-white'}`}>
+                                <input
+                                  type="checkbox"
+                                  disabled={disabled}
+                                  checked={checked}
+                                  onChange={(event) => {
+                                    setSelectedWhatsAppEmployees((items) => event.target.checked
+                                      ? [...items, employee.id]
+                                      : items.filter((id) => id !== employee.id)
+                                    );
+                                  }}
+                                  className="h-4 w-4 accent-[#7F77DD]"
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-black text-[#2C2C2A]">{employee.name || employee.email}</p>
+                                  <p className="mt-1 text-xs font-semibold text-[#5F5E5A]">
+                                    {employee.last_seen_label || 'Never submitted'}{employee.phone_number ? ` • ${employee.phone_number}` : ' • No phone number'}
+                                  </p>
+                                </div>
+                                {employee.submitted_today ? <span className="rounded-full bg-[#E8F7F1] px-3 py-1 text-[11px] font-black text-[#1D9E75]">Submitted</span> : null}
+                                {employee.already_nudged_today ? <span className="rounded-full bg-[#FFF7ED] px-3 py-1 text-[11px] font-black text-[#D97706]">Nudged</span> : null}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        renderEmptyState({
+                          title: 'No employees found',
+                          sub: 'Invite employees with phone numbers before sending WhatsApp nudges.',
+                          Icon: UsersRound
+                        })
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-3 border-t border-[#EEEDFE] p-6 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-sm font-extrabold text-[#5F5E5A]">{selectedWhatsAppEmployees.length} selected</p>
+                      <div className="flex gap-3">
+                        <button type="button" onClick={() => setWhatsappPreviewOpen(false)} className="rounded-xl border border-[#DAD7FB] px-4 py-2.5 text-xs font-black text-[#5F5E5A] hover:bg-[#EEEDFE]">
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={sendWhatsAppNudges}
+                          disabled={!selectedWhatsAppEmployees.length || whatsappNudgeLoading}
+                          className="inline-flex items-center gap-2 rounded-xl bg-[#7F77DD] px-5 py-2.5 text-xs font-black text-white hover:bg-[#3C3489] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {whatsappNudgeLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <MessageSquareText className="h-4 w-4" />}
+                          Send to selected ({selectedWhatsAppEmployees.length})
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -6817,11 +9018,90 @@ function App() {
               
               {/* Admin Left Column */}
               <div className="space-y-7">
-                <NudgeAiStandupCard
-                  data={nudgeAiData.standup}
-                  loading={nudgeAiLoading.standup}
-                  onRegenerate={() => runNudgeAiFeature('standup', true)}
-                />
+                {authRole === 'manager' ? (
+                  <section className="workspace-card rounded-2xl border border-[#DAD7FB] bg-gradient-to-br from-[#F4F3FF] via-white to-[#E8F7F1] p-6">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#3C3489]">⚡ NudgeAI Morning Brief</p>
+                        <h3 className="mt-2 text-2xl font-black text-[#2C2C2A]">Your team snapshot for today.</h3>
+                        <p className="mt-1 text-sm font-semibold text-[#5F5E5A]">Generated today at 9:00 AM</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => runNudgeAiFeature('standup', true)}
+                        className="inline-flex items-center justify-center gap-2 rounded-full border border-[#DAD7FB] bg-white px-4 py-2 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        Regenerate
+                      </button>
+                    </div>
+                    <div className="mt-5 grid gap-3 md:grid-cols-2">
+                      {[
+                        ['Yesterday', 'The team closed priority follow-ups and pushed the client deck forward.'],
+                        ['Today', 'Focus is on clearing CRM access, finalizing research notes, and confirming proof uploads.'],
+                        ['Needs attention', 'Rahul is blocked on CRM permissions and Neha has no update today.'],
+                        ['Recommendation', 'Send a short team nudge, then resolve the access blocker before noon.']
+                      ].map(([label, copy]) => (
+                        <div key={label} className="rounded-2xl border border-white bg-white/80 p-4 shadow-sm">
+                          <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#7F77DD]">{label}</p>
+                          <p className="mt-2 text-sm font-semibold leading-6 text-[#2C2C2A]">{copy}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                ) : (
+                  <NudgeAiStandupCard
+                    data={nudgeAiData.standup}
+                    loading={nudgeAiLoading.standup}
+                    onRegenerate={() => runNudgeAiFeature('standup', true)}
+                  />
+                )}
+
+                {authRole === 'manager' ? (
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <button
+                      type="button"
+                      onClick={() => showToast('Assign task panel opens from Tasks.', 'info')}
+                      className="workspace-card-quiet metric-lift inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-4 text-sm font-extrabold text-[#3C3489]"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Assign Task
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => showToast('Manager report export prepared.', 'success')}
+                      className="workspace-card-quiet metric-lift inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-4 text-sm font-extrabold text-[#3C3489]"
+                    >
+                      <Download className="h-4 w-4" />
+                      Export Report
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => showToast("Team nudge sent to members without today's update.", 'success')}
+                      className="workspace-card-quiet metric-lift inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-4 text-sm font-extrabold text-[#3C3489]"
+                    >
+                      <Mail className="h-4 w-4" />
+                      Send Team Nudge
+                    </button>
+                  </div>
+                ) : null}
+
+                {isPeopleDashboard ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={openWhatsAppNudgePreview}
+                      disabled={whatsappNudgeLoading}
+                      className="workspace-card-quiet metric-lift inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-4 text-sm font-extrabold text-[#1D9E75] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {whatsappNudgeLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <MessageSquareText className="h-4 w-4" />}
+                      {whatsappNudgeLoading ? 'Sending WhatsApp Nudges...' : 'Send WhatsApp Nudge'}
+                    </button>
+                    <div className="workspace-card-quiet rounded-2xl px-4 py-4 text-xs font-semibold leading-5 text-[#5F5E5A]">
+                      Sends reminders only to employees with a saved phone number and no update/check-in today.
+                    </div>
+                  </div>
+                ) : null}
                 
                 {/* Role-specific command stats */}
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -6838,48 +9118,142 @@ function App() {
                 </div>
 
                 {authRole === 'manager' ? (
-                  <div className="grid gap-5 lg:grid-cols-2">
-                    <div className="workspace-card rounded-2xl p-6">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#1D9E75]">Manager Action Queue</p>
-                          <h3 className="mt-2 text-xl font-extrabold text-[#2C2C2A]">Blockers your team needs cleared.</h3>
+                  <div className="space-y-5">
+                    {managerActiveBlockers.length > 0 ? (
+                      <section className="rounded-2xl border border-rose-100 border-l-[3px] border-l-[#EF4444] bg-[#FFF5F5] p-5 shadow-sm">
+                        <h3 className="text-lg font-black text-[#B91C1C]">🚨 Active Blockers — Needs Attention</h3>
+                        <div className="mt-4 space-y-3">
+                          {managerActiveBlockers.map((blocker) => (
+                            <div key={blocker.id} className="flex flex-col gap-3 rounded-2xl border border-rose-100 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#FEE2E2] text-sm font-black text-[#B91C1C]">
+                                  {(blocker.assignee?.name || 'T').slice(0, 1)}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-black text-[#2C2C2A]">{blocker.assignee?.name || 'Team member'}</p>
+                                  <p className="text-xs font-semibold text-[#5F5E5A]">{blocker.title}</p>
+                                  <p className="mt-1 text-xs font-extrabold text-[#EF4444]">{blocker.blockedAgo}</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <button type="button" onClick={() => showToast('Blocker marked resolved for this manager view.', 'success')} className="rounded-full bg-[#1D9E75] px-4 py-2 text-xs font-extrabold text-white">
+                                  Resolve
+                                </button>
+                                <button type="button" onClick={() => window.location.href = `mailto:${blocker.assignee?.email || 'hello.nudgehq@gmail.com'}?subject=NudgeHQ blocker follow-up`} className="rounded-full border border-[#EF4444]/30 bg-white px-4 py-2 text-xs font-extrabold text-[#B91C1C]">
+                                  Message
+                                </button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                        <AlertCircle className="h-8 w-8 text-[#F59E0B]" />
-                      </div>
-                      <div className="mt-5 space-y-3">
-                        {managerBlockedTasks.length ? managerBlockedTasks.map((task) => (
-                          <div key={task.id} className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
-                            <p className="text-sm font-extrabold text-[#2C2C2A]">{task.title}</p>
-                            <p className="mt-1 text-xs font-semibold text-[#5F5E5A]">{task.assignee?.name || 'Unassigned'} · blocked</p>
+                      </section>
+                    ) : null}
+
+                    <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+                      <section className="workspace-card rounded-2xl p-6">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#3C3489]">Team Progress</p>
+                            <h3 className="mt-2 text-xl font-extrabold text-[#2C2C2A]">Only your department’s work.</h3>
                           </div>
-                        )) : (
-                          <p className="rounded-2xl border border-[#E8F7F1] bg-[#E8F7F1] px-4 py-3 text-sm font-bold text-[#1D9E75]">
-                            No blocked team tasks right now.
-                          </p>
-                        )}
-                      </div>
+                          <button type="button" onClick={() => showToast('Opening all manager tasks soon.', 'info')} className="rounded-full border border-[#DAD7FB] px-4 py-2 text-xs font-extrabold text-[#3C3489]">
+                            View all tasks →
+                          </button>
+                        </div>
+                        <div className="mt-5 overflow-x-auto">
+                          <table className="min-w-full text-left text-sm">
+                            <thead className="text-xs uppercase tracking-[0.14em] text-[#8A8882]">
+                              <tr>
+                                <th className="pb-3 pr-4">Member</th>
+                                <th className="pb-3 pr-4">Task</th>
+                                <th className="pb-3 pr-4">Progress</th>
+                                <th className="pb-3 pr-4">Status</th>
+                                <th className="pb-3">Last update</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[#EEEDFE]">
+                              {managerProgressRows.map(([name, task, progress, status, color, lastUpdate, updateTone]) => (
+                                <tr key={`${name}-${task}`}>
+                                  <td className="py-4 pr-4">
+                                    <div className="flex items-center gap-3">
+                                      <div className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-black text-white" style={{ backgroundColor: color }}>
+                                        {name.split(' ').map((part) => part[0]).join('').slice(0, 2)}
+                                      </div>
+                                      <span className="font-extrabold text-[#2C2C2A]">{name}</span>
+                                    </div>
+                                  </td>
+                                  <td className="py-4 pr-4 font-semibold text-[#5F5E5A]">{task}</td>
+                                  <td className="py-4 pr-4">
+                                    <div className="flex items-center gap-3">
+                                      <div className="h-2 w-28 rounded-full bg-[#EEEDFE]">
+                                        <div className="h-full rounded-full transition-all" style={{ width: `${progress}%`, backgroundColor: color }} />
+                                      </div>
+                                      <span className="text-xs font-black text-[#2C2C2A]">{progress}%</span>
+                                    </div>
+                                  </td>
+                                  <td className="py-4 pr-4">
+                                    <span className={`rounded-full px-3 py-1 text-xs font-extrabold ${status === 'Completed' ? 'bg-[#E8F7F1] text-[#1D9E75]' : status === 'Blocked' || status === 'Overdue' ? 'bg-rose-50 text-rose-600' : 'bg-[#EEEDFE] text-[#3C3489]'}`}>
+                                      {status}
+                                    </span>
+                                  </td>
+                                  <td className={`py-4 text-xs font-extrabold ${getManagerLastUpdateClass(updateTone)}`}>{lastUpdate}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </section>
+
+                      <section className="workspace-card rounded-2xl p-6">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-xl font-extrabold text-[#2C2C2A]">Recent Activity</h3>
+                          <span className="rounded-full bg-[#EEEDFE] px-3 py-1 text-xs font-extrabold text-[#3C3489]">Live</span>
+                        </div>
+                        <div className="mt-5 space-y-3">
+                          {managerActivityRows.map(([action, task, time, Icon, color, preview]) => {
+                            const isCritical = color === '#EF4444';
+                            const isExpanded = expandedManagerActivity === `${action}-${task}`;
+                            return (
+                              <button
+                                key={`${action}-${task}`}
+                                type="button"
+                                onClick={() => setExpandedManagerActivity(isExpanded ? null : `${action}-${task}`)}
+                                className={`w-full rounded-2xl border bg-white p-4 text-left transition hover:shadow-md ${isCritical ? 'border-rose-100 border-l-[3px] border-l-[#EF4444]' : 'border-[#EEEDFE]'}`}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex items-start gap-3">
+                                    <span className="flex h-9 w-9 items-center justify-center rounded-full" style={{ backgroundColor: `${color}18`, color }}>
+                                      <Icon className="h-4 w-4" />
+                                    </span>
+                                    <div>
+                                      <p className={`text-sm font-black ${isCritical ? 'text-[#EF4444]' : 'text-[#2C2C2A]'}`}>{action}</p>
+                                      <p className="text-xs font-semibold text-[#5F5E5A]">{task}</p>
+                                    </div>
+                                  </div>
+                                  <span className="text-xs font-extrabold text-[#8A8882]">{time}</span>
+                                </div>
+                                {isExpanded ? <p className="mt-3 rounded-xl bg-[#FCFCFF] p-3 text-xs font-semibold leading-5 text-[#5F5E5A]">{preview}</p> : null}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <button type="button" onClick={() => window.history.pushState({}, '', '/manager/activity')} className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#DAD7FB] px-4 py-2 text-sm font-extrabold text-[#3C3489]">
+                          View all activity
+                          <ArrowRight className="h-4 w-4" />
+                        </button>
+                      </section>
                     </div>
 
                     <div className="workspace-card rounded-2xl p-6">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#3C3489]">Team Load</p>
-                          <h3 className="mt-2 text-xl font-extrabold text-[#2C2C2A]">Assign work without leaving your scope.</h3>
-                        </div>
-                        <ListTodo className="h-8 w-8 text-[#7F77DD]" />
-                      </div>
-                      <div className="mt-5 space-y-3">
-                        {managerUnassignedTasks.length ? managerUnassignedTasks.map((task) => (
-                          <div key={task.id} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] px-4 py-3">
-                            <p className="text-sm font-extrabold text-[#2C2C2A]">{task.title}</p>
-                            <p className="mt-1 text-xs font-semibold text-[#5F5E5A]">Waiting for an owner</p>
-                          </div>
-                        )) : (
-                          <p className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] px-4 py-3 text-sm font-bold text-[#3C3489]">
-                            Every visible task has an owner.
+                          <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#7F77DD]">Projects</p>
+                          <h3 className="mt-2 text-xl font-extrabold text-[#2C2C2A]">Project workspace is coming soon.</h3>
+                          <p className="mt-2 text-sm font-semibold leading-6 text-[#5F5E5A]">
+                            Managers will soon group tasks into projects, track owners, and see NudgeAI delivery risk by project. For now, use Team Progress and Tasks.
                           </p>
-                        )}
+                        </div>
+                        <Building2 className="h-10 w-10 text-[#7F77DD]" />
                       </div>
                     </div>
                   </div>
@@ -7217,6 +9591,13 @@ function App() {
                       onChange={(e) => setInviteEmail(e.target.value)}
                       className="block w-full rounded-md border border-[#DAD7FB] px-3 py-2 text-xs outline-none focus:border-[#7F77DD]"
                       required
+                    />
+                    <input
+                      type="tel"
+                      placeholder="WhatsApp phone optional (+919999999999)"
+                      value={invitePhone}
+                      onChange={(e) => setInvitePhone(e.target.value)}
+                      className="block w-full rounded-md border border-[#DAD7FB] px-3 py-2 text-xs outline-none focus:border-[#7F77DD]"
                     />
                     <select
                       value={inviteRole}
