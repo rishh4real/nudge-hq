@@ -30,6 +30,20 @@ const weekBounds = (weeksAgo = 0) => {
   return { start, end };
 };
 
+const addDays = (date, days) => {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate;
+};
+
+const formatDueLabel = (dueDate) => {
+  if (!dueDate) return 'No deadline';
+  return new Intl.DateTimeFormat('en-IN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(dueDate));
+};
+
 const hasTodayNudge = (employee) => {
   if (!employee.last_whatsapp_nudge && !employee.whatsapp_nudge_sent_at) return false;
   const last = new Date(employee.last_whatsapp_nudge || employee.whatsapp_nudge_sent_at);
@@ -95,6 +109,20 @@ const getEmployeesForPreview = async (organizationId = null) => {
   })));
 };
 
+const getNotificationMessage = ({ status, type, errorMessage }) => {
+  const labelMap = {
+    daily_nudge: 'WhatsApp nudge',
+    deadline_reminder: 'WhatsApp deadline reminder',
+    weekly_win: 'WhatsApp weekly win',
+    weekly_manager_report: 'WhatsApp weekly report',
+  };
+  const label = labelMap[type] || 'WhatsApp notification';
+  if (status === 'skipped') return `${label} skipped: ${errorMessage || 'not needed'}`;
+  return status === 'sent'
+    ? `${label} sent.`
+    : `${label} failed: ${errorMessage || 'unknown error'}`;
+};
+
 const logWhatsAppNotification = async ({ employee, status, twilioSid = null, errorMessage = null, type = 'daily_nudge', triggeredBy = null, taskId = null }) => {
   await Promise.allSettled([
     supabase.from('whatsapp_notification_logs').insert([{
@@ -111,9 +139,7 @@ const logWhatsAppNotification = async ({ employee, status, twilioSid = null, err
     supabase.from('employee_notifications').insert([{
       user_id: employee.id,
       type: `whatsapp_${type}`,
-      message: status === 'sent'
-        ? 'WhatsApp reminder sent.'
-        : `WhatsApp reminder failed: ${errorMessage || 'unknown error'}`,
+      message: getNotificationMessage({ status, type, errorMessage }),
     }]),
   ]);
 };
