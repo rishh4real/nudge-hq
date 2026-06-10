@@ -2,6 +2,7 @@ import { supabase } from '../config/supabase.js';
 import {
   buildTwilioReplyXml,
   normalizePhoneNumber,
+  sendWhatsAppDeadlineReminder,
   sendWhatsAppNudge,
   sendWhatsAppWeeklyWin,
 } from '../services/whatsapp.js';
@@ -144,6 +145,65 @@ const logWhatsAppNotification = async ({ employee, status, twilioSid = null, err
   ]);
 };
 
+const hasSentTaskReminderToday = async ({ taskId, userId }) => {
+  const { start } = dayBounds();
+  const { data, error } = await supabase
+    .from('whatsapp_notification_logs')
+    .select('id')
+    .eq('task_id', taskId)
+    .eq('user_id', userId)
+    .eq('notification_type', 'deadline_reminder')
+    .eq('status', 'sent')
+    .gte('created_at', start.toISOString())
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return Boolean(data);
+};
+
+const getDeadlineReminderCandidates = async ({ organizationId = null, departmentId = null } = {}) => {
+  const now = new Date();
+  const upcomingLimit = addDays(now, 1);
+
+  let query = supabase
+    .from('tasks')
+    .select(`
+      id,
+      title,
+      status,
+      due_date,
+      organization_id,
+      assignee:users!tasks_assignee_id_fkey(
+        id,
+        name,
+        phone_number,
+        department_id,
+        organization_id
+      )
+    `)
+    .in('status', ['todo', 'in_progress', 'blocked'])
+    .not('due_date', 'is', null)
+    .lte('due_date', upcomingLimit.toISOString())
+    .order('due_date', { ascending: true });
+
+  if (organizationId) query = query.eq('organization_id', organizationId);
+
+  const { data: tasks, error } = await query;
+  if (error) throw error;
+
+  return (tasks || []).filter((task) => {
+    const dueDate = task.due_date ? new Date(task.due_date) : null;
+    return (
+      dueDate &&
+      dueDate >= now &&
+      task.assignee?.id &&
+      task.assignee?.phone_number &&
+      (!departmentId || task.assignee?.department_id === departmentId)
+    );
+  });
+};
+
 export const sendPendingWhatsAppNudges = async ({ organizationId = null, employeeIds = null, triggeredBy = null } = {}) => {
   const employees = await getEmployeesForPreview(organizationId);
   const selectedIds = employeeIds?.length ? new Set(employeeIds) : null;
@@ -179,6 +239,59 @@ export const sendPendingWhatsAppNudges = async ({ organizationId = null, employe
     sent: results.filter((result) => result.status === 'sent').length,
     skipped: results.filter((result) => result.status === 'skipped').length,
     failed: results.filter((result) => result.status === 'failed').length,
+    results,
+  };
+};
+
+export const sendDeadlineWhatsAppReminders = async ({ organizationId = null, departmentId = null, triggeredBy = null } = {}) => {
+  const tasks = await getDeadlineReminderCandidates({ organizationId, departmentId });
+  const results = [];
+
+  for (const task of tasks) {
+    const employee = task.assignee;
+
+    try {
+      const alreadySent = await hasSentTaskReminderToday({ taskId: task.id, userId: employee.id });
+      if (alreadySent) {
+        results.push({ task_id: task.id, employee_id: employee.id, status: 'skipped', reason: 'already_sent_today' });
+        continue;
+      }
+
+      const message = await sendWhatsAppDeadlineReminder({
+        phone: employee.phone_number,
+        employeeName: employee.name,
+        taskTitle: task.title,
+        dueDate: task.due_date,
+        status: task.status,
+      });
+
+      results.push({ task_id: task.id, employee_id: employee.id, status: 'sent', sid: message.sid });
+      await logWhatsAppNotification({
+        employee,
+        status: 'sent',
+        twilioSid: message.sid,
+        type: 'deadline_reminder',
+        triggeredBy,
+        taskId: task.id,
+      });
+    } catch (error) {
+      results.push({ task_id: task.id, employee_id: employee.id, status: 'failed', reason: error.message });
+      await logWhatsAppNotification({
+        employee,
+        status: 'failed',
+        errorMessage: error.message,
+        type: 'deadline_reminder',
+        triggeredBy,
+        taskId: task.id,
+      });
+    }
+  }
+
+  return {
+    checked: tasks.length,
+    sent: results.filter((item) => item.status === 'sent').length,
+    skipped: results.filter((item) => item.status === 'skipped').length,
+    failed: results.filter((item) => item.status === 'failed').length,
     results,
   };
 };
