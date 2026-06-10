@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     description TEXT,
     status VARCHAR(20) NOT NULL CHECK (status IN ('todo', 'in_progress', 'completed', 'blocked')) DEFAULT 'todo',
     assignee_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
     due_date TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
@@ -238,6 +239,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_nudge_sent_at TIMESTAMPTZ;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_whatsapp_nudge TIMESTAMPTZ;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_complete BOOLEAN DEFAULT FALSE NOT NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE NOT NULL;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS owner_id UUID;
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS industry VARCHAR(80);
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS size VARCHAR(30);
@@ -302,7 +304,9 @@ CREATE INDEX IF NOT EXISTS idx_users_last_whatsapp_nudge ON users(last_whatsapp_
 CREATE INDEX IF NOT EXISTS idx_departments_organization ON departments(organization_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_departments_org_name ON departments(organization_id, name);
 CREATE INDEX IF NOT EXISTS idx_tasks_assignee ON tasks(assignee_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_organization ON tasks(organization_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
 CREATE INDEX IF NOT EXISTS idx_progress_updates_user ON progress_updates(user_id);
 CREATE INDEX IF NOT EXISTS idx_progress_updates_task ON progress_updates(task_id);
 CREATE INDEX IF NOT EXISTS idx_blocker_logs_task ON blocker_logs(task_id);
