@@ -21,7 +21,11 @@ import paymentRoutes from './routes/payment.routes.js';
 import contactRoutes from './routes/contact.routes.js';
 import nudgeSpaceRoutes from './routes/nudgespace.routes.js';
 import notificationRoutes from './routes/notifications.routes.js';
-import { sendPendingWhatsAppNudges, sendWeeklyWhatsAppWins } from './controllers/notifications.controller.js';
+import {
+  sendDeadlineWhatsAppReminders,
+  sendPendingWhatsAppNudges,
+  sendWeeklyWhatsAppWins,
+} from './controllers/notifications.controller.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -100,6 +104,17 @@ cron.schedule('0 17 * * *', async () => {
     console.log(`WhatsApp daily nudge cron completed: ${result.sent} sent, ${result.skipped} skipped, ${result.failed} failed.`);
   } catch (error) {
     console.error('WhatsApp daily nudge cron failed:', error.message);
+  }
+}, {
+  timezone: 'Asia/Kolkata',
+});
+
+cron.schedule('0 10 * * *', async () => {
+  try {
+    const result = await sendDeadlineWhatsAppReminders();
+    console.log(`WhatsApp deadline reminder cron completed: ${result.sent} sent, ${result.skipped} skipped, ${result.failed} failed.`);
+  } catch (error) {
+    console.error('WhatsApp deadline reminder cron failed:', error.message);
   }
 }, {
   timezone: 'Asia/Kolkata',
