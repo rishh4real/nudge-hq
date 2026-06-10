@@ -147,6 +147,23 @@ export const sendWhatsAppWeeklyWin = async ({ phone, tasksCompleted, blockersRes
   return sendWhatsAppMessage(phone, body);
 };
 
+export const sendWhatsAppDeadlineReminder = async ({ phone, employeeName, taskTitle, dueDate, status }) => {
+  const formattedDueDate = new Intl.DateTimeFormat('en-IN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(dueDate));
+  const body = `⏰ NudgeHQ deadline reminder\n\nHi ${employeeName || 'there'}, your task '${taskTitle}' is due by ${formattedDueDate}.\nCurrent status: ${status.replace('_', ' ')}.\n\nPlease update it before the deadline → ${APP_URL}/dashboard/employee`;
+  return sendWhatsAppMessage(phone, body);
+};
+
+export const sendWhatsAppWeeklyManagerReport = async ({ phone, recipientName, scopeLabel, report }) => {
+  const urgentLine = report.urgentTasks.length
+    ? `\nTop urgent: ${report.urgentTasks.map((task) => `${task.title} (${task.dueLabel})`).join(', ')}`
+    : '';
+  const body = `📊 Weekly NudgeHQ report\n\nHi ${recipientName || 'there'}, here is your ${scopeLabel} summary:\n👥 Employees: ${report.employeeCount}\n📝 Active tasks: ${report.activeTasks}\n✅ Completed tasks: ${report.completedTasks}\n🚨 Blocked tasks: ${report.blockedTasks}\n⌛ Overdue tasks: ${report.overdueTasks}\n📅 Due next 7 days: ${report.dueSoonTasks}\n🗓️ Weekly check-ins: ${report.checkedInEmployees}/${report.employeeCount}${urgentLine}\n\nOpen dashboard → ${APP_URL}/dashboard/manager`;
+  return sendWhatsAppMessage(phone, body);
+};
+
 export const sendWhatsAppWelcome = async ({ phone, name, companyName }) => {
   const body = `👋 Welcome to NudgeHQ, ${name}!\n\nYour workspace at ${companyName || 'your company'} is ready.\n\n✅ Submit daily updates\n📊 Track your progress\n🤖 Get AI-powered insights\n\nGet started → ${APP_URL}/dashboard/employee\n— NudgeHQ Team`;
   return sendWhatsAppMessage(phone, body);
