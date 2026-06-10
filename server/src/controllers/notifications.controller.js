@@ -4,6 +4,7 @@ import {
   normalizePhoneNumber,
   sendWhatsAppDeadlineReminder,
   sendWhatsAppNudge,
+  sendWhatsAppWeeklyManagerReport,
   sendWhatsAppWeeklyWin,
 } from '../services/whatsapp.js';
 
@@ -162,6 +163,22 @@ const hasSentTaskReminderToday = async ({ taskId, userId }) => {
   return Boolean(data);
 };
 
+const hasSentWeeklyManagerReport = async ({ userId }) => {
+  const { start } = weekBounds();
+  const { data, error } = await supabase
+    .from('whatsapp_notification_logs')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('notification_type', 'weekly_manager_report')
+    .eq('status', 'sent')
+    .gte('created_at', start.toISOString())
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return Boolean(data);
+};
+
 const getDeadlineReminderCandidates = async ({ organizationId = null, departmentId = null } = {}) => {
   const now = new Date();
   const upcomingLimit = addDays(now, 1);
@@ -202,6 +219,83 @@ const getDeadlineReminderCandidates = async ({ organizationId = null, department
       (!departmentId || task.assignee?.department_id === departmentId)
     );
   });
+};
+
+const buildWeeklyReport = async ({ organizationId, departmentId = null }) => {
+  const [employeesRes, tasksRes, checkinsRes] = await Promise.all([
+    supabase
+      .from('users')
+      .select('id, department_id')
+      .eq('organization_id', organizationId)
+      .eq('role', 'employee'),
+    supabase
+      .from('tasks')
+      .select(`
+        id,
+        title,
+        status,
+        due_date,
+        assignee:users!tasks_assignee_id_fkey(
+          id,
+          department_id
+        )
+      `)
+      .eq('organization_id', organizationId),
+    supabase
+      .from('daily_checkins')
+      .select('user_id, created_at, users!inner(department_id, organization_id)')
+      .eq('users.organization_id', organizationId)
+      .gte('created_at', weekBounds().start.toISOString())
+      .lt('created_at', weekBounds().end.toISOString()),
+  ]);
+
+  if (employeesRes.error) throw employeesRes.error;
+  if (tasksRes.error) throw tasksRes.error;
+  if (checkinsRes.error) throw checkinsRes.error;
+
+  const employeeIds = new Set(
+    (employeesRes.data || [])
+      .filter((employee) => !departmentId || employee.department_id === departmentId)
+      .map((employee) => employee.id)
+  );
+
+  const scopedTasks = (tasksRes.data || []).filter((task) => {
+    if (!departmentId) return true;
+    return task.assignee?.department_id === departmentId;
+  });
+
+  const now = new Date();
+  const nextWeek = addDays(now, 7);
+  const checkinIds = new Set(
+    (checkinsRes.data || [])
+      .filter((checkin) => !departmentId || checkin.users?.department_id === departmentId)
+      .map((checkin) => checkin.user_id)
+  );
+
+  const activeTasks = scopedTasks.filter((task) => task.status !== 'completed').length;
+  const completedTasks = scopedTasks.filter((task) => task.status === 'completed').length;
+  const blockedTasks = scopedTasks.filter((task) => task.status === 'blocked').length;
+  const overdueTasks = scopedTasks.filter((task) => task.status !== 'completed' && task.due_date && new Date(task.due_date) < now).length;
+  const dueSoon = scopedTasks
+    .filter((task) => task.status !== 'completed' && task.due_date)
+    .filter((task) => {
+      const dueDate = new Date(task.due_date);
+      return dueDate >= now && dueDate <= nextWeek;
+    });
+
+  return {
+    employeeCount: employeeIds.size,
+    checkedInEmployees: checkinIds.size,
+    activeTasks,
+    completedTasks,
+    blockedTasks,
+    overdueTasks,
+    dueSoonTasks: dueSoon.length,
+    urgentTasks: dueSoon.slice(0, 3).map((task) => ({
+      title: task.title,
+      dueLabel: formatDueLabel(task.due_date),
+    })),
+  };
 };
 
 export const sendPendingWhatsAppNudges = async ({ organizationId = null, employeeIds = null, triggeredBy = null } = {}) => {
@@ -454,6 +548,72 @@ export const sendWeeklyWhatsAppWinsForRequest = async (req, res) => {
     console.error('Weekly WhatsApp wins error:', error);
     return res.status(500).json({ success: false, message: 'Failed to send weekly WhatsApp wins.', error: error.message });
   }
+};
+
+export const sendWeeklyWhatsAppManagerReports = async ({ organizationId = null, recipientIds = null, triggeredBy = null } = {}) => {
+  let query = supabase
+    .from('users')
+    .select('id, name, phone_number, role, organization_id, department_id, departments(name)')
+    .in('role', ['manager', 'admin', 'hr'])
+    .not('phone_number', 'is', null);
+
+  if (organizationId) query = query.eq('organization_id', organizationId);
+  if (recipientIds?.length) query = query.in('id', recipientIds);
+
+  const { data: recipients, error } = await query;
+  if (error) throw error;
+
+  const results = [];
+
+  for (const recipient of recipients || []) {
+    try {
+      const alreadySent = await hasSentWeeklyManagerReport({ userId: recipient.id });
+      if (alreadySent) {
+        results.push({ user_id: recipient.id, status: 'skipped', reason: 'already_sent_this_week' });
+        continue;
+      }
+
+      const report = await buildWeeklyReport({
+        organizationId: recipient.organization_id,
+        departmentId: recipient.role === 'manager' ? recipient.department_id : null,
+      });
+      const scopeLabel = recipient.role === 'manager'
+        ? `${recipient.departments?.name || 'department'} team`
+        : 'company-wide team';
+      const message = await sendWhatsAppWeeklyManagerReport({
+        phone: recipient.phone_number,
+        recipientName: recipient.name,
+        scopeLabel,
+        report,
+      });
+
+      results.push({ user_id: recipient.id, status: 'sent', sid: message.sid });
+      await logWhatsAppNotification({
+        employee: recipient,
+        status: 'sent',
+        twilioSid: message.sid,
+        type: 'weekly_manager_report',
+        triggeredBy,
+      });
+    } catch (sendError) {
+      results.push({ user_id: recipient.id, status: 'failed', reason: sendError.message });
+      await logWhatsAppNotification({
+        employee: recipient,
+        status: 'failed',
+        errorMessage: sendError.message,
+        type: 'weekly_manager_report',
+        triggeredBy,
+      });
+    }
+  }
+
+  return {
+    checked: recipients?.length || 0,
+    sent: results.filter((item) => item.status === 'sent').length,
+    skipped: results.filter((item) => item.status === 'skipped').length,
+    failed: results.filter((item) => item.status === 'failed').length,
+    results,
+  };
 };
 
 export const sendDeadlineWhatsAppRemindersForRequest = async (req, res) => {
