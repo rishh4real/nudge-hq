@@ -1119,7 +1119,7 @@ function App() {
   
   // Active Connection Metadata
   const [serverPort, setServerPort] = useState(null)
-  const [isSandbox, setIsSandbox] = useState(false)
+  const [isSandbox, setIsSandbox] = useState(() => window.localStorage.getItem('nudgehq_auth_token') === 'sandbox-token-jwt')
   const [statusMessage, setStatusMessage] = useState(null)
   const [mobilePhoneTilt, setMobilePhoneTilt] = useState({ x: 5, y: -14 })
   const [activeMobileTab, setActiveMobileTab] = useState('Pulse')
@@ -1258,9 +1258,9 @@ function App() {
   const [isSubmittingUpdate, setIsSubmittingUpdate] = useState(false)
   const [focusText, setFocusText] = useState('')
   const [focusEta, setFocusEta] = useState('today')
-  const [workLocation, setWorkLocation] = useState('home')
+  const [workLocation, setWorkLocation] = useState('')
   const [goals, setGoals] = useState(['', '', ''])
-  const [energyLevel, setEnergyLevel] = useState('medium')
+  const [energyLevel, setEnergyLevel] = useState('')
   const [deepWorkFocus, setDeepWorkFocus] = useState('')
   const [deepWorkDuration, setDeepWorkDuration] = useState(60)
   const [activeDeepWork, setActiveDeepWork] = useState(null)
@@ -1332,11 +1332,14 @@ function App() {
           // ignore error and check next port
         }
       }
-      console.warn('Backend server not detected. Running Demo Console in Sandbox Mode.');
-      setIsSandbox(true);
+      console.warn('Backend server not detected. Live API calls will be unavailable until the server starts.');
       setServerPort(null);
-      // Set mock data
-      setMockData();
+      if (window.localStorage.getItem('nudgehq_auth_token') === 'sandbox-token-jwt') {
+        setIsSandbox(true);
+        setMockData();
+      } else {
+        setIsSandbox(false);
+      }
     };
     probeServer();
   }, []);
@@ -1739,27 +1742,18 @@ function App() {
       return;
     }
 
-    if (isSandbox) {
-      // Sandbox Authentication Bypass
-      const simulatedUser = getDemoUserFromEmail(emailInput);
-
-      setUser(simulatedUser);
-      setToken('sandbox-token-jwt');
-      setAuthRole(simulatedUser.role);
-      navigateDashboard(simulatedUser.role);
-      showToast(`Welcome! Logged into Sandbox Mode as ${simulatedUser.name}`, 'info');
-      setLoginLoading(false);
-      return;
-    }
-
     try {
       const { data } = await fetchApi('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email: emailInput, password: passwordInput })
       });
 
-      setUser(data.user);
       setIsSandbox(false);
+      setEmpStats(null);
+      setEmpTasks([]);
+      setEmpHistory([]);
+      setQualityTip(null);
+      setUser(data.user);
       setToken(data.token);
       setAuthRole(data.user.role);
       routeAfterAuth(data.user);
@@ -2322,6 +2316,12 @@ function App() {
 
   const handleCheckinSubmit = async (e) => {
     e.preventDefault();
+    const cleanGoals = goals.map((goal) => goal.trim()).filter(Boolean);
+    if (!workLocation || !energyLevel || !cleanGoals.length) {
+      showToast('Choose location, energy, and add at least one goal.', 'error');
+      return;
+    }
+
     if (isSandbox) {
       showToast('Smart Presence check-in saved in sandbox.', 'success');
       return;
@@ -2330,8 +2330,11 @@ function App() {
     try {
       await fetchApi('/checkin/daily', {
         method: 'POST',
-        body: JSON.stringify({ location: workLocation, goals, energy_level: energyLevel })
+        body: JSON.stringify({ location: workLocation, goals: cleanGoals, energy_level: energyLevel })
       }, token);
+      setWorkLocation('');
+      setEnergyLevel('');
+      setGoals(['', '', '']);
       showToast('Smart Presence check-in saved.', 'success');
     } catch {
       showToast('Could not save Smart Presence check-in.', 'error');
@@ -3288,14 +3291,27 @@ const demoSidebarItems = dashboardRole === 'employee'
     { day: 'Sat', tasks: 6 },
     { day: 'Sun', tasks: 3 }
   ];
-  const actualWeeklyProgressData = empHistory
-    .slice(0, 7)
-    .map((item, index) => ({
-      day: new Date(item.created_at || Date.now() - (6 - index) * 86400000).toLocaleDateString('en-IN', { weekday: 'short', timeZone: 'Asia/Kolkata' }),
-      tasks: Number(item.tasks_completed || item.completed_tasks || item.completed_count || 1)
-    }))
-    .reverse();
-  const weeklyProgressData = actualWeeklyProgressData.length ? actualWeeklyProgressData : demoWeeklyProgressData;
+  const weeklyDateKeys = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (6 - index));
+    return {
+      key: date.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }),
+      day: date.toLocaleDateString('en-IN', { weekday: 'short', timeZone: 'Asia/Kolkata' }),
+    };
+  });
+  const actualWeeklyProgressData = weeklyDateKeys.map(({ key, day }) => {
+    const dayUpdates = empHistory.filter((item) => {
+      const createdAt = item.created_at ? new Date(item.created_at) : null;
+      if (!createdAt) return false;
+      return createdAt.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }) === key;
+    });
+    const completedTasks = dayUpdates.reduce((sum, item) => (
+      sum + Number(item.tasks_completed || item.completed_tasks || item.completed_count || 1)
+    ), 0);
+
+    return { day, tasks: completedTasks };
+  });
+  const actualProgressHasSignals = actualWeeklyProgressData.some((item) => item.tasks > 0);
   const normalizeTaskStatus = (status = '') => String(status).toLowerCase().replace(/\s+/g, '_');
   const realEmployeeTasks = empTasks.map((task) => ({
     ...task,
@@ -3310,6 +3326,13 @@ const demoSidebarItems = dashboardRole === 'employee'
     inProgress: empStats?.inProgress ?? realEmployeeTasks.filter((task) => task.normalizedStatus === 'in_progress').length,
     blocked: empStats?.blocked ?? realEmployeeTasks.filter((task) => task.normalizedStatus === 'blocked').length,
   };
+  const liveWeeklyProgressFallback = weeklyDateKeys.map(({ day }, index) => ({
+    day,
+    tasks: index === weeklyDateKeys.length - 1 ? realEmployeeTaskStats.completed : 0,
+  }));
+  const weeklyProgressData = isSandbox
+    ? demoWeeklyProgressData
+    : (actualProgressHasSignals ? actualWeeklyProgressData : liveWeeklyProgressFallback);
   const realEmployeeStatCards = [
     ['Total Tasks', realEmployeeTaskStats.total, ListTodo, '#7F77DD', realEmployeeTaskStats.total ? '▲ synced from workspace' : '— waiting for tasks', realEmployeeTaskStats.total ? 'up' : 'flat'],
     ['Completed', realEmployeeTaskStats.completed, CheckCircle2, '#1D9E75', realEmployeeTaskStats.completed ? '▲ momentum building' : '— first win pending', realEmployeeTaskStats.completed ? 'up' : 'flat'],
@@ -3384,12 +3407,12 @@ const demoSidebarItems = dashboardRole === 'employee'
   const employeeDashboardActivityRows = isSandbox
     ? employeeRecentActivityRows
     : realEmployeeRecentActivity.map(({ Icon, color, title, copy, when }) => [title, copy, when, Icon, color]);
-  const employeeDashboardWeeklyProgressData = isSandbox ? weeklyProgressData : actualWeeklyProgressData;
+  const employeeDashboardWeeklyProgressData = weeklyProgressData;
   const hasRealEmployeeGrowthSignals = isSandbox || Boolean(growthSummary) || realEmployeeTaskStats.completed > 0 || empHistory.length > 0;
   const realEmployeeCompletionRate = realEmployeeTaskStats.total
     ? Math.round((realEmployeeTaskStats.completed / realEmployeeTaskStats.total) * 100)
     : 0;
-  const hasEmployeeProgressSignals = isSandbox || actualWeeklyProgressData.length > 0 || realEmployeeTaskStats.total > 0 || empHistory.length > 0;
+  const hasEmployeeProgressSignals = isSandbox || actualProgressHasSignals || realEmployeeTaskStats.total > 0 || empHistory.length > 0;
   const employeeMomentumRows = isSandbox
     ? [
         ['Completion rate', '82%', '▲ 12% this week', '#1D9E75'],
@@ -3626,6 +3649,7 @@ const demoSidebarItems = dashboardRole === 'employee'
       </AnimatePresence>
 
       {/* --- SITE HEADER --- */}
+      {currentView !== 'dashboard' && (
       <header className={`${currentView === 'landing' ? 'absolute inset-x-0 top-0' : 'sticky inset-x-0 top-0 border-b border-[#EEEDFE] bg-white/95 shadow-sm shadow-[#EEEDFE]/70'} z-50`}>
         <nav className={`${currentView === 'landing'
           ? 'mx-auto mt-6 flex max-w-6xl items-center justify-between rounded-full border border-white/80 bg-white/90 px-6 py-3 shadow-2xl shadow-[#3C3489]/10 backdrop-blur-xl sm:px-7'
@@ -3731,6 +3755,7 @@ const demoSidebarItems = dashboardRole === 'employee'
           )}
         </nav>
       </header>
+      )}
 
       {/* --- VIEW ROUTER --- */}
 
@@ -6502,15 +6527,15 @@ const demoSidebarItems = dashboardRole === 'employee'
 
       {/* VIEW 3: LIVE DASHBOARD AREA */}
       {currentView === 'dashboard' && (isSandbox || (!isSandbox && isEmployeeDashboard)) && (
-        <section className="min-h-screen bg-[#F7F8FB] px-4 py-6 sm:px-6 lg:px-8">
-          <div className="mx-auto grid max-w-[92rem] overflow-hidden rounded-[28px] border border-[#E7E5F8] bg-white shadow-2xl shadow-[#3C3489]/10 lg:grid-cols-[17rem_minmax(0,1fr)]">
-            <aside className="flex border-b border-[#EEEDFE] bg-white p-5 lg:min-h-[calc(100vh-3rem)] lg:flex-col lg:border-b-0 lg:border-r">
+        <section className="dashboard-showcase-bg relative min-h-screen">
+          <div className="dashboard-glass-shell grid min-h-screen overflow-hidden border-0 lg:grid-cols-[17rem_minmax(0,1fr)]">
+            <aside className="dashboard-sidebar-premium flex border-b border-white/70 p-5 lg:min-h-screen lg:flex-col lg:border-b-0 lg:border-r lg:border-white/70">
               <div className="flex w-full items-center justify-between gap-4 lg:block">
                 <div className="flex items-center gap-3">
-                  <img src="/brand/nudgehq-icon.svg" alt="" className="h-11 w-11 rounded-xl shadow-sm" />
+                  <img src="/brand/nudgehq-icon.svg" alt="" className="h-11 w-11 rounded-xl shadow-lg shadow-[#3C3489]/12" />
                   <div>
-                    <p className="text-lg font-extrabold text-[#3C3489]">NudgeHQ</p>
-                    <p className="text-xs font-bold text-[#8A8894]">{isSandbox ? `${dashboardRoleLabel} demo` : 'Employee workspace'}</p>
+                    <p className="text-lg font-extrabold tracking-tight text-[#1C1739]">NudgeHQ</p>
+                    <p className="text-xs font-bold text-[#8A8894]">{isSandbox ? `${dashboardRoleLabel} command` : 'Employee workspace'}</p>
                   </div>
                 </div>
                 {isSandbox ? (
@@ -6534,8 +6559,8 @@ const demoSidebarItems = dashboardRole === 'employee'
                     }}
                     className={`flex w-full items-center gap-3 rounded-xl border-l-[3px] px-4 py-3 text-sm font-extrabold transition ${
                       (demoDashboardCanNavigate ? selectedDemoSection === label : index === 0)
-                        ? 'border-l-[#7F77DD] bg-[#7F77DD] text-white shadow-lg shadow-[#7F77DD]/22'
-                        : 'border-l-transparent text-[#6E6B78] hover:bg-[#EEEDFE] hover:text-[#3C3489]'
+                        ? 'border-l-[#7F77DD] bg-[#1C1739] text-white shadow-lg shadow-[#3C3489]/18'
+                        : 'border-l-transparent text-[#6E6B78] hover:bg-white/90 hover:text-[#3C3489] hover:shadow-sm'
                     }`}
                   >
                     <Icon className="h-5 w-5" aria-hidden="true" />
@@ -6544,9 +6569,9 @@ const demoSidebarItems = dashboardRole === 'employee'
                 ))}
               </nav>
 
-              <div className="mt-auto hidden rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4 lg:block">
+              <div className="mt-auto hidden rounded-2xl border border-white/80 bg-white/72 p-4 shadow-xl shadow-[#3C3489]/8 backdrop-blur lg:block">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-[#3C3489] text-sm font-extrabold text-white">
+                  <span className="dashboard-orbit-node flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-[#3C3489] text-sm font-extrabold text-white">
                     {isSandbox && demoProfileAvatar && dashboardRole === 'employee' ? (
                       <img src={demoProfileAvatar} alt="" className="h-full w-full object-cover" />
                     ) : (
@@ -6571,17 +6596,24 @@ const demoSidebarItems = dashboardRole === 'employee'
               </div>
             </aside>
 
-            <div className="min-w-0 bg-[#FAFAFD] p-5 sm:p-7">
-              <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="dashboard-main-premium min-w-0 p-5 sm:p-7 lg:max-h-screen lg:overflow-y-auto">
+              <header className="dashboard-hero-strip rounded-[28px] p-5 md:flex md:items-start md:justify-between md:gap-4">
                 <div>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-[#2C2C2A] sm:text-4xl">
+                  <div className="mb-4 flex flex-wrap gap-2">
+                    {['Daily Signals', 'Blockers', 'NudgeAI', 'WhatsApp'].map((chip) => (
+                      <span key={chip} className="rounded-full border border-white/80 bg-white/72 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#6D63D9] shadow-sm">
+                        {chip}
+                      </span>
+                    ))}
+                  </div>
+                  <h1 className="relative z-10 text-3xl font-extrabold tracking-tight text-[#1C1739] sm:text-4xl">
                     {dashboardGreeting}, {demoDisplayName.split(' ')[0] || 'Kunal'}! 👋
                   </h1>
-                  <p className="mt-2 text-sm font-medium text-[#6E6B78]">
+                  <p className="relative z-10 mt-2 text-sm font-semibold text-[#6E6B78]">
                     {dashboardRole === 'employee' ? "Here's your focus for today." : "Here's what's happening with your team today."}
                   </p>
                 </div>
-                <div className="inline-flex w-fit items-center gap-2 rounded-xl border border-[#EEEDFE] bg-white px-4 py-3 text-sm font-bold text-[#5F5E5A] shadow-sm">
+                <div className="relative z-10 mt-4 inline-flex w-fit items-center gap-2 rounded-2xl border border-white/80 bg-white/80 px-4 py-3 text-sm font-bold text-[#5F5E5A] shadow-lg shadow-[#3C3489]/8 md:mt-0">
                   <Clock3 className="h-4 w-4 text-[#7F77DD]" />
                   {dashboardDateLabel} · Today
                 </div>
@@ -6639,13 +6671,13 @@ const demoSidebarItems = dashboardRole === 'employee'
 {shouldShowDemoStatCards && (
                 <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                   {((!isSandbox && isEmployeeDashboard) ? realEmployeeStatCards : demoStatCards).map(([title, value, Icon, color, trend, trendType]) => (
-                    <article key={title} className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
+                    <article key={title} className="dashboard-metric-card rounded-[22px] p-5">
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <p className="text-sm font-extrabold text-[#5F5E5A]">{title}</p>
-                          <p className="mt-4 text-4xl font-extrabold tracking-tight text-[#111827]">{value}</p>
+                          <p className="mt-4 text-4xl font-extrabold tracking-tight text-[#1C1739]">{value}</p>
                         </div>
-                        <span className="flex h-11 w-11 items-center justify-center rounded-full" style={{ backgroundColor: `${color}18`, color }}>
+                        <span className="dashboard-orbit-node flex h-11 w-11 items-center justify-center rounded-2xl bg-white" style={{ color }}>
                           <Icon className="h-5 w-5" aria-hidden="true" />
                         </span>
                       </div>
@@ -6690,7 +6722,7 @@ const demoSidebarItems = dashboardRole === 'employee'
 
               {((dashboardRole === 'employee' && selectedDemoSection === 'My Dashboard') || (dashboardRole !== 'employee' && selectedDemoSection === 'Dashboard')) && (
                 <div className="mt-6 grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
-                  <section className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
+                  <section className="dashboard-panel rounded-[28px] p-5">
                     <div className="flex items-center justify-between gap-4">
                       <h2 className="text-xl font-extrabold text-[#2C2C2A]">{dashboardRole === 'employee' ? 'My Tasks' : 'Team Progress'}</h2>
                       <span className="rounded-full bg-[#EEEDFE] px-3 py-1 text-xs font-extrabold text-[#3C3489]">
@@ -6746,7 +6778,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                     </button>
                   </section>
 
-                  <section className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
+                  <section className="dashboard-panel rounded-[28px] p-5">
                     <h2 className="text-xl font-extrabold text-[#2C2C2A]">
                       {dashboardRole === 'employee' ? "Today's Check-in" : 'Recent Activity'}
                     </h2>
@@ -7089,8 +7121,16 @@ const demoSidebarItems = dashboardRole === 'employee'
               {demoEmployeeCanNavigate && selectedDemoSection === 'Check-in' && (
                 <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
                   <section className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
-                    <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#7F77DD]">Daily check-in</p>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#7F77DD]">Daily check-in</p>
+                      <span className="rounded-full bg-[#EEEDFE] px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#3C3489]">
+                        Sample demo form
+                      </span>
+                    </div>
                     <h2 className="mt-2 text-2xl font-extrabold text-[#2C2C2A]">Tell the workspace what changed</h2>
+                    <p className="mt-2 text-sm font-semibold leading-6 text-[#8A8894]">
+                      These are example prompts only. In the real employee dashboard, today&apos;s check-in starts blank.
+                    </p>
                     <div className="mt-5 flex flex-wrap gap-2">
                       {[
                         ['Office', '🏢 Office'],
@@ -7113,18 +7153,26 @@ const demoSidebarItems = dashboardRole === 'employee'
                       ))}
                     </div>
                     <div className="mt-5 grid gap-4">
-                      {['Goal 1: finish dashboard polish', 'Goal 2: test onboarding flow', 'Main focus: NudgeAI employee experience'].map((placeholder) => (
-                        <div key={placeholder} className="rounded-xl border border-[#EEEDFE] bg-[#FCFCFF] px-4 py-3 text-sm font-semibold text-[#8A8894]">
-                          {placeholder}
+                      {[
+                        ['Goal 1', 'Example: finish dashboard polish'],
+                        ['Goal 2', 'Example: test onboarding flow'],
+                        ['Main focus', 'Example: NudgeAI employee experience']
+                      ].map(([label, placeholder]) => (
+                        <div key={label} className="rounded-xl border border-dashed border-[#DAD7FB] bg-[#FCFCFF] px-4 py-3">
+                          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#7F77DD]">{label}</p>
+                          <p className="mt-1 text-sm font-semibold text-[#8A8894]">{placeholder}</p>
                         </div>
                       ))}
-                      <div className="min-h-28 rounded-xl border border-[#EEEDFE] bg-[#FCFCFF] px-4 py-3 text-sm font-semibold text-[#8A8894]">
-                        Progress update: Completed the first visual pass and found two blockers around auth redirects.
+                      <div className="min-h-28 rounded-xl border border-dashed border-[#DAD7FB] bg-[#FCFCFF] px-4 py-3">
+                        <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#7F77DD]">Progress update</p>
+                        <p className="mt-1 text-sm font-semibold leading-6 text-[#8A8894]">
+                          Example: Completed the first visual pass and found two blockers around auth redirects.
+                        </p>
                       </div>
                     </div>
-                    <button type="button" className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#7F77DD] px-4 py-3 text-sm font-extrabold text-white transition hover:bg-[#3C3489]">
+                    <button type="button" onClick={() => showToast('Demo sample check-in previewed. Real employees submit from blank fields.', 'info')} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#7F77DD] px-4 py-3 text-sm font-extrabold text-white transition hover:bg-[#3C3489]">
                       <Send className="h-4 w-4" />
-                      Submit check-in
+                      Preview sample check-in
                     </button>
                   </section>
                   <section className="rounded-xl border border-[#EEEDFE] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
@@ -7169,7 +7217,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                         <h2 className="text-xl font-extrabold text-[#2C2C2A]">Weekly progress curve</h2>
                         <p className="mt-1 text-sm font-semibold text-[#8A8894]">Tasks completed per day · last 7 days</p>
                       </div>
-                      {isSandbox && !actualWeeklyProgressData.length ? (
+                      {isSandbox ? (
                         <span className="rounded-full bg-[#EEEDFE] px-3 py-1 text-xs font-extrabold text-[#3C3489]">Demo data</span>
                       ) : null}
                     </div>
@@ -7989,11 +8037,13 @@ const demoSidebarItems = dashboardRole === 'employee'
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
+                    onMouseDown={() => setSelectedDemoTask(null)}
                   >
                     <motion.div
                       initial={{ opacity: 0, y: 24, scale: 0.96 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 24, scale: 0.96 }}
+                      onMouseDown={(event) => event.stopPropagation()}
                       className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[24px] border border-[#E7E5F8] bg-white p-5 shadow-2xl shadow-[#3C3489]/20 sm:p-6"
                     >
                       <div className="flex items-start justify-between gap-4">
@@ -8217,7 +8267,7 @@ const demoSidebarItems = dashboardRole === 'employee'
 
       {currentView === 'dashboard' && !isSandbox && !isEmployeeDashboard && (
         <section
-          className={`workspace-surface workspace-surface-${dashboardRole} relative mx-auto max-w-[96rem] overflow-hidden px-5 py-8 sm:px-6 lg:px-8`}
+          className={`workspace-surface workspace-surface-${dashboardRole} relative min-h-screen overflow-hidden px-5 py-8 sm:px-6 lg:px-8`}
           style={{
             '--role-accent': roleTheme.accent,
             '--role-strong': roleTheme.strong,
@@ -8661,34 +8711,40 @@ const demoSidebarItems = dashboardRole === 'employee'
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <h3 className="text-2xl font-black text-[#2C2C2A]">Today&apos;s Check-in</h3>
-                      <p className="mt-1 text-sm font-semibold text-[#8A8894]">Share location, goals, proof, and progress.</p>
+                      <p className="mt-1 text-sm font-semibold text-[#8A8894]">Blank daily form for today&apos;s location, energy, and goals.</p>
                     </div>
                     <Sparkles className="h-6 w-6 text-[#7F77DD]" />
                   </div>
 
                   <form onSubmit={handleCheckinSubmit} className="mt-5 space-y-4 rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
-                    <div className="flex flex-wrap gap-2">
-                      {realEmployeeLocationPills.map(([value, label]) => (
-                        <button
-                          key={value}
-                          type="button"
-                          onClick={() => setWorkLocation(value)}
-                          className={`rounded-full px-4 py-2 text-xs font-black transition ${
-                            workLocation === value
-                              ? 'bg-[#7F77DD] text-white shadow-lg shadow-[#7F77DD]/20'
-                              : 'border border-[#D3D1C7] bg-white text-[#5F5E5A] hover:bg-[#EEEDFE]'
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      ))}
+                    <div>
+                      <p className="mb-2 text-xs font-black uppercase tracking-[0.16em] text-[#7F77DD]">Where are you working today?</p>
+                      <div className="flex flex-wrap gap-2">
+                        {realEmployeeLocationPills.map(([value, label]) => (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => setWorkLocation(value)}
+                            className={`rounded-full px-4 py-2 text-xs font-black transition ${
+                              workLocation === value
+                                ? 'bg-[#7F77DD] text-white shadow-lg shadow-[#7F77DD]/20'
+                                : 'border border-[#D3D1C7] bg-white text-[#5F5E5A] hover:bg-[#EEEDFE]'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      {['high', 'medium', 'low'].map((level) => (
-                        <button key={level} type="button" onClick={() => setEnergyLevel(level)} className={`rounded-xl border px-3 py-2 text-xs font-black capitalize ${energyLevel === level ? 'border-[#7F77DD] bg-[#EEEDFE] text-[#3C3489]' : 'border-[#E8E6F8] bg-white text-[#5F5E5A]'}`}>
-                          {level === 'high' ? 'High' : level === 'medium' ? 'Medium' : 'Low'}
-                        </button>
-                      ))}
+                    <div>
+                      <p className="mb-2 text-xs font-black uppercase tracking-[0.16em] text-[#7F77DD]">Energy level</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {['high', 'medium', 'low'].map((level) => (
+                          <button key={level} type="button" onClick={() => setEnergyLevel(level)} className={`rounded-xl border px-3 py-2 text-xs font-black capitalize ${energyLevel === level ? 'border-[#7F77DD] bg-[#EEEDFE] text-[#3C3489]' : 'border-[#E8E6F8] bg-white text-[#5F5E5A]'}`}>
+                            {level === 'high' ? 'High' : level === 'medium' ? 'Medium' : 'Low'}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                     <div className="grid gap-2">
                       {goals.map((goal, index) => (
@@ -8708,6 +8764,10 @@ const demoSidebarItems = dashboardRole === 'employee'
                   </form>
 
                   <form onSubmit={handleProgressSubmit} className="mt-5 space-y-4">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7F77DD]">Progress update</p>
+                      <p className="mt-1 text-xs font-semibold text-[#8A8894]">This is what feeds manager visibility, activity, and your progress curve.</p>
+                    </div>
                     <select
                       value={selectedTaskId}
                       onChange={(e) => setSelectedTaskId(e.target.value)}
