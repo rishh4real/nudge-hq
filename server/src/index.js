@@ -24,6 +24,7 @@ import notificationRoutes from './routes/notifications.routes.js';
 import {
   sendDeadlineWhatsAppReminders,
   sendPendingWhatsAppNudges,
+  sendWeeklyWhatsAppManagerReports,
   sendWeeklyWhatsAppWins,
 } from './controllers/notifications.controller.js';
 
@@ -126,6 +127,17 @@ cron.schedule('0 18 * * 5', async () => {
     console.log(`WhatsApp weekly wins cron completed: ${result.sent} sent, ${result.failed} failed.`);
   } catch (error) {
     console.error('WhatsApp weekly wins cron failed:', error.message);
+  }
+}, {
+  timezone: 'Asia/Kolkata',
+});
+
+cron.schedule('30 18 * * 5', async () => {
+  try {
+    const result = await sendWeeklyWhatsAppManagerReports();
+    console.log(`WhatsApp weekly manager report cron completed: ${result.sent} sent, ${result.skipped} skipped, ${result.failed} failed.`);
+  } catch (error) {
+    console.error('WhatsApp weekly manager report cron failed:', error.message);
   }
 }, {
   timezone: 'Asia/Kolkata',

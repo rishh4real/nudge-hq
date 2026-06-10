@@ -6,6 +6,7 @@ This is the Express.js and PostgreSQL/Supabase backend server for **NudgeHQ** wo
 
 - **JWT Authentication**: Secure login/signup with custom role authorization (`admin` & `employee`).
 - **Workforce Task Management**: Assignments, status transitions, and automated blocker logging.
+- **WhatsApp Automation**: Daily nudges, deadline reminders, blocker alerts, employee weekly wins, and manager/admin weekly reports.
 - **Analytics Engine**: Metrics computation, completion indicators, and check-in rates.
 - **Groq AI Integration**: Daily summaries, delay assessments, and activity nudges.
 - **MVC Architecture**: Scalable file structure dividing controllers, routes, configurations, and middleware.
@@ -118,7 +119,14 @@ The frontend probes both `5000` and `5001`.
 ### Board Pack Endpoint `/api/reports`
 - `POST /board-pack` - Generate a monthly NudgeAI PDF board pack (Admin only).
 
-Run the latest `src/db/schema.sql` in Supabase after pulling this version. It adds `ai_outputs`, `employee_notifications`, update quality score columns, `focus_sessions`, `daily_checkins`, `deep_work_sessions`, and board-pack report metadata used by NudgeAI.
+### Notifications Endpoint `/api/notify`
+- `POST /whatsapp` - Send daily pending-update WhatsApp nudges (Admin/HR).
+- `POST /whatsapp/deadlines` - Send WhatsApp reminders for tasks due within the next 24 hours (Admin/HR/Manager).
+- `POST /whatsapp/weekly-wins` - Send weekly employee WhatsApp win summaries (Admin/HR).
+- `POST /whatsapp/weekly-report` - Send weekly WhatsApp reports to managers, HR, and admins (Admin/HR/Manager).
+- `POST /whatsapp/reply` - Twilio webhook to save employee replies back into NudgeHQ.
+
+Run the latest `src/db/schema.sql` in Supabase after pulling this version. It adds `ai_outputs`, `employee_notifications`, update quality score columns, `focus_sessions`, `daily_checkins`, `deep_work_sessions`, task organization/due-date indexes, and board-pack report metadata used by NudgeAI.
 
 ## Postman
 

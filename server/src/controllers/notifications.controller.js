@@ -634,3 +634,22 @@ export const sendDeadlineWhatsAppRemindersForRequest = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Failed to send deadline reminders.', error: error.message });
   }
 };
+
+export const sendWeeklyWhatsAppManagerReportsForRequest = async (req, res) => {
+  try {
+    const organizationId = req.user.organization_id || req.user.company_id;
+    const result = await sendWeeklyWhatsAppManagerReports({
+      organizationId,
+      recipientIds: req.user.role === 'manager' ? [req.user.id] : null,
+      triggeredBy: req.user.id,
+    });
+    return res.status(200).json({
+      success: true,
+      message: `Weekly WhatsApp reports sent to ${result.sent} leaders.`,
+      ...result,
+    });
+  } catch (error) {
+    console.error('Weekly WhatsApp manager report error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to send weekly WhatsApp manager reports.', error: error.message });
+  }
+};
