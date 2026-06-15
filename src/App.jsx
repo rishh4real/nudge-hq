@@ -42,6 +42,10 @@ import {
   EyeOff
 } from 'lucide-react'
 import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
   Line,
   LineChart as RechartsLineChart,
@@ -177,6 +181,165 @@ const platformFeatureRail = [
   ['Role-gated dashboards', Shield],
 ]
 
+const landingReportTabs = {
+  'Daily visibility': {
+    eyebrow: 'NudgeHQ reports',
+    title: 'Turn team signals into decisions.',
+    filters: ['Department: Sales Ops', 'Status: Needs manager action'],
+    stats: [['Updates today', '38'], ['Avg quality', '8.6'], ['Open blockers', '4']],
+    bullets: [
+      'See who updated, who is blocked, and who needs a nudge before standup.',
+      'Track proof-backed tasks, update quality, and team momentum in one dashboard.',
+      'Give managers a morning brief instead of making them read every message manually.',
+    ],
+    chartTitle: 'Weekly update quality',
+    chartTag: 'This week',
+    chartData: [
+      { day: 'Mon', primary: 64, secondary: 34 },
+      { day: 'Tue', primary: 82, secondary: 42 },
+      { day: 'Wed', primary: 58, secondary: 28 },
+      { day: 'Thu', primary: 72, secondary: 38 },
+      { day: 'Fri', primary: 88, secondary: 46 },
+      { day: 'Sat', primary: 54, secondary: 22 },
+      { day: 'Sun', primary: 44, secondary: 18 },
+    ],
+    split: [['On track', 46, '#7F77DD'], ['Completed', 26, '#1D9E75'], ['Needs proof', 16, '#F59E0B'], ['Blocked', 12, '#EF4444']],
+    splitValue: '86%',
+    splitLabel: 'on track',
+    impact: '42% faster blocker resolution',
+    callout: '4 no-update alerts, 2 proof-required tasks, 1 blocker escalation.',
+  },
+  'Manager action': {
+    eyebrow: 'Action center',
+    title: 'Every manager gets a morning command queue.',
+    filters: ['Owner: Manager', 'Priority: Today'],
+    stats: [['Escalations', '3'], ['Ready nudges', '12'], ['Saved follow-ups', '5h']],
+    bullets: [
+      'Turn silent updates into one-click nudges before work gets delayed.',
+      'Escalate blockers with context instead of starting another message thread.',
+      'See the next best manager action without reading every team update.',
+    ],
+    chartTitle: 'Manager action volume',
+    chartTag: 'Live queue',
+    chartData: [
+      { day: 'Mon', primary: 24, secondary: 18 },
+      { day: 'Tue', primary: 36, secondary: 22 },
+      { day: 'Wed', primary: 48, secondary: 30 },
+      { day: 'Thu', primary: 62, secondary: 38 },
+      { day: 'Fri', primary: 54, secondary: 32 },
+      { day: 'Sat', primary: 28, secondary: 16 },
+      { day: 'Sun', primary: 18, secondary: 10 },
+    ],
+    split: [['Nudge', 34, '#7F77DD'], ['Assign', 28, '#1D9E75'], ['Escalate', 24, '#F59E0B'], ['Review', 14, '#EF4444']],
+    splitValue: '3',
+    splitLabel: 'urgent',
+    impact: '5 hours of chasing avoided',
+    callout: 'Rahul missing update, Aisha proof pending, CRM blocker needs owner.',
+  },
+  'Proof workflows': {
+    eyebrow: 'Proof layer',
+    title: 'Make important work review-ready before it closes.',
+    filters: ['Task type: Proof required', 'Review: Pending'],
+    stats: [['Proof tasks', '18'], ['Ready review', '11'], ['Missing links', '7']],
+    bullets: [
+      'Require links, files, or screenshots on tasks where proof matters.',
+      'Show managers what is review-ready and what still needs evidence.',
+      'Reduce fake completion by making proof part of the workflow.',
+    ],
+    chartTitle: 'Proof completion trend',
+    chartTag: 'Review flow',
+    chartData: [
+      { day: 'Mon', primary: 38, secondary: 18 },
+      { day: 'Tue', primary: 44, secondary: 22 },
+      { day: 'Wed', primary: 51, secondary: 24 },
+      { day: 'Thu', primary: 63, secondary: 30 },
+      { day: 'Fri', primary: 79, secondary: 36 },
+      { day: 'Sat', primary: 68, secondary: 28 },
+      { day: 'Sun', primary: 72, secondary: 24 },
+    ],
+    split: [['Approved', 42, '#1D9E75'], ['In review', 24, '#7F77DD'], ['Needs proof', 22, '#F59E0B'], ['Rejected', 12, '#EF4444']],
+    splitValue: '11',
+    splitLabel: 'ready',
+    impact: '61% fewer unclear completions',
+    callout: '2 screenshots missing, 3 links added, 1 task ready for final review.',
+  },
+  'Team health': {
+    eyebrow: 'Team pulse',
+    title: 'Spot momentum, overload, and silence early.',
+    filters: ['Signal: Team health', 'Window: 7 days'],
+    stats: [['Health score', '91'], ['Burnout risk', '2'], ['Momentum', '+18%']],
+    bullets: [
+      'Blend updates, blockers, overdue work, and quality into a calm team pulse.',
+      'Help managers support people before small pressure becomes burnout.',
+      'Make team rhythm visible without turning NudgeHQ into surveillance.',
+    ],
+    chartTitle: 'Team health rhythm',
+    chartTag: '7-day pulse',
+    chartData: [
+      { day: 'Mon', primary: 72, secondary: 20 },
+      { day: 'Tue', primary: 78, secondary: 18 },
+      { day: 'Wed', primary: 74, secondary: 24 },
+      { day: 'Thu', primary: 82, secondary: 16 },
+      { day: 'Fri', primary: 91, secondary: 12 },
+      { day: 'Sat', primary: 88, secondary: 10 },
+      { day: 'Sun', primary: 84, secondary: 14 },
+    ],
+    split: [['Healthy', 54, '#1D9E75'], ['Focused', 24, '#7F77DD'], ['Watch', 14, '#F59E0B'], ['Risk', 8, '#EF4444']],
+    splitValue: '91',
+    splitLabel: 'health',
+    impact: '18% better weekly momentum',
+    callout: '2 overload risks, 4 strong updates, 1 team needs lighter follow-up.',
+  },
+}
+
+const landingPulseCards = [
+  {
+    label: 'Update completion',
+    value: '86%',
+    accent: '#7F77DD',
+    note: '+14% vs last week',
+    data: [
+      { day: 'Mon', value: 46 },
+      { day: 'Tue', value: 58 },
+      { day: 'Wed', value: 64 },
+      { day: 'Thu', value: 71 },
+      { day: 'Fri', value: 78 },
+      { day: 'Sat', value: 83 },
+      { day: 'Sun', value: 86 },
+    ],
+  },
+  {
+    label: 'Blockers resolved',
+    value: '4.2x',
+    accent: '#1D9E75',
+    note: 'Escalations faster',
+    data: [
+      { day: 'Mon', value: 18 },
+      { day: 'Tue', value: 24 },
+      { day: 'Wed', value: 36 },
+      { day: 'Thu', value: 52 },
+      { day: 'Fri', value: 61 },
+      { day: 'Sat', value: 74 },
+      { day: 'Sun', value: 88 },
+    ],
+  },
+  {
+    label: 'Report time saved',
+    value: '3 hrs',
+    accent: '#F59E0B',
+    note: 'Manual recap down',
+    data: [
+      { day: 'Mon', value: 88 },
+      { day: 'Tue', value: 76 },
+      { day: 'Wed', value: 64 },
+      { day: 'Thu', value: 49 },
+      { day: 'Fri', value: 36 },
+      { day: 'Sat', value: 25 },
+      { day: 'Sun', value: 18 },
+    ],
+  },
+]
+
 const steps = [
   {
     step: '01',
@@ -197,33 +360,37 @@ const steps = [
 
 const pricing = [
   {
-    name: 'Free Trial',
-    price: 'Rs. 0',
-    description: '14 days · Up to 20 employees',
-    features: ['Full platform access', 'NudgeAI basic summary', 'Daily check-ins', 'Task tracking', 'Admin dashboard'],
-    button: 'Start Free Trial',
-  },
-  {
     name: 'Starter',
-    price: 'Rs. 2,000/month',
-    description: 'Entry plan · Up to 15 employees',
-    features: ['Everything in Free Trial', 'Unlimited check-ins', 'NudgeAI daily summary', 'Blocker detection', 'Weekly reports', 'Email support'],
+    priceInr: '₹2,000/month',
+    priceUsd: '$9/month',
+    description: 'Up to 20 employees',
+    features: ['Starter free for 14 days', 'Daily check-ins', 'Task progress tracking', 'Blocker detection', 'Admin dashboard', 'Email support'],
     button: 'Get Started',
     entry: true,
   },
   {
     name: 'Growth',
-    price: 'Rs. 6,000/month',
-    description: 'Most Popular · Up to 45 employees',
-    features: ['Everything in Starter', 'NudgeAI full suite', 'Burnout predictor', 'Sprint forecast', 'Department analytics', 'WhatsApp notifications', 'Priority support'],
+    priceInr: '₹4,500/month',
+    priceUsd: '$25/month',
+    description: 'Up to 50 employees',
+    features: ['Everything in Starter', 'WhatsApp nudges', 'NudgeAI summaries', 'Department analytics', 'Weekly reports', 'Priority support'],
     button: 'Get Started',
     highlighted: true,
   },
   {
+    name: 'Business',
+    priceInr: '₹8,500/month',
+    priceUsd: '$49/month',
+    description: 'Up to 100 employees',
+    features: ['Everything in Growth', 'Advanced role dashboards', 'Board-ready reports', 'Growth evidence views', 'Custom workflows', 'Priority onboarding'],
+    button: 'Get Started',
+  },
+  {
     name: 'Enterprise',
-    price: 'Custom',
-    description: 'Unlimited employees',
-    features: ['Everything in Growth', 'Custom AI models', 'SSO login', 'Dedicated account manager', 'Custom integrations', 'SLA guarantee'],
+    priceInr: 'Custom',
+    priceUsd: 'Custom',
+    description: 'Custom employee limit from 5+',
+    features: ['Pick any employee limit from 5+', 'Everything in Business', 'SSO login', 'Dedicated account manager', 'Custom integrations', 'SLA options'],
     button: 'Contact Us',
     contact: true,
   },
@@ -270,12 +437,12 @@ const whatsAppFeatureSlides = [
     accent: '#1D9E75',
     chips: ['Personalized by NudgeAI', 'No app install', '1 nudge/day'],
     floating: [
-      ['NudgeAI Prompt', "Hey Kunal! 🏆 6-day streak. Don't break it now."],
+      ['NudgeAI Prompt', "Hey Kunal! 6-day streak. Keep the momentum going."],
       ['Employee', 'Will update in 2 mins.'],
       ['Saved', 'Reminder logged for today']
     ],
     messages: [
-      ['bot', "Hey Kunal! 🏆\n6-day streak! Don't break it now.\nToday's check-in → nudgehq.app", '05:00 PM'],
+      ['bot', "Hey Kunal!\n6-day streak. Keep the momentum going.\nToday's check-in → nudgehq.app", '05:00 PM'],
       ['user', 'On it. Finishing launch QA now.', '05:02 PM'],
     ],
   },
@@ -293,7 +460,7 @@ const whatsAppFeatureSlides = [
     messages: [
       ['bot', "Don't forget today's NudgeHQ check-in.\nTakes under 2 mins → nudgehq.app", '09:30 AM'],
       ['user', 'Completed CRM dashboard polish. Blocked on webhook test.', '09:32 AM'],
-      ['bot', '✅ Got it Kunal! Your update has been saved to NudgeHQ.\nHave a productive day! 🚀', '09:32 AM'],
+      ['bot', 'Got it Kunal. Your update has been saved to NudgeHQ.\nHave a productive day.', '09:32 AM'],
     ],
   },
   {
@@ -308,7 +475,7 @@ const whatsAppFeatureSlides = [
       ['No duplicate spam', 'One alert per task blocker']
     ],
     messages: [
-      ['bot', "🚨 NudgeHQ Blocker Alert\n\nRahul is blocked on:\n'Stripe webhook test'\n\nReason: 'Waiting for staging keys'\n\nResolve here → nudgehq.app/dashboard/manager", '11:18 AM'],
+      ['bot', "NudgeHQ Blocker Alert\n\nRahul is blocked on:\n'Stripe webhook test'\n\nReason: 'Waiting for staging keys'\n\nResolve here → nudgehq.app/dashboard/manager", '11:18 AM'],
       ['user', 'I will unblock this now.', '11:20 AM'],
     ],
   },
@@ -324,7 +491,7 @@ const whatsAppFeatureSlides = [
       ['Progress', 'Full report in dashboard']
     ],
     messages: [
-      ['bot', "🏆 Your NudgeHQ week in review!\n\n✅ 8 tasks completed\n⚡ 2 blockers resolved\n🔥 7-day check-in streak\n\n📈 Better than last week! Keep it up!\n\nSee your full progress → nudgehq.app\n— NudgeAI", '06:00 PM'],
+      ['bot', "Your NudgeHQ week in review\n\n8 tasks completed\n2 blockers resolved\n7-day check-in streak\n\nBetter than last week. Keep it up.\n\nSee your full progress → nudgehq.app\n— NudgeAI", '06:00 PM'],
     ],
   },
 ]
@@ -353,19 +520,19 @@ const faqs = [
   {
     category: 'Pricing',
     question: 'Is the pricing final?',
-    answer: 'No. Pricing is currently temporary while NudgeHQ is being built and tested. Plans may change as the product grows.',
+    answer: 'NudgeHQ is using early-stage launch pricing with INR for Indian teams and USD for global teams. Plans are flat monthly packages, not per-user billing, and may evolve as the product grows.',
   },
   {
     category: 'Support',
     question: 'How can I contact NudgeHQ?',
-    answer: 'You can email hello.nudgehq@gmail.com or connect with us on Instagram at @hello.nudgehq.',
+    answer: 'You can email hello.nudgehq@gmail.com, connect on Instagram at @hello.nudgehq, or follow NudgeHQ on LinkedIn.',
   },
 ]
 
 const faqCategories = ['All Inquiries', 'Basics', 'NudgeAI', 'Roles', 'Pricing', 'Support']
 
 const AUTH_INPUT_CLASS = 'block w-full rounded-2xl border border-[#DAD7FB] bg-white px-4 py-3.5 text-sm shadow-[0_1px_0_rgba(60,52,137,0.03)] outline-none transition placeholder:text-[#A09F9A] focus:border-[#7F77DD] focus:shadow-[0_0_0_4px_rgba(127,119,221,0.12)]'
-const STARTER_EMPLOYEE_LIMIT = 15
+const STARTER_EMPLOYEE_LIMIT = 20
 
 function PasswordField({ label, value, onChange, placeholder = 'Enter password', className = '', labelClassName = '', inputClassName = '', required = true }) {
   const [visible, setVisible] = useState(false)
@@ -1012,6 +1179,34 @@ const formatDisplayDate = (value) => {
   }).format(new Date(value));
 }
 
+const formatRelativeTime = (value) => {
+  if (!value) return 'No update yet';
+  const then = new Date(value).getTime();
+  if (Number.isNaN(then)) return 'No update yet';
+  const diffMinutes = Math.max(0, Math.floor((Date.now() - then) / 60000));
+  if (diffMinutes < 1) return 'Just now';
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return 'Yesterday';
+  return `${diffDays}d ago`;
+}
+
+const getTaskStatusMeta = (status = '') => {
+  const normalized = String(status || '').toLowerCase();
+  if (normalized === 'completed') {
+    return { label: 'Completed', progress: 100, color: '#1D9E75', tone: 'green', className: 'bg-[#E8F7F1] text-[#1D9E75]' };
+  }
+  if (normalized === 'blocked') {
+    return { label: 'Blocked', progress: 25, color: '#EF4444', tone: 'red', className: 'bg-rose-50 text-rose-600' };
+  }
+  if (normalized === 'in_progress') {
+    return { label: 'In Progress', progress: 68, color: '#7F77DD', tone: 'orange', className: 'bg-[#EEEDFE] text-[#3C3489]' };
+  }
+  return { label: 'Not Started', progress: 12, color: '#8A8894', tone: 'neutral', className: 'bg-[#F4F4F5] text-[#5F5E5A]' };
+}
+
 const cardMotion = {
   initial: { opacity: 0, y: 24 },
   whileInView: { opacity: 1, y: 0 },
@@ -1028,10 +1223,12 @@ const isBackendConnectionError = (message = '') => (
 const getInitialView = () => {
   const path = window.location.pathname;
   const storedToken = window.localStorage.getItem('nudgehq_auth_token');
+  if (path === '/blog') return 'blog';
   if (path === '/privacy') return 'privacy';
   if (path === '/terms') return 'terms';
   if (path === '/contact') return 'contact';
   if (path === '/faq') return 'faq';
+  if (path === '/why-nudgehq') return 'why_nudgehq';
   if (path === '/nudgeai') return 'nudgeai';
   if (path === '/verify-email') return 'verify_email';
   if (path === '/choose-plan') return 'choose_plan';
@@ -1121,6 +1318,9 @@ function App() {
   const [serverPort, setServerPort] = useState(null)
   const [isSandbox, setIsSandbox] = useState(() => window.localStorage.getItem('nudgehq_auth_token') === 'sandbox-token-jwt')
   const [statusMessage, setStatusMessage] = useState(null)
+  const [cookieConsent, setCookieConsent] = useState(() => window.localStorage.getItem('nudgehq_cookie_consent') || '')
+  const [activeLandingReportTab, setActiveLandingReportTab] = useState('Daily visibility')
+  const [activeManagerFocusTab, setActiveManagerFocusTab] = useState('Daily Signals')
   const [mobilePhoneTilt, setMobilePhoneTilt] = useState({ x: 5, y: -14 })
   const [activeMobileTab, setActiveMobileTab] = useState('Pulse')
   const [mobileTasks, setMobileTasks] = useState([
@@ -1148,6 +1348,48 @@ function App() {
   const [demoProofFiles, setDemoProofFiles] = useState([])
   const [demoTaskOverrides, setDemoTaskOverrides] = useState({})
   const [demoCheckinLocation, setDemoCheckinLocation] = useState('Office')
+  const [managerProjects, setManagerProjects] = useState(() => getStoredJson('nudgehq_manager_projects', [
+    {
+      id: 'proj-sales-revival',
+      name: 'Sales revival sprint',
+      owner: 'Sales Manager',
+      status: 'In Progress',
+      progress: 68,
+      due: '18 Jun',
+      summary: 'Recover silent leads, clean pipeline quality, and unblock conversion-ready deals.',
+      priority: 'High'
+    },
+    {
+      id: 'proj-proof-cleanup',
+      name: 'Proof workflow cleanup',
+      owner: 'Priya Singh',
+      status: 'Review',
+      progress: 84,
+      due: '21 Jun',
+      summary: 'Tighten proof-required tasks so managers can review faster without back-and-forth.',
+      priority: 'Medium'
+    },
+    {
+      id: 'proj-whatsapp-nudges',
+      name: 'WhatsApp nudge rollout',
+      owner: 'Aman Verma',
+      status: 'Blocked',
+      progress: 39,
+      due: '25 Jun',
+      summary: 'Expand automated nudges across the department and fix Twilio delivery gaps.',
+      priority: 'High'
+    }
+  ]))
+  const [managerProjectDraft, setManagerProjectDraft] = useState({
+    name: '',
+    owner: '',
+    status: 'Planned',
+    progress: 25,
+    due: '',
+    summary: '',
+    priority: 'Medium'
+  })
+  const [editingManagerProjectId, setEditingManagerProjectId] = useState(null)
   const [demoAiQuestionIndex, setDemoAiQuestionIndex] = useState(0)
   const [demoAiHelperOpen, setDemoAiHelperOpen] = useState(false)
   const [demoAiHelperInput, setDemoAiHelperInput] = useState('')
@@ -1181,6 +1423,16 @@ function App() {
   const [contactMessage, setContactMessage] = useState('')
   const [contactLoading, setContactLoading] = useState(false)
   const [contactSuccess, setContactSuccess] = useState(false)
+  const [feedbackCommentName, setFeedbackCommentName] = useState('')
+  const [feedbackCommentText, setFeedbackCommentText] = useState('')
+  const [feedbackComments, setFeedbackComments] = useState(() => {
+    try {
+      const savedComments = JSON.parse(window.localStorage.getItem('nudgehq_early_feedback_comments') || '[]')
+      return Array.isArray(savedComments) ? savedComments : []
+    } catch {
+      return []
+    }
+  })
   const [faqSearch, setFaqSearch] = useState('')
   const [faqCategory, setFaqCategory] = useState('All Inquiries')
   const [verificationEmail, setVerificationEmail] = useState(() => window.localStorage.getItem('nudgehq_pending_email') || '')
@@ -1199,6 +1451,12 @@ function App() {
   const totalInviteCount = filledManualInviteCount + csvPreview.length
   const visibleInviteEmployees = inviteEmployees.slice(0, Math.max(STARTER_EMPLOYEE_LIMIT - csvPreview.length, 0))
   const canAddInviteEmployee = usedInviteSlots < STARTER_EMPLOYEE_LIMIT
+  const activeLandingReport = landingReportTabs[activeLandingReportTab] || landingReportTabs['Daily visibility']
+  const activeLandingSplitGradient = activeLandingReport.split.reduce((gradient, [, value, color], index) => {
+    const start = activeLandingReport.split.slice(0, index).reduce((sum, [, segmentValue]) => sum + segmentValue, 0)
+    const end = start + value
+    return `${gradient}${index ? ', ' : ''}${color} ${start}% ${end}%`
+  }, '')
 
   useEffect(() => {
     if (token) window.localStorage.setItem('nudgehq_auth_token', token);
@@ -1214,6 +1472,83 @@ function App() {
     if (authRole) window.localStorage.setItem('nudgehq_auth_role', authRole);
     else window.localStorage.removeItem('nudgehq_auth_role');
   }, [authRole])
+
+  useEffect(() => {
+    window.localStorage.setItem('nudgehq_early_feedback_comments', JSON.stringify(feedbackComments.slice(0, 8)))
+  }, [feedbackComments])
+
+  useEffect(() => {
+    window.localStorage.setItem('nudgehq_manager_projects', JSON.stringify(managerProjects))
+  }, [managerProjects])
+
+  const acceptCookieConsent = (choice = 'accepted') => {
+    window.localStorage.setItem('nudgehq_cookie_consent', choice);
+    setCookieConsent(choice);
+  };
+
+  const resetManagerProjectDraft = () => {
+    setManagerProjectDraft({
+      name: '',
+      owner: '',
+      status: 'Planned',
+      progress: 25,
+      due: '',
+      summary: '',
+      priority: 'Medium'
+    });
+    setEditingManagerProjectId(null);
+  };
+
+  const handleManagerProjectDraftChange = (field, value) => {
+    setManagerProjectDraft((current) => ({ ...current, [field]: field === 'progress' ? Number(value) : value }));
+  };
+
+  const handleSaveManagerProject = (event) => {
+    event.preventDefault();
+    if (!managerProjectDraft.name.trim()) {
+      showToast('Project name is required.', 'error');
+      return;
+    }
+
+    const normalizedProject = {
+      id: editingManagerProjectId || `proj-${Date.now()}`,
+      name: managerProjectDraft.name.trim(),
+      owner: managerProjectDraft.owner.trim() || 'Manager',
+      status: managerProjectDraft.status,
+      progress: Number(managerProjectDraft.progress) || 0,
+      due: managerProjectDraft.due.trim() || 'No date',
+      summary: managerProjectDraft.summary.trim() || 'No project summary added yet.',
+      priority: managerProjectDraft.priority
+    };
+
+    setManagerProjects((current) => (
+      editingManagerProjectId
+        ? current.map((project) => project.id === editingManagerProjectId ? normalizedProject : project)
+        : [normalizedProject, ...current]
+    ));
+
+    showToast(editingManagerProjectId ? 'Project updated.' : 'Project created.', 'success');
+    resetManagerProjectDraft();
+  };
+
+  const handleEditManagerProject = (project) => {
+    setEditingManagerProjectId(project.id);
+    setManagerProjectDraft({
+      name: project.name,
+      owner: project.owner,
+      status: project.status,
+      progress: project.progress,
+      due: project.due,
+      summary: project.summary,
+      priority: project.priority
+    });
+  };
+
+  const handleDeleteManagerProject = (projectId) => {
+    setManagerProjects((current) => current.filter((project) => project.id !== projectId));
+    if (editingManagerProjectId === projectId) resetManagerProjectDraft();
+    showToast('Project removed.', 'success');
+  };
 
   const clearAuthSession = () => {
     setUser(null);
@@ -1351,7 +1686,9 @@ function App() {
       const params = new URLSearchParams(window.location.search);
       setQueryParams(params);
       
-      if (path === '/privacy') {
+      if (path === '/blog') {
+        setCurrentView('blog');
+      } else if (path === '/privacy') {
         setCurrentView('privacy');
       } else if (path === '/terms') {
         setCurrentView('terms');
@@ -1359,6 +1696,8 @@ function App() {
         setCurrentView('contact');
       } else if (path === '/faq') {
         setCurrentView('faq');
+      } else if (path === '/why-nudgehq') {
+        setCurrentView('why_nudgehq');
       } else if (path === '/nudgeai') {
         setCurrentView('nudgeai');
       } else if (path === '/verify-email') {
@@ -1409,10 +1748,12 @@ function App() {
     let targetPath = '/';
     
     if (currentView === 'landing') targetPath = '/';
+    else if (currentView === 'blog') targetPath = '/blog';
     else if (currentView === 'privacy') targetPath = '/privacy';
     else if (currentView === 'terms') targetPath = '/terms';
     else if (currentView === 'contact') targetPath = '/contact';
     else if (currentView === 'faq') targetPath = '/faq';
+    else if (currentView === 'why_nudgehq') targetPath = '/why-nudgehq';
     else if (currentView === 'nudgeai') targetPath = '/nudgeai';
     else if (currentView === 'signin') targetPath = '/login';
     else if (currentView === 'signup') targetPath = '/signup';
@@ -1887,6 +2228,29 @@ function App() {
     }
   };
 
+  const handleFeedbackCommentSubmit = (event) => {
+    event.preventDefault();
+    const cleanComment = feedbackCommentText.trim();
+
+    if (!cleanComment) {
+      showToast('Add your comment first.', 'error');
+      return;
+    }
+
+    setFeedbackComments((comments) => [
+      {
+        id: Date.now(),
+        name: feedbackCommentName.trim() || 'Early visitor',
+        comment: cleanComment,
+        time: 'Just now'
+      },
+      ...comments
+    ].slice(0, 8));
+    setFeedbackCommentName('');
+    setFeedbackCommentText('');
+    showToast('Feedback comment added.', 'success');
+  };
+
   const handleLogout = () => {
     setUser(null);
     setToken(null);
@@ -2176,6 +2540,85 @@ function App() {
     } finally {
       setWhatsappNudgeLoading(false);
     }
+  };
+
+  const scrollToWorkspaceSection = (...ids) => {
+    window.setTimeout(() => {
+      const target = ids.map((id) => document.getElementById(id)).find(Boolean);
+      target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 90);
+  };
+
+  const activateManagerFocusTab = (tab) => {
+    setActiveManagerFocusTab(tab);
+
+    if (isSandbox && dashboardRole === 'manager') {
+      if (tab === 'NudgeAI') {
+        setDemoEmployeeSection('NudgeAI');
+        return;
+      }
+      setDemoEmployeeSection('Dashboard');
+      if (tab === 'WhatsApp') {
+        openWhatsAppNudgePreview();
+        return;
+      }
+      const demoTargets = {
+        'Daily Signals': 'manager-demo-brief-section',
+        'Blockers': 'manager-demo-blockers-section',
+      };
+      if (demoTargets[tab]) scrollToWorkspaceSection(demoTargets[tab], 'manager-demo-brief-section');
+      return;
+    }
+
+    if (tab === 'WhatsApp') {
+      openWhatsAppNudgePreview();
+      scrollToWorkspaceSection('manager-action-queue-section');
+      return;
+    }
+
+    const liveTargets = {
+      'Daily Signals': 'manager-live-brief-section',
+      'Blockers': 'manager-live-blockers-section',
+      'NudgeAI': 'manager-nudgeai-desk-section',
+    };
+    if (liveTargets[tab]) scrollToWorkspaceSection(liveTargets[tab], 'manager-action-queue-section', 'manager-live-brief-section');
+  };
+
+  const handleManagerPriorityAction = (label) => {
+    if (label === 'No updates') {
+      setActiveManagerFocusTab('WhatsApp');
+      openWhatsAppNudgePreview();
+      scrollToWorkspaceSection('manager-no-updates-section');
+      return;
+    }
+    if (label === 'Proof needed') {
+      setActiveManagerFocusTab('Daily Signals');
+      scrollToWorkspaceSection('manager-proof-required-section');
+      return;
+    }
+    if (label === 'Blockers') {
+      setActiveManagerFocusTab('Blockers');
+      scrollToWorkspaceSection(
+        isSandbox && dashboardRole === 'manager' ? 'manager-demo-blockers-section' : 'manager-live-blockers-section',
+        'manager-action-queue-section'
+      );
+      return;
+    }
+  };
+
+  const applyManagerTaskTemplate = (title) => {
+    const templateDescriptions = {
+      'Proof required follow-up': 'Follow up on completed work and request a link, file, or screenshot before final review.',
+      'Blocker unblock task': 'Assign an owner, define the next unblock step, add the escalation path, and set today as the target check-in.',
+      'Weekly win summary': 'Collect weekly outcomes, top wins, customer impact, and appreciation points for the Friday report.',
+    };
+    setNewTaskTitle(title);
+    setNewTaskDesc(templateDescriptions[title] || 'Manager template task ready for quick assignment.');
+    if (isSandbox && dashboardRole === 'manager') {
+      setDemoEmployeeSection('Tasks');
+    }
+    scrollToWorkspaceSection('manager-create-task');
+    showToast(`${title} template loaded into task creation.`, 'success');
   };
 
   // AI Generation triggers
@@ -2754,6 +3197,7 @@ function App() {
 
   const currentStory = productScenarios[activeStory]
   const currentWhatsAppSlide = whatsAppFeatureSlides[activeWhatsAppSlide]
+  const showMobileLaunchSection = window.localStorage.getItem('nudgehq_show_mobile_launch') === 'true'
   const assistantSnapshot = currentView === 'dashboard'
     ? {
         role: authRole,
@@ -2969,14 +3413,14 @@ function App() {
   const todayUpdatesCount = allUpdates.filter((update) => new Date(update.created_at).toDateString() === todayIsoDate).length;
   const managerTeamSize = Math.max(
     adminUsers.length || teamPresence.length || 0,
-    (isSandbox || dashboardRole === 'manager') ? 5 : 0
+    isSandbox ? 5 : 0
   );
   const managerActiveToday = Math.min(
-    todayUpdatesCount || ((isSandbox || dashboardRole === 'manager') ? 4 : 0),
+    todayUpdatesCount || (isSandbox ? 4 : 0),
     managerTeamSize || 0
   );
   const managerActiveTodayLabel = managerTeamSize ? `${managerActiveToday} of ${managerTeamSize} members` : '0 of 0 members';
-  const managerBlockerCountForCards = (isSandbox || dashboardRole === 'manager') && !leaderBlockedTasks ? 1 : leaderBlockedTasks;
+  const managerBlockerCountForCards = isSandbox && !leaderBlockedTasks ? 1 : leaderBlockedTasks;
   const lowEnergyCount = teamPresence.filter((item) => item.energy_level === 'low').length;
   const averageQuality = (() => {
     const scores = allUpdates.map((update) => Number(update.quality_score)).filter(Boolean);
@@ -2985,8 +3429,8 @@ function App() {
   })();
   const leaderSummaryCards = authRole === 'manager'
     ? [
-        ['Team Tasks', leaderTaskCount || 15, ListTodo, 'Across your team'],
-        ['Completion Rate', `${leaderCompletionRate || 67}%`, CheckCircle2, '▲ 8% vs yesterday'],
+        ['Team Tasks', isSandbox && !leaderTaskCount ? 15 : leaderTaskCount, ListTodo, 'Across your team'],
+        ['Completion Rate', `${isSandbox && !leaderCompletionRate ? 67 : leaderCompletionRate}%`, CheckCircle2, 'Synced from live tasks'],
         ['Active Blockers', managerBlockerCountForCards, AlertCircle, managerBlockerCountForCards ? 'needs attention' : 'all clear'],
         ['Active Today', managerActiveTodayLabel, UsersRound, 'Live check-ins']
       ]
@@ -3025,9 +3469,9 @@ function App() {
             id: task.id || `blocker-${index}`,
             title: task.title || 'Blocked task',
             assignee: task.assignee || { name: 'Team member', email: 'hello.nudgehq@gmail.com' },
-            blockedAgo: 'Blocked 2h 30m ago'
+            blockedAgo: task.updated_at ? `Blocked ${formatRelativeTime(task.updated_at)}` : 'Blocked status active'
           }))
-        : ((isSandbox || dashboardRole === 'manager') ? managerDemoBlockers : []))
+        : (isSandbox ? managerDemoBlockers : []))
     : [];
   const hrPeopleSignals = [
     ['Low energy check-ins', lowEnergyCount, lowEnergyCount ? 'Review these teams with care.' : 'No low-energy check-ins yet.'],
@@ -3049,7 +3493,8 @@ const demoDisplayName = dashboardRole === 'employee'
   : user?.name || getDemoUserFromRole(dashboardRole).name || 'Demo User';
 const demoDisplayFirstName = demoDisplayName.split(' ').filter(Boolean)[0] || 'there';
 const demoEmployeeCanNavigate = dashboardRole === 'employee';
-const demoDashboardCanNavigate = isSandbox || dashboardRole === 'employee';
+const isLiveManagerWorkspace = !isSandbox && dashboardRole === 'manager';
+const demoDashboardCanNavigate = isSandbox || dashboardRole === 'employee' || isLiveManagerWorkspace;
 const selectedDemoSection = demoDashboardCanNavigate
   ? (dashboardRole === 'employee' ? demoEmployeeSection : (demoEmployeeSection === 'My Dashboard' ? 'Dashboard' : demoEmployeeSection))
   : 'Dashboard';
@@ -3092,6 +3537,11 @@ const demoSidebarItems = dashboardRole === 'employee'
         ['Settings', Shield],
       ]
     : leaderDemoSidebarItems.filter(([label]) => dashboardRole !== 'manager' || label !== 'Integrations');
+  const dashboardShellSubtitle = isSandbox
+    ? `${dashboardRoleLabel} command`
+    : isLiveManagerWorkspace
+      ? 'Manager command'
+      : 'Employee workspace';
   const sandboxNudgeSpaceSocialPosts = [
     {
       name: demoDisplayName,
@@ -3208,13 +3658,46 @@ const demoSidebarItems = dashboardRole === 'employee'
     ['Neha Gupta', 'Content Strategy', 40, 'In Progress', '#F59E0B'],
     ['Karan Arora', 'Competitor Analysis', 20, 'Overdue', '#EF4444'],
   ];
-  const managerProgressRows = [
+  const managerSandboxProgressRows = [
     ['Aman Verma', 'Landing Page', 100, 'Completed', '#1D9E75', '2m ago', 'green'],
     ['Priya Singh', 'Client Deck', 80, 'In Progress', '#7F77DD', '1h ago', 'orange'],
     ['Rahul Mehta', 'Market Research', 60, 'Blocked', '#EF4444', '3h+ ago', 'red'],
     ['Neha Gupta', 'Content Strategy', 40, 'In Progress', '#F59E0B', 'No update today', 'redBold'],
     ['Karan Arora', 'Competitor Analysis', 20, 'Overdue', '#EF4444', '3h+ ago', 'red'],
   ];
+  const getLatestUpdateForManagerTask = (task) => {
+    const assigneeId = task.assignee?.id || task.assignee_id;
+    return allUpdates.find((update) => update.tasks?.id === task.id)
+      || allUpdates.find((update) => assigneeId && update.user?.id === assigneeId)
+      || null;
+  };
+  const managerLiveProgressRows = empTasks.map((task) => {
+    const statusMeta = getTaskStatusMeta(task.status);
+    const latestUpdate = getLatestUpdateForManagerTask(task);
+    const updateAgeHours = latestUpdate?.created_at
+      ? (Date.now() - new Date(latestUpdate.created_at).getTime()) / 3600000
+      : null;
+    const updateTone = task.status === 'blocked'
+      ? 'red'
+      : latestUpdate
+        ? updateAgeHours > 24 ? 'redBold' : statusMeta.tone
+        : 'neutral';
+    return [
+      task.assignee?.name || 'Unassigned',
+      task.title || 'Untitled task',
+      statusMeta.progress,
+      statusMeta.label,
+      statusMeta.color,
+      latestUpdate ? formatRelativeTime(latestUpdate.created_at) : 'No update yet',
+      updateTone,
+      task.id,
+      task.status,
+      task.assignee?.email || ''
+    ];
+  });
+  const managerProgressRows = managerLiveProgressRows.length
+    ? managerLiveProgressRows
+    : (isSandbox ? managerSandboxProgressRows : []);
   const baseEmployeeTaskRows = [
     ['Today', 'Verify customer email lists', 88, 'In Progress', '#7F77DD'],
     ['Today', 'Submit progress update', 100, 'Completed', '#1D9E75'],
@@ -3258,18 +3741,113 @@ const demoSidebarItems = dashboardRole === 'employee'
     ['Neha added a comment on', 'Content Strategy', '45m ago', MessageSquareText, '#F59E0B'],
     ['Karan missed a deadline on', 'Competitor Analysis', '1h ago', AlertCircle, '#EF4444'],
   ];
-  const managerActivityRows = [
+  const managerSandboxActivityRows = [
     ['Aman completed', 'Landing Page', '2m ago', CheckCircle2, '#1D9E75', 'Aman moved the landing page QA checklist to done and attached final screenshots.'],
     ['Priya updated progress on', 'Client Deck', '15m ago', Activity, '#7F77DD', 'Priya updated the client deck with stakeholder notes and marked two slides for review.'],
     ['Rahul uploaded', 'Market Research', '32m ago', ClipboardCheck, '#F59E0B', 'Rahul attached research notes but flagged missing CRM export access.'],
     ['Neha added a comment on', 'Content Strategy', '45m ago', MessageSquareText, '#F59E0B', 'Neha added next-step ideas for the content calendar and asked for priority order.'],
     ['Karan missed a deadline on', 'Competitor Analysis', '1h ago', AlertCircle, '#EF4444', 'The competitor report missed the noon cutoff and needs manager follow-up.'],
   ];
+  const managerLiveActivityRows = [
+    ...managerActiveBlockers.map((blocker) => [
+      `${blocker.assignee?.name || 'Team member'} is blocked`,
+      blocker.title,
+      blocker.blockedAgo,
+      AlertCircle,
+      '#EF4444',
+      'This task is marked blocked. Resolve it after the team has a clear next step.'
+    ]),
+    ...allUpdates.slice(0, 8).map((update) => [
+      `${update.user?.name || 'Team member'} submitted update`,
+      update.tasks?.title || 'Daily check-in',
+      formatRelativeTime(update.created_at),
+      update.proof_link ? FileCheck2 : ClipboardCheck,
+      update.quality_score && Number(update.quality_score) >= 8 ? '#1D9E75' : '#7F77DD',
+      update.progress_text || 'Progress update submitted.'
+    ])
+  ].slice(0, 10);
+  const managerActivityRows = managerLiveActivityRows.length
+    ? managerLiveActivityRows
+    : (isSandbox ? managerSandboxActivityRows : []);
+  const managerStandupSections = nudgeAiData.standup?.sections || null;
+  const managerStandupCards = managerStandupSections
+    ? [
+        ['Done', managerStandupSections.done?.join(' ') || 'No completed updates in the latest brief.'],
+        ['In progress', managerStandupSections.in_progress?.join(' ') || 'No active progress items in the latest brief.'],
+        ['Blocked', managerStandupSections.blocked?.join(' ') || 'No blockers found in the latest brief.'],
+        ['Manager attention', managerStandupSections.attention?.join(' ') || 'No urgent manager action found.'],
+      ]
+    : [
+        ['Brief', nudgeAiData.standup?.brief || 'Generate a live team brief from recent updates, blockers, and task progress.'],
+        ['Tasks', `${leaderTaskCount} team tasks tracked in your department.`],
+        ['Blockers', managerBlockerCountForCards ? `${managerBlockerCountForCards} active blocker${managerBlockerCountForCards === 1 ? '' : 's'} need attention.` : 'No active blockers right now.'],
+        ['Next action', todayUpdatesCount ? 'Review fresh updates and clear unclear blockers.' : 'Ask the team to submit today’s first update.'],
+      ];
+  const managerNoUpdateAlerts = (isSandbox
+    ? [
+        { name: 'Neha Gupta', detail: 'No update today', action: 'Send nudge' },
+        { name: 'Karan Arora', detail: 'Deadline missed, no fresh proof', action: 'Escalate' },
+      ]
+    : managerProgressRows
+        .filter(([, , , , , lastUpdate, updateTone]) => updateTone === 'red' || updateTone === 'redBold' || /no update/i.test(String(lastUpdate)))
+        .slice(0, 3)
+        .map(([name, task, , , , lastUpdate]) => ({ name, detail: `${task} · ${lastUpdate}`, action: 'Send nudge' })));
+  const managerProofRequiredTasks = (isSandbox
+    ? [
+        { title: 'Client deck approval', owner: 'Priya Singh', proof: 'Deck link or PDF export' },
+        { title: 'CRM import access issue', owner: 'Rahul Mehta', proof: 'Screenshot or access note' },
+      ]
+    : empTasks
+        .filter((task) => task.requires_proof || task.proof_required || /proof|verify|approval|review/i.test(task.title || ''))
+        .slice(0, 3)
+        .map((task) => ({
+          title: task.title || 'Proof required task',
+          owner: task.assignee?.name || 'Team member',
+          proof: task.proof_label || 'File, link, or screenshot',
+        })));
+  const managerQualityScoreCards = [
+    ['Avg update quality', averageQuality === '—' ? (isSandbox ? '8.6' : '—') : averageQuality, 'Coach short, specific updates.'],
+    ['Needs rewrite', managerNoUpdateAlerts.length || (isSandbox ? 2 : 0), 'Updates missing outcome, blocker, or proof.'],
+    ['Strong updates', todayUpdatesCount || (isSandbox ? 11 : 0), 'Clear enough for manager review.'],
+  ];
+  const managerCompletedCount = managerProgressRows.filter(([, , , status]) => status === 'Completed').length || (isSandbox ? 6 : 0);
+  const managerInProgressCount = managerProgressRows.filter(([, , , status]) => status === 'In Progress').length || (isSandbox ? 5 : 0);
+  const managerAtRiskCount = managerProgressRows.filter(([, , , status]) => ['Blocked', 'Overdue'].includes(status)).length || (isSandbox ? 3 : 0);
+  const managerChartData = [
+    { day: 'Mon', completed: Math.max(managerCompletedCount - 3, 1), updates: Math.max(managerActiveToday - 2, 2), blockers: Math.max(managerAtRiskCount - 1, 0) },
+    { day: 'Tue', completed: Math.max(managerCompletedCount - 2, 2), updates: Math.max(managerActiveToday - 1, 3), blockers: managerAtRiskCount },
+    { day: 'Wed', completed: Math.max(managerCompletedCount - 1, 3), updates: Math.max(managerActiveToday, 4), blockers: Math.max(managerAtRiskCount - 1, 0) },
+    { day: 'Thu', completed: managerCompletedCount, updates: Math.max(managerActiveToday + 1, 5), blockers: managerAtRiskCount },
+    { day: 'Fri', completed: Math.max(managerCompletedCount + 1, 4), updates: Math.max(managerActiveToday + 2, 6), blockers: Math.max(managerAtRiskCount - 2, 0) },
+  ];
+  const managerStatusMixData = [
+    { label: 'Done', value: managerCompletedCount, fill: '#1D9E75' },
+    { label: 'Doing', value: managerInProgressCount, fill: '#3C3489' },
+    { label: 'Risk', value: managerAtRiskCount, fill: '#EF4444' },
+  ];
+  const managerPriorityActions = [
+    ['No updates', managerNoUpdateAlerts.length || 0, 'Send team nudge before standup', AlertCircle, '#EF4444'],
+    ['Proof needed', managerProofRequiredTasks.length || 0, 'Request link, file, or screenshot', FileCheck2, '#F59E0B'],
+    ['Blockers', managerActiveBlockers.length || 0, 'Escalate the highest-risk item', Zap, '#3C3489'],
+  ];
+  const managerSmartTaskTemplates = [
+    ['Proof required follow-up', 'Ask for completed work with link, file, or screenshot proof.'],
+    ['Blocker unblock task', 'Assign next action, owner, and escalation path in one click.'],
+    ['Weekly win summary', 'Collect outcomes for Friday report and appreciation notes.'],
+  ];
+  const adminSetupChecklist = [
+    ['Company profile', Boolean(user?.organizations?.name), 'Add company name, logo, and workspace basics.'],
+    ['Departments', Boolean(user?.department_id) || adminUsers.some((item) => item.department_id), 'Create teams so managers see scoped dashboards.'],
+    ['Invite employees', adminUsers.length > 1 || isSandbox, 'Invite team members and assign roles.'],
+    ['WhatsApp numbers', adminUsers.some((item) => item.phone_number) || isSandbox, 'Add phone numbers before WhatsApp nudges.'],
+    ['First task flow', empTasks.length > 0 || isSandbox, 'Create a proof-ready task and test updates.'],
+  ];
   const getManagerLastUpdateClass = (tone) => {
     if (tone === 'green') return 'text-[#1D9E75]';
     if (tone === 'orange') return 'text-[#F59E0B]';
     if (tone === 'redBold') return 'font-black text-[#EF4444]';
-    return 'text-[#EF4444]';
+    if (tone === 'red') return 'text-[#EF4444]';
+    return 'text-[#8A8894]';
   };
   const employeeRecentActivityRows = [
     ['Completed task', 'Verify customer email lists', '2m ago', CheckCircle2, '#1D9E75'],
@@ -3381,10 +3959,10 @@ const demoSidebarItems = dashboardRole === 'employee'
     };
   });
   const realEmployeeLocationPills = [
-    ['office', '🏢 Office'],
-    ['home', '🏠 Home'],
-    ['client_site', '🤝 Client site'],
-    ['travel', '✈️ Travel'],
+    ['office', 'Office'],
+    ['home', 'Home'],
+    ['client_site', 'Client site'],
+    ['travel', 'Travel'],
   ];
   const employeeDashboardTaskRows = isSandbox
     ? employeeTaskRows
@@ -3669,12 +4247,32 @@ const demoSidebarItems = dashboardRole === 'employee'
             <span className="text-lg font-bold text-[#3C3489]">NudgeHQ</span>
           </a>
 
-          {['landing', 'signin', 'signup', 'privacy', 'terms', 'contact', 'faq', 'nudgeai', 'verify_email', 'choose_plan', 'payment', 'onboarding', 'accept_invite', 'join_workspace', 'oauth_callback'].includes(currentView) ? (
+          {['landing', 'signin', 'signup', 'blog', 'privacy', 'terms', 'contact', 'faq', 'why_nudgehq', 'nudgeai', 'verify_email', 'choose_plan', 'payment', 'onboarding', 'accept_invite', 'join_workspace', 'oauth_callback'].includes(currentView) ? (
             <>
               <div className="hidden items-center gap-8 text-sm font-medium text-[#5F5E5A] md:flex">
                 <a onClick={() => setCurrentView('landing')} className="transition hover:text-[#3C3489]" href="#features">Features</a>
                 <a onClick={() => setCurrentView('landing')} className="transition hover:text-[#3C3489]" href="#pricing">Pricing</a>
                 <a onClick={() => setCurrentView('landing')} className="transition hover:text-[#3C3489]" href="#security">Security</a>
+                <a
+                  className="transition hover:text-[#3C3489]"
+                  href="/blog"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setCurrentView('blog');
+                  }}
+                >
+                  Blog
+                </a>
+                <a
+                  className="transition hover:text-[#3C3489]"
+                  href="/why-nudgehq"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setCurrentView('why_nudgehq');
+                  }}
+                >
+                  Why NudgeHQ?
+                </a>
                 <a
                   className="hidden items-center gap-2 rounded-full bg-[#E8F7F1] px-3 py-1.5 font-bold text-[#1D9E75] transition hover:bg-[#DDF3EA] lg:inline-flex"
                   href="/contact"
@@ -3879,10 +4477,10 @@ const demoSidebarItems = dashboardRole === 'employee'
                     </div>
                   )}
                 </div>
-	                </div>
-	              </div>
-	          </div>
-	        </section>
+              </div>
+            </div>
+          </div>
+          </section>
 	      )}
 
       {currentView === 'contact' && (
@@ -4045,8 +4643,259 @@ const demoSidebarItems = dashboardRole === 'employee'
         </section>
       )}
 
+      {currentView === 'blog' && (
+        <section className="relative isolate overflow-hidden bg-[#F7FAFF] px-5 py-16 sm:px-6 lg:px-8">
+          <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_15%_12%,rgba(127,119,221,0.18),transparent_32%),radial-gradient(circle_at_84%_16%,rgba(29,158,117,0.16),transparent_28%),linear-gradient(180deg,#F8FBFF_0%,#FFFFFF_100%)]" />
+          <div className="soft-grid absolute inset-0 -z-10 opacity-35" />
+          <div className="mx-auto max-w-6xl">
+            <SectionHeader
+              eyebrow="Blog"
+              title="Stories around founders, product, and building NudgeHQ."
+              copy="A small editorial corner for founder journeys, operating insights, and the thinking behind NudgeHQ."
+            />
+
+            <motion.article
+              {...cardMotion}
+              className="mx-auto mt-12 max-w-4xl overflow-hidden rounded-[2rem] border border-[#DAD7FB] bg-white shadow-2xl shadow-[#3C3489]/10"
+            >
+              <div className="grid gap-0 lg:grid-cols-[0.92fr_1.08fr]">
+                <div className="bg-[linear-gradient(160deg,#17142C_0%,#26224B_55%,#302A62_100%)] p-8 text-white sm:p-10">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.16em] text-white/80">
+                    Founder feature
+                  </span>
+                  <h1 className="mt-5 text-3xl font-black tracking-tight sm:text-4xl">Shaurya Sharma on building NudgeHQ.</h1>
+                  <p className="mt-4 text-sm font-semibold leading-7 text-white/75">
+                    A founder spotlight covering the NudgeHQ story, why the product exists, and what problem it is trying to solve for modern teams.
+                  </p>
+                </div>
+
+                <div className="p-8 sm:p-10">
+                  <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#1D9E75]">Latest article</p>
+                  <h2 className="mt-3 text-2xl font-black text-[#1C1739]">Shaurya Sharma, NudgeHQ</h2>
+                  <p className="mt-3 text-sm font-semibold leading-7 text-[#5F5E5A]">
+                    Published by Code Capital Coffee in their founders series. Open the full article to read the interview and founder journey.
+                  </p>
+                  <div className="mt-6 rounded-[1.4rem] border border-[#EEEDFE] bg-[#FCFCFF] p-5">
+                    <p className="text-sm font-black text-[#2C2C2A]">Article link</p>
+                    <a
+                      href="https://www.codecapitalcoffee.com/founders/shaurya-sharma-nudgehq"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-3 inline-flex items-center gap-2 text-sm font-extrabold text-[#3C3489] hover:text-[#7F77DD]"
+                    >
+                      Open on Code Capital Coffee
+                      <ArrowRight className="h-4 w-4" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </motion.article>
+          </div>
+        </section>
+      )}
+
       {currentView === 'nudgeai' && (
         <FullPageNudgeAi onAsk={askNudgeAi} setCurrentView={setCurrentView} />
+      )}
+
+      {currentView === 'why_nudgehq' && (
+        <section className="relative isolate overflow-hidden bg-[#F7FAFF] px-5 py-16 text-[#2C2C2A] sm:px-6 lg:px-8">
+          <div className="absolute inset-0 -z-20 bg-[radial-gradient(circle_at_14%_8%,#DFECFF_0,transparent_32%),radial-gradient(circle_at_88%_14%,#DCF8EF_0,transparent_30%),linear-gradient(180deg,#F8FBFF_0%,#FFFFFF_48%,#F7F6FF_100%)]" />
+          <div className="soft-grid absolute inset-0 -z-10 opacity-30" />
+
+          <div className="mx-auto grid max-w-7xl gap-10 py-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+            <motion.div {...cardMotion}>
+              <span className="inline-flex items-center gap-2 rounded-full border border-[#DAD7FB] bg-white/90 px-4 py-2 text-sm font-extrabold text-[#3C3489] shadow-lg shadow-[#3C3489]/5 backdrop-blur">
+                <Sparkles className="h-4 w-4 text-[#1D9E75]" />
+                Why NudgeHQ?
+              </span>
+              <h1 className="mt-6 max-w-3xl text-5xl font-extrabold leading-tight tracking-[-0.04em] text-[#1E2737] sm:text-6xl">
+                The daily visibility layer bloated work suites forgot.
+              </h1>
+              <p className="mt-5 max-w-2xl text-lg font-semibold leading-8 text-[#5F5E5A]">
+                NudgeHQ is not another giant suite. It solves the painful layer managers hate most: chasing updates, finding blockers late, and rebuilding status reports manually.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-2">
+                {['Daily signals', 'WhatsApp nudges', 'Manager briefs', 'Proof workflows', 'No-update alerts', 'NudgeAI summaries'].map((signal) => (
+                  <span key={signal} className="rounded-full border border-[#DAD7FB] bg-white/82 px-3 py-1.5 text-xs font-black uppercase tracking-[0.12em] text-[#5F5E5A] shadow-sm">
+                    {signal}
+                  </span>
+                ))}
+              </div>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={openSignup}
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-[#3C3489] px-6 py-4 text-sm font-extrabold uppercase tracking-[0.14em] text-white shadow-xl shadow-[#3C3489]/20 transition hover:bg-[#7F77DD]"
+                >
+                  Start free trial
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+                <a
+                  href="#comparison-table"
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-[#DAD7FB] bg-white px-6 py-4 text-sm font-extrabold uppercase tracking-[0.14em] text-[#3C3489] transition hover:bg-[#EEEDFE]"
+                >
+                  See operating model
+                  <ArrowRight className="h-4 w-4" />
+                </a>
+              </div>
+            </motion.div>
+
+            <motion.div {...cardMotion} className="relative overflow-hidden rounded-[2.4rem] border border-[#DAD7FB] bg-white/76 p-6 shadow-2xl shadow-[#3C3489]/12 backdrop-blur-xl">
+              <div className="absolute -right-16 -top-16 h-52 w-52 rounded-full bg-[#EEEDFE] blur-3xl" />
+              <div className="absolute -bottom-16 left-10 h-44 w-44 rounded-full bg-[#E8F7F1] blur-3xl" />
+              <div className="relative rounded-[1.8rem] border border-white/80 bg-[#FCFCFF] p-5 shadow-inner">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-[#7F77DD]">Signal layer</p>
+                    <h2 className="mt-2 text-2xl font-black tracking-tight text-[#1C1739]">NudgeHQ sits above the noise.</h2>
+                  </div>
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#3C3489] text-white shadow-lg shadow-[#3C3489]/20">
+                    <Zap className="h-6 w-6" />
+                  </span>
+                </div>
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  {[
+                    ['WhatsApp nudges', 'Employees reply where they already are.', MessageSquareText, '#1D9E75'],
+                    ['Role dashboards', 'Admin, HR, manager, employee — each scoped.', ShieldCheck, '#7F77DD'],
+                    ['Blocker alerts', 'Risks surface before deadlines break.', AlertCircle, '#EF4444'],
+                    ['NudgeAI briefs', 'Raw updates turn into manager-ready summaries.', Sparkles, '#F59E0B'],
+                  ].map(([title, copy, Icon, color]) => (
+                    <div key={title} className="metric-lift rounded-2xl border border-[#EEEDFE] bg-white p-4 shadow-sm">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: `${color}16`, color }}>
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <p className="mt-4 text-sm font-black text-[#2C2C2A]">{title}</p>
+                      <p className="mt-1 text-xs font-semibold leading-5 text-[#5F5E5A]">{copy}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+
+          <div className="mx-auto mt-10 max-w-7xl">
+            <SectionHeader
+              eyebrow="Better for this job"
+              title="Why NudgeHQ feels faster than most solutions"
+              copy="Generic tools are good at storing work. NudgeHQ is built to capture daily signals, detect delays, and make leaders act before the week slips."
+            />
+            <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+              {[
+                ['Adoption first', 'WhatsApp nudges meet employees where they already respond, instead of forcing one more app ritual.', MessageSquareText],
+                ['Daily signal, not task bloat', 'NudgeHQ focuses on what changed today: progress, blocker, focus, energy, and proof.', Activity],
+                ['Role-scoped clarity', 'HR sees people health, managers see their team, employees see themselves, admin sees everything.', UsersRound],
+                ['AI turns noise into action', 'NudgeAI converts check-ins into standups, weekly wins, blocker alerts, and board-ready summaries.', Sparkles],
+              ].map(([title, copy, Icon]) => (
+                <motion.article key={title} {...cardMotion} className="workspace-card rounded-[1.6rem] p-6">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EEEDFE] text-[#3C3489]">
+                    <Icon className="h-6 w-6" />
+                  </span>
+                  <h3 className="mt-5 text-xl font-black text-[#1C1739]">{title}</h3>
+                  <p className="mt-3 text-sm font-semibold leading-6 text-[#5F5E5A]">{copy}</p>
+                </motion.article>
+              ))}
+            </div>
+          </div>
+
+          <div id="comparison-table" className="mx-auto mt-20 max-w-7xl">
+            <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-sm font-black uppercase tracking-[0.2em] text-[#1D9E75]">Operating model</p>
+                <h2 className="mt-3 text-3xl font-black tracking-tight text-[#1C1739] sm:text-4xl">The signals NudgeHQ brings into one calm layer.</h2>
+                <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-[#5F5E5A]">
+                  The point is not “more software”. The point is daily visibility that helps managers act early and employees stay clear.
+                </p>
+              </div>
+              <span className="w-fit rounded-full bg-[#1C1739] px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-white">
+                Built for daily visibility
+              </span>
+            </div>
+
+            <div className="grid gap-5 lg:grid-cols-3">
+              {[
+                ['Capture', 'Daily check-ins, WhatsApp nudges, proof uploads, task status, and blockers are captured as clean team signals.', ['Updates', 'Proof', 'Blockers']],
+                ['Understand', 'NudgeAI turns raw updates into manager briefs, no-update alerts, quality scores, and weekly team summaries.', ['Briefs', 'Scores', 'Summaries']],
+                ['Act', 'Managers escalate blockers, assign proof-required tasks, reuse templates, and keep leadership reports ready.', ['Escalate', 'Assign', 'Report']],
+              ].map(([title, copy, tags], index) => (
+                <motion.article key={title} {...cardMotion} transition={{ duration: 0.45, delay: index * 0.05, ease: 'easeOut' }} className="rounded-[1.6rem] border border-[#DAD7FB] bg-white p-6 shadow-xl shadow-[#3C3489]/8">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EEEDFE] text-sm font-black text-[#3C3489]">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <h3 className="mt-5 text-2xl font-black text-[#1C1739]">{title}</h3>
+                  <p className="mt-3 text-sm font-semibold leading-6 text-[#5F5E5A]">{copy}</p>
+                  <div className="mt-6 flex flex-wrap gap-2">
+                    {tags.map((tag) => (
+                      <span key={tag} className="rounded-full bg-[#F7F6FF] px-3 py-1.5 text-xs font-black uppercase tracking-[0.12em] text-[#3C3489]">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </motion.article>
+              ))}
+            </div>
+
+            <div className="mt-6 rounded-[1.6rem] border border-[#DAD7FB] bg-[#FCFCFF] p-5 shadow-sm">
+              <div className="grid gap-4 md:grid-cols-4">
+                {[
+                  ['86%', 'Update completion'],
+                  ['12 min', 'Avg blocker response'],
+                  ['3 hrs', 'Weekly report time saved'],
+                  ['4 roles', 'Scoped dashboards'],
+                ].map(([value, label]) => (
+                  <div key={label} className="rounded-2xl bg-white p-5 text-center shadow-sm ring-1 ring-[#EEEDFE]">
+                    <p className="text-3xl font-black text-[#3C3489]">{value}</p>
+                    <p className="mt-2 text-xs font-black uppercase tracking-[0.14em] text-[#8A8894]">{label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <motion.div {...cardMotion} className="mx-auto mt-20 max-w-7xl overflow-hidden rounded-[2.2rem] border border-[#DAD7FB] bg-[#161238] p-6 text-white shadow-2xl shadow-[#3C3489]/18 sm:p-8">
+            <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+              <div>
+                <p className="text-sm font-black uppercase tracking-[0.22em] text-[#8DE4C3]">Replaces the messy layer</p>
+                <h2 className="mt-4 text-4xl font-black tracking-tight sm:text-5xl">Not your whole stack — just the daily chasing chaos.</h2>
+                <p className="mt-4 text-base font-semibold leading-7 text-white/72">
+                  Keep the tools your team already uses if they work. NudgeHQ becomes the lightweight operating layer that tells leaders what changed, who is blocked, and who needs a nudge.
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {[
+                  ['WhatsApp follow-up chains', 'Replaced by scheduled nudges'],
+                  ['Manual status spreadsheets', 'Replaced by live dashboards'],
+                  ['Long standup notes', 'Replaced by NudgeAI briefs'],
+                  ['Late blocker discovery', 'Replaced by instant escalation'],
+                ].map(([before, after]) => (
+                  <div key={before} className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur">
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-white/45">Before</p>
+                    <p className="mt-2 text-sm font-bold text-white/75 line-through decoration-white/35">{before}</p>
+                    <p className="mt-4 text-xs font-black uppercase tracking-[0.16em] text-[#8DE4C3]">With NudgeHQ</p>
+                    <p className="mt-2 text-sm font-black text-white">{after}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+
+          <div className="mx-auto mt-16 max-w-4xl text-center">
+            <h2 className="text-4xl font-black tracking-tight text-[#1C1739]">If your managers still chase updates, your tool stack is incomplete.</h2>
+            <p className="mt-4 text-lg font-semibold leading-8 text-[#5F5E5A]">
+              NudgeHQ gives companies the daily visibility layer most tools forget.
+            </p>
+            <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+              <button type="button" onClick={openSignup} className="inline-flex items-center justify-center gap-2 rounded-full bg-[#3C3489] px-7 py-4 text-sm font-extrabold uppercase tracking-[0.14em] text-white transition hover:bg-[#7F77DD]">
+                Start free trial
+                <ArrowRight className="h-4 w-4" />
+              </button>
+              <button type="button" onClick={() => setCurrentView('contact')} className="inline-flex items-center justify-center gap-2 rounded-full border border-[#DAD7FB] bg-white px-7 py-4 text-sm font-extrabold uppercase tracking-[0.14em] text-[#3C3489] transition hover:bg-[#EEEDFE]">
+                Talk to us
+                <MessageSquareText className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </section>
       )}
 
       {/* VIEW: EMAIL VERIFICATION */}
@@ -4115,19 +4964,21 @@ const demoSidebarItems = dashboardRole === 'employee'
             <SectionHeader
               eyebrow="Choose plan"
               title="Start with the plan that matches your team."
-              copy="14-day free trial included with Starter. No credit card needed to start."
+              copy="INR pricing for Indian teams, USD pricing for global teams. New companies get the real Starter plan free for 14 days before any payment is needed."
             />
-            <div className="mt-12 grid gap-5 lg:grid-cols-3">
+            <div className="mt-12 grid gap-5 lg:grid-cols-4">
               {[
-                ['Starter', 'Rs. 2,000/month', ['Up to 15 employees', 'All V1 features', 'NudgeAI basic', 'Email support'], 'Choose Starter'],
-                ['Custom', 'Contact us', ['15+ employees', 'Everything in Starter', 'Price based on team size', 'Priority support'], 'Contact Us'],
-                ['Enterprise', 'Custom contract', ['Unlimited employees', 'Full V2 features', 'Dedicated manager'], 'Contact Us']
+                ['Starter', '₹2,000/month', '$9/month', ['Up to 20 employees', 'Daily check-ins', 'NudgeAI basic', 'Email support'], 'Choose Starter'],
+                ['Growth', '₹4,500/month', '$25/month', ['Up to 50 employees', 'WhatsApp nudges', 'NudgeAI summaries', 'Priority support'], 'Contact Us'],
+                ['Business', '₹8,500/month', '$49/month', ['Up to 100 employees', 'Advanced dashboards', 'Board-ready reports', 'Priority onboarding'], 'Contact Us'],
+                ['Enterprise', 'Custom', 'Custom', ['Custom employee limit from 5+', 'Custom integrations', 'Dedicated manager', 'SLA options'], 'Contact Us']
               ].map((plan, index) => (
                 <motion.article key={plan[0]} {...cardMotion} className={`rounded-2xl border p-7 shadow-xl ${index === 0 ? 'border-[#7F77DD] bg-[#3C3489] text-white shadow-[#3C3489]/20' : 'border-[#DAD7FB] bg-white text-[#2C2C2A] shadow-[#3C3489]/5'}`}>
                   <h2 className="text-2xl font-extrabold">{plan[0]}</h2>
                   <p className={`mt-3 text-3xl font-extrabold ${index === 0 ? 'text-white' : 'text-[#3C3489]'}`}>{plan[1]}</p>
+                  <p className={`mt-1 text-sm font-bold ${index === 0 ? 'text-white/72' : 'text-[#5F5E5A]'}`}>Global: {plan[2]}</p>
                   <ul className="mt-7 space-y-3">
-                    {plan[2].map((feature) => (
+                    {plan[3].map((feature) => (
                       <li key={feature} className={`flex gap-3 text-sm font-semibold ${index === 0 ? 'text-white/85' : 'text-[#5F5E5A]'}`}>
                         <Check className={`h-5 w-5 shrink-0 ${index === 0 ? 'text-[#8DE4C3]' : 'text-[#1D9E75]'}`} />
                         {feature}
@@ -4147,7 +4998,7 @@ const demoSidebarItems = dashboardRole === 'employee'
               ))}
             </div>
             <p className="mx-auto mt-8 max-w-2xl rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-5 py-4 text-center text-sm font-bold text-[#92400E]">
-              14-day free trial included with Starter. No credit card needed to start.
+              Early-stage launch pricing. Flat monthly plans in INR for India and USD for worldwide teams, with no per-user surprise.
             </p>
           </div>
         </section>
@@ -4168,13 +5019,13 @@ const demoSidebarItems = dashboardRole === 'employee'
                   Trial ready
                 </span>
                 <h1 className="mt-8 text-4xl font-extrabold leading-tight sm:text-5xl">
-                  Start NudgeHQ free for 14 days.
+                  Start your real Starter workspace free for 14 days.
                 </h1>
                 <p className="mt-5 max-w-md text-sm font-semibold leading-7 text-white/75">
-                  Set up your workspace, invite your team, and test the full Starter workflow before adding billing.
+                  This is the actual company workspace, not the demo. Invite up to 20 employees and use the full Starter workflow before adding INR or USD billing.
                 </p>
                 <div className="mt-10 grid gap-3 text-sm font-bold">
-                  {['No payment charged today', 'Starter features unlocked', 'Cancel or upgrade anytime'].map((item) => (
+                  {['No payment needed today', 'Full Starter pack unlocked', 'Demo stays preview-only'].map((item) => (
                     <div key={item} className="flex items-center gap-3 rounded-2xl border border-white/12 bg-white/10 px-4 py-3">
                       <CheckCircle2 className="h-5 w-5 text-[#8DE4C3]" aria-hidden="true" />
                       {item}
@@ -4190,12 +5041,15 @@ const demoSidebarItems = dashboardRole === 'employee'
                 {selectedPlan === 'starter' ? 'Starter Plan' : 'Starter Plan'}
               </h2>
               <p className="mt-3 text-sm font-semibold leading-6 text-[#5F5E5A]">
-                Your first 14 days are free. We will ask for payment only when you decide to keep using NudgeHQ after the trial.
+                You are activating the real Starter plan. The first 14 days are free, and billing starts only if you continue after the trial.
               </p>
               <div className="mt-8 rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-5">
                 <div className="flex items-center justify-between border-b border-[#EEEDFE] pb-4">
                   <span className="font-bold text-[#2C2C2A]">Starter Plan</span>
-                  <span className="font-extrabold text-[#3C3489]">Rs. 2,000/month</span>
+                  <span className="text-right">
+                    <span className="block font-extrabold text-[#3C3489]">₹2,000/month</span>
+                    <span className="block text-xs font-bold text-[#8A8894]">Global: $9/month</span>
+                  </span>
                 </div>
                 <div className="flex items-center justify-between border-b border-[#EEEDFE] py-4 text-sm font-bold text-[#1D9E75]">
                   <span>First 14 days</span>
@@ -4203,7 +5057,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                 </div>
                 <div className="flex items-center justify-between pt-4 text-sm font-bold text-[#5F5E5A]">
                   <span>Due today</span>
-                  <span className="text-[#2C2C2A]">Rs. 0</span>
+                  <span className="text-[#2C2C2A]">₹0 / $0</span>
                 </div>
               </div>
               <button
@@ -4213,10 +5067,10 @@ const demoSidebarItems = dashboardRole === 'employee'
                 className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#7F77DD] px-5 py-4 text-sm font-extrabold text-white shadow-xl shadow-[#7F77DD]/20 transition hover:-translate-y-0.5 hover:bg-[#3C3489] disabled:translate-y-0 disabled:opacity-50"
               >
                 {paymentLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                {paymentLoading ? 'Starting your trial...' : 'Continue with 14-day free trial'}
+                {paymentLoading ? 'Starting your trial...' : 'Start Starter trial free'}
               </button>
               <p className="mt-4 text-center text-xs font-semibold text-[#7A7974]">
-                No credit card required during beta. Billing setup comes later.
+                No card needed today. Demo access is separate and only for viewing the dashboards.
               </p>
             </div>
           </div>
@@ -4466,7 +5320,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                 className="inline-flex items-center gap-2 rounded-full border border-white bg-white/80 px-4 py-2 text-sm font-semibold text-[#3C3489] shadow-lg shadow-[#3C3489]/5 backdrop-blur"
               >
                 <Sparkles className="h-4 w-4 text-[#1D9E75]" aria-hidden="true" />
-                Newly building for modern Indian teams · ✦ Now in beta — join early teams
+                Newly building for modern Indian teams · Now in beta — join early teams
               </motion.div>
               <motion.h1
                 initial={{ opacity: 0, y: 24 }}
@@ -4542,67 +5396,256 @@ const demoSidebarItems = dashboardRole === 'employee'
                   <ArrowRight className="h-5 w-5" aria-hidden="true" />
                 </button>
               </motion.div>
-            </div>
-          </section>
-
-          <section className="border-y border-[#EEEDFE] bg-white px-5 py-10 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-6xl text-center">
-              <p className="text-sm font-bold text-[#5F5E5A]">Trusted by early teams across India 🇮🇳</p>
-              <div className="mt-5 flex flex-wrap items-center justify-center gap-x-7 gap-y-3 text-sm font-extrabold uppercase tracking-[0.14em] text-[#8A8894]">
-                {['Techflow', 'Nexus Labs', 'Brightwork', 'Crevo', 'Opstree'].map((company) => (
-                  <span key={company}>{company}</span>
-                ))}
-              </div>
+              <motion.button
+                type="button"
+                onClick={() => setCurrentView('why_nudgehq')}
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, ease: 'easeOut', delay: 0.42 }}
+                className="mt-5 inline-flex items-center gap-2 rounded-full border border-[#DAD7FB] bg-white/82 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.16em] text-[#3C3489] shadow-lg shadow-[#3C3489]/5 backdrop-blur transition hover:bg-[#EEEDFE]"
+              >
+                See why modern teams choose NudgeHQ
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </motion.button>
             </div>
           </section>
 
           <section className="bg-white px-5 py-24 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-6xl">
               <SectionHeader
-                eyebrow="Before vs after"
-                title="Your team, before and after NudgeHQ"
-                copy="The product is built around one promise: less chasing, more knowing."
+                eyebrow="Visibility snapshot"
+                title="A calmer operating rhythm for every team."
+                copy="NudgeHQ turns daily work into clear signals, branded metrics, and decision-ready team visibility."
               />
-              <div className="mt-12 grid gap-5">
-                {[
-                  [
-                    'Manager sends 5 WhatsApp messages asking for updates every morning',
-                    "Manager opens NudgeHQ and sees every team member's status instantly"
-                  ],
-                  [
-                    'HR spends 3 hours every Monday building weekly reports manually',
-                    'NudgeAI generates the full team report automatically at 9am'
-                  ],
-                  [
-                    'Blockers go unnoticed for days and delay entire projects',
-                    'NudgeHQ alerts the admin within minutes of a blocker being flagged'
-                  ]
-                ].map(([before, after], index) => (
-                  <motion.div
-                    key={before}
-                    {...cardMotion}
-                    transition={{ duration: 0.45, delay: index * 0.05, ease: 'easeOut' }}
-                    className="grid gap-4 md:grid-cols-2"
+              <div className="mt-12 grid gap-5 lg:grid-cols-[1.08fr_0.92fr]">
+                <motion.article {...cardMotion} className="rounded-[2rem] border border-[#DAD7FB] bg-[#FCFCFF] p-6 shadow-xl shadow-[#3C3489]/8">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.2em] text-[#1D9E75]">NudgeHQ pulse</p>
+                      <h3 className="mt-3 text-2xl font-black tracking-tight text-[#2C2C2A]">Live work signals without manager chasing.</h3>
+                      <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-[#5F5E5A]">
+                        Daily check-ins, blockers, proofs, and team momentum come together in one calm view.
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-[#E8F7F1] px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#1D9E75]">Live view</span>
+                  </div>
+                  <div className="mt-8 grid gap-5 md:grid-cols-3">
+                    {landingPulseCards.map((card, index) => (
+                      <div key={card.label} className="group overflow-hidden rounded-2xl border border-[#EEEDFE] bg-white p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:shadow-[#3C3489]/10">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8A8894]">{card.label}</p>
+                            <p className="mt-3 text-3xl font-black" style={{ color: card.accent }}>{card.value}</p>
+                          </div>
+                          <span className="rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.1em]" style={{ backgroundColor: `${card.accent}16`, color: card.accent }}>
+                            Live
+                          </span>
+                        </div>
+                        <div className="mt-4 h-24">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={card.data} margin={{ top: 6, right: 2, left: 2, bottom: 0 }}>
+                              <defs>
+                                <linearGradient id={`landingPulseGradient-${index}`} x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor={card.accent} stopOpacity={0.45} />
+                                  <stop offset="100%" stopColor={card.accent} stopOpacity={0.05} />
+                                </linearGradient>
+                              </defs>
+                              <Tooltip cursor={false} contentStyle={{ borderRadius: 14, borderColor: '#EEEDFE', fontSize: 12, fontWeight: 800 }} />
+                              <Area type="monotone" dataKey="value" stroke={card.accent} strokeWidth={3} fill={`url(#landingPulseGradient-${index})`} dot={false} />
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        </div>
+                        <div className="mt-3 flex items-center justify-between border-t border-[#F1F2F7] pt-3">
+                          <span className="text-xs font-extrabold text-[#5F5E5A]">{card.note}</span>
+                          <span className="h-2 w-16 overflow-hidden rounded-full bg-[#F1F2F7]">
+                            <span className="block h-full rounded-full transition-all group-hover:w-full" style={{ width: '72%', backgroundColor: card.accent }} />
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-5 grid gap-3 rounded-2xl border border-[#EEEDFE] bg-white/80 p-4 sm:grid-cols-3">
+                    {[
+                      ['Morning brief', 'Ready in 18 sec'],
+                      ['No-update alert', '4 people to nudge'],
+                      ['Proof queue', '11 tasks review-ready'],
+                    ].map(([label, value]) => (
+                      <div key={label}>
+                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8A8894]">{label}</p>
+                        <p className="mt-1 text-sm font-black text-[#2C2C2A]">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </motion.article>
+
+                <motion.article {...cardMotion} className="rounded-[2rem] border border-[#DAD7FB] bg-white p-6 shadow-xl shadow-[#3C3489]/8">
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-[#7F77DD]">Workflow shift</p>
+                  <h3 className="mt-3 text-2xl font-black tracking-tight text-[#2C2C2A]">From manual follow-ups to action-ready clarity.</h3>
+                  <div className="mt-6 grid gap-3">
+                    {[
+                      ['Manager brief', 'Morning summary shows missing updates, active blockers, and today’s focus areas.'],
+                      ['No-update alerts', 'Teams know who needs a nudge before silence becomes delay.'],
+                      ['Proof-backed tasks', 'Important work can require links, files, or screenshots before completion.'],
+                      ['Quality score', 'NudgeAI helps employees write cleaner updates managers can use immediately.'],
+                    ].map(([title, copy], index) => (
+                      <div key={title} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                        <div className="flex items-start gap-4">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#EEEDFE] text-sm font-black text-[#3C3489]">
+                            {String(index + 1).padStart(2, '0')}
+                          </span>
+                          <div>
+                            <p className="font-black text-[#2C2C2A]">{title}</p>
+                            <p className="mt-1 text-sm font-semibold leading-6 text-[#5F5E5A]">{copy}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.article>
+              </div>
+            </div>
+          </section>
+
+          <section className="bg-[#FBFAFF] px-5 py-24 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-7xl">
+              <div className="mx-auto mb-10 flex max-w-5xl flex-wrap justify-center gap-2 rounded-full border border-[#DAD7FB] bg-white p-2 shadow-sm">
+                {Object.keys(landingReportTabs).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setActiveLandingReportTab(tab)}
+                    className={`rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.12em] transition hover:-translate-y-0.5 ${
+                      activeLandingReportTab === tab ? 'bg-[#7F77DD] text-white shadow-lg shadow-[#7F77DD]/25' : 'text-[#6E6B78] hover:bg-[#F4F3FF] hover:text-[#3C3489]'
+                    }`}
                   >
-                    <div className="rounded-2xl border border-rose-100 bg-[#FFF5F5] p-5">
-                      <div className="flex items-start gap-3">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-rose-500 shadow-sm">
-                          <X className="h-5 w-5" />
-                        </span>
-                        <p className="text-base font-extrabold leading-7 text-[#2C2C2A]">{before}</p>
-                      </div>
-                    </div>
-                    <div className="rounded-2xl border border-emerald-100 bg-[#F0FFF4] p-5">
-                      <div className="flex items-start gap-3">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#1D9E75] shadow-sm">
-                          <Check className="h-5 w-5" />
-                        </span>
-                        <p className="text-base font-extrabold leading-7 text-[#2C2C2A]">{after}</p>
-                      </div>
-                    </div>
-                  </motion.div>
+                    {tab}
+                  </button>
                 ))}
               </div>
+
+              <motion.div {...cardMotion} className="overflow-hidden rounded-[2rem] border border-[#EEEDFE] bg-white shadow-2xl shadow-[#3C3489]/8">
+                <div className="grid gap-8 p-6 lg:grid-cols-[0.82fr_1.18fr] lg:p-10">
+                  <div className="flex flex-col justify-between gap-8">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.22em] text-[#7F77DD]">{activeLandingReport.eyebrow}</p>
+                      <motion.h2
+                        key={activeLandingReport.title}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.18 }}
+                        className="mt-4 text-4xl font-black tracking-tight text-[#2C2C2A]"
+                      >
+                        {activeLandingReport.title}
+                      </motion.h2>
+                      <div className="mt-8 space-y-5">
+                        {activeLandingReport.bullets.map((copy, index) => (
+                          <motion.div
+                            key={copy}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.24, delay: index * 0.04 }}
+                            className="flex gap-4"
+                          >
+                            <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#EEEDFE]">
+                              <span className="h-2 w-2 rounded-full bg-[#7F77DD]" />
+                            </span>
+                            <p className="text-lg font-semibold leading-7 text-[#5F5E5A]">{copy}</p>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="border-t border-[#EEEDFE] pt-6">
+                      <p className="text-3xl font-black text-[#3C3489]">{activeLandingReport.impact}</p>
+                      <p className="mt-2 text-sm font-semibold leading-6 text-[#5F5E5A]">Example metric from the kind of live operating data NudgeHQ is built to surface.</p>
+                    </div>
+                  </div>
+
+                  <div className="relative">
+                    <div className="rounded-[1.6rem] border border-[#DAD7FB] bg-[#FCFCFF] p-4 shadow-xl shadow-[#3C3489]/8">
+                      <div className="rounded-[1.2rem] border border-[#EEEDFE] bg-white p-4">
+                        <div className="flex flex-wrap items-center gap-2 border-b border-[#EEEDFE] pb-4">
+                          <span className="text-xs font-black uppercase tracking-[0.16em] text-[#8A8894]">Filters</span>
+                          {activeLandingReport.filters.map((filter) => (
+                            <span key={filter} className="rounded-full bg-[#F4F3FF] px-3 py-1.5 text-xs font-black text-[#7F77DD]">{filter}</span>
+                          ))}
+                          <span className="ml-auto rounded-full bg-[#E8F7F1] px-3 py-1.5 text-xs font-black text-[#1D9E75]">Live</span>
+                        </div>
+
+                        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                          {activeLandingReport.stats.map(([label, value]) => (
+                            <motion.div
+                              key={`${activeLandingReportTab}-${label}`}
+                              initial={{ opacity: 0, y: 8 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="rounded-xl border border-[#EEEDFE] bg-[#FCFCFF] p-4"
+                            >
+                              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#8A8894]">{label}</p>
+                              <p className="mt-2 text-2xl font-black text-[#2C2C2A]">{value}</p>
+                            </motion.div>
+                          ))}
+                        </div>
+
+                        <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_0.8fr]">
+                          <div className="rounded-xl border border-[#EEEDFE] bg-white p-4">
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs font-black text-[#2C2C2A]">{activeLandingReport.chartTitle}</p>
+                              <span className="text-[11px] font-black text-[#8A8894]">{activeLandingReport.chartTag}</span>
+                            </div>
+                            <div className="mt-5 h-48">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={activeLandingReport.chartData} margin={{ top: 8, right: 4, left: -18, bottom: 0 }}>
+                                  <CartesianGrid vertical={false} stroke="#EEF0F6" />
+                                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#8A8894', fontSize: 10, fontWeight: 800 }} />
+                                  <YAxis hide domain={[0, 100]} />
+                                  <Tooltip cursor={{ fill: '#F4F3FF' }} contentStyle={{ borderRadius: 14, borderColor: '#EEEDFE', fontSize: 12, fontWeight: 800 }} />
+                                  <Bar dataKey="primary" radius={[10, 10, 4, 4]} fill="#3C3489" />
+                                  <Bar dataKey="secondary" radius={[10, 10, 4, 4]} fill="#7F77DD" />
+                                </BarChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
+
+                          <div className="rounded-xl border border-[#EEEDFE] bg-white p-4">
+                            <p className="text-xs font-black text-[#2C2C2A]">Manager attention split</p>
+                            <div className="mt-6 flex justify-center">
+                              <motion.div
+                                key={`${activeLandingReportTab}-ring`}
+                                initial={{ rotate: -18, scale: 0.94 }}
+                                animate={{ rotate: 0, scale: 1 }}
+                                transition={{ duration: 0.3 }}
+                                className="relative h-40 w-40 rounded-full"
+                                style={{ background: `conic-gradient(${activeLandingSplitGradient})` }}
+                              >
+                                <div className="absolute inset-8 rounded-full bg-white" />
+                                <div className="absolute inset-0 grid place-items-center text-center">
+                                  <span>
+                                    <span className="block text-3xl font-black text-[#3C3489]">{activeLandingReport.splitValue}</span>
+                                    <span className="block text-[10px] font-black uppercase tracking-[0.12em] text-[#8A8894]">{activeLandingReport.splitLabel}</span>
+                                  </span>
+                                </div>
+                              </motion.div>
+                            </div>
+                            <div className="mt-5 grid gap-2 text-xs font-bold text-[#5F5E5A]">
+                              {activeLandingReport.split.map(([label,, color]) => (
+                                <div key={label} className="flex items-center gap-2">
+                                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
+                                  {label}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="absolute -bottom-6 right-4 hidden rounded-2xl border border-[#DAD7FB] bg-white p-5 shadow-2xl shadow-[#3C3489]/12 sm:block">
+                      <p className="text-sm font-black text-[#2C2C2A]">Manager brief ready</p>
+                      <p className="mt-2 text-xs font-semibold leading-5 text-[#5F5E5A]">{activeLandingReport.callout}</p>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
             </div>
           </section>
 
@@ -4699,6 +5742,7 @@ const demoSidebarItems = dashboardRole === 'employee'
             </div>
           </section>
 
+          {showMobileLaunchSection && (
           <section id="mobile-app" className="relative overflow-hidden bg-white px-5 py-24 sm:px-6 lg:px-8">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(127,119,221,0.18),transparent_32%),radial-gradient(circle_at_82%_70%,rgba(29,158,117,0.18),transparent_34%)]" />
             <div className="absolute inset-0 bg-white/78" />
@@ -4951,6 +5995,7 @@ const demoSidebarItems = dashboardRole === 'employee'
               </div>
             </motion.div>
           </section>
+          )}
 
           <section id="whatsapp-integration" className="relative overflow-hidden bg-[#F4FAF8] px-5 py-24 sm:px-6 lg:px-8">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(29,158,117,0.15),transparent_35%),radial-gradient(circle_at_20%_80%,rgba(127,119,221,0.12),transparent_30%)]" />
@@ -5089,7 +6134,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                                   </div>
                                 ) : null}
                                 <p>{text}</p>
-                                <p className={`mt-1 text-right text-[8px] font-semibold ${sender === 'user' ? 'text-[#5B883D]' : 'text-[#8A8894]'}`}>{time}{sender === 'user' ? ' ✓✓' : ''}</p>
+                                <p className={`mt-1 text-right text-[8px] font-semibold ${sender === 'user' ? 'text-[#5B883D]' : 'text-[#8A8894]'}`}>{time}{sender === 'user' ? ' read' : ''}</p>
                               </div>
                             </div>
                           ))}
@@ -5109,7 +6154,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                       <div className="flex-1 bg-white rounded-full px-3 py-2 text-[10px] font-semibold text-[#8A8894] shadow-sm">
                         Type a reply...
                       </div>
-                      <span className="h-7 w-7 rounded-full bg-[#075E54] flex items-center justify-center text-white shadow-sm text-[10px] font-black">✓</span>
+                      <span className="h-7 w-7 rounded-full bg-[#075E54] flex items-center justify-center text-white shadow-sm text-[10px] font-black">OK</span>
                     </div>
                   </div>
 
@@ -5180,18 +6225,18 @@ const demoSidebarItems = dashboardRole === 'employee'
                       />
                       <div className="nudge-dome-grid">
                         {[
-                          ['Daily update', 'Kunal submitted progress', '#7F77DD', '✓'],
+                          ['Daily update', 'Kunal submitted progress', '#7F77DD', 'OK'],
                           ['Blocker alert', 'CRM import needs review', '#EF4444', '!'],
-                          ['Focus pulse', 'Sales ops verifying leads', '#1D9E75', '↗'],
-                          ['Deep work', '2 hr protected session', '#3C3489', '◐'],
-                          ['NudgeAI brief', 'Standup ready at 9am', '#F59E0B', '✦'],
-                          ['Growth', '9-day check-in streak', '#7F77DD', '★'],
-                          ['Report', 'Weekly summary exported', '#1D9E75', '↓'],
-                          ['Presence', 'Home · high energy', '#3C3489', '⌂'],
-                          ['Forecast', '72% completion likely', '#F59E0B', '⌁'],
-                          ['Recognition', 'Helped teammate unblock', '#7F77DD', '♡'],
-                          ['Skill gap', 'API error handling', '#EF4444', '◆'],
-                          ['Admin view', 'All teams synced', '#1D9E75', '●']
+                          ['Focus pulse', 'Sales ops verifying leads', '#1D9E75', 'UP'],
+                          ['Deep work', '2 hr protected session', '#3C3489', 'DW'],
+                          ['NudgeAI brief', 'Standup ready at 9am', '#F59E0B', 'AI'],
+                          ['Growth', '9-day check-in streak', '#7F77DD', '9D'],
+                          ['Report', 'Weekly summary exported', '#1D9E75', 'PDF'],
+                          ['Presence', 'Home · high energy', '#3C3489', 'ON'],
+                          ['Forecast', '72% completion likely', '#F59E0B', '72'],
+                          ['Recognition', 'Helped teammate unblock', '#7F77DD', 'WIN'],
+                          ['Skill gap', 'API error handling', '#EF4444', 'GAP'],
+                          ['Admin view', 'All teams synced', '#1D9E75', 'ALL']
                         ].map(([title, copy, color, mark], index) => (
                           <div
                             key={`${title}-${index}`}
@@ -5226,9 +6271,9 @@ const demoSidebarItems = dashboardRole === 'employee'
               </div>
               <div className="mt-12 grid gap-5 md:grid-cols-3">
                 {[
-                  ['🔥', 'Burnout Predictor', "NudgeAI detects early warning signs of burnout before it affects your team's output."],
-                  ['📊', 'Sprint Forecast', "Every Monday, NudgeAI predicts your team's completion rate for the week and flags at-risk tasks."],
-                  ['✍️', 'Standup Writer', 'NudgeAI reads all updates and writes your morning team brief automatically. No meeting needed.']
+                  ['Care', 'Burnout Predictor', "NudgeAI detects early warning signs of burnout before it affects your team's output."],
+                  ['Forecast', 'Sprint Forecast', "Every Monday, NudgeAI predicts your team's completion rate for the week and flags at-risk tasks."],
+                  ['Writer', 'Standup Writer', 'NudgeAI reads all updates and writes your morning team brief automatically. No meeting needed.']
                 ].map(([icon, title, desc], index) => (
                   <motion.article
                     key={title}
@@ -5249,7 +6294,7 @@ const demoSidebarItems = dashboardRole === 'employee'
           </section>
 
           <section className="bg-white px-5 py-24 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-4xl">
+            <div className="mx-auto max-w-5xl">
               <SectionHeader
                 eyebrow="Early feedback"
                 title="Real words from HR leaders"
@@ -5280,6 +6325,77 @@ const demoSidebarItems = dashboardRole === 'employee'
                   </div>
                 </div>
               </motion.article>
+
+              <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_0.9fr]">
+                <motion.form
+                  {...cardMotion}
+                  onSubmit={handleFeedbackCommentSubmit}
+                  className="rounded-[1.6rem] border border-[#DAD7FB] bg-white p-6 shadow-xl shadow-[#3C3489]/8"
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EEEDFE] text-[#3C3489]">
+                      <MessageSquareText className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <p className="text-xl font-black text-[#1C1739]">Add a comment</p>
+                      <p className="mt-1 text-sm font-semibold leading-6 text-[#5F5E5A]">
+                        Tell us what would make NudgeHQ more useful for your team.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-5 grid gap-3">
+                    <input
+                      value={feedbackCommentName}
+                      onChange={(event) => setFeedbackCommentName(event.target.value)}
+                      placeholder="Your name or team"
+                      className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] px-4 py-3 text-sm font-semibold text-[#2C2C2A] outline-none transition focus:border-[#7F77DD] focus:ring-4 focus:ring-[#7F77DD]/10"
+                    />
+                    <textarea
+                      value={feedbackCommentText}
+                      onChange={(event) => setFeedbackCommentText(event.target.value)}
+                      placeholder="Drop one honest product comment..."
+                      rows={4}
+                      className="resize-none rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] px-4 py-3 text-sm font-semibold leading-6 text-[#2C2C2A] outline-none transition focus:border-[#7F77DD] focus:ring-4 focus:ring-[#7F77DD]/10"
+                    />
+                    <button
+                      type="submit"
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#3C3489] px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#3C3489]/16 transition hover:bg-[#7F77DD]"
+                    >
+                      Add comment
+                      <Send className="h-4 w-4" />
+                    </button>
+                  </div>
+                </motion.form>
+
+                <motion.div
+                  {...cardMotion}
+                  className="rounded-[1.6rem] border border-[#EEEDFE] bg-[#FCFCFF] p-6 shadow-xl shadow-[#3C3489]/8"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xl font-black text-[#1C1739]">Beta comment wall</p>
+                    <span className="rounded-full bg-[#E8F7F1] px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-[#1D9E75]">
+                      Local beta
+                    </span>
+                  </div>
+                  <div className="mt-5 space-y-3">
+                    {feedbackComments.length ? (
+                      feedbackComments.map((item) => (
+                        <div key={item.id} className="rounded-2xl border border-[#EEEDFE] bg-white p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-black text-[#2C2C2A]">{item.name}</p>
+                            <span className="text-xs font-bold text-[#8A8894]">{item.time}</span>
+                          </div>
+                          <p className="mt-2 text-sm font-semibold leading-6 text-[#5F5E5A]">{item.comment}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-[#DAD7FB] bg-white/72 p-5 text-sm font-semibold leading-6 text-[#8A8894]">
+                        Your first beta comment will appear here on this laptop.
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              </div>
             </div>
           </section>
 
@@ -5293,7 +6409,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                 {[
                   ['How long does setup take?', 'Under 10 minutes. Add your company details, invite your team, and you are live. No IT team needed.'],
                   ['Is employee data private and secure?', 'Yes. Employees only see their own data. Admins see company-wide data. Everything is encrypted end-to-end.'],
-                  ['Can we try before paying?', 'Yes. Full 14-day free trial with no credit card required. Cancel anytime.'],
+                  ['Can we try before paying?', 'Yes. Companies get the real Starter plan free for 14 days with no payment required. The demo is separate and only previews dashboards/features.'],
                   ['What if an employee forgets to submit an update?', 'NudgeAI automatically detects inactivity and sends a gentle nudge. Admin gets alerted too.'],
                   ['Do you support WhatsApp updates?', 'Yes. NudgeHQ supports WhatsApp nudges, two-way reply check-ins, manager blocker alerts, and Friday weekly win summaries through Twilio.'],
                   ["What's the difference between Employee and Admin access?", 'Employees see only their own tasks and progress. Admins see the full team dashboard, analytics, and NudgeAI insights.']
@@ -5706,17 +6822,11 @@ const demoSidebarItems = dashboardRole === 'employee'
             <div className="mx-auto max-w-7xl">
               <SectionHeader
                 eyebrow="Pricing"
-                title="Start simple. Scale when visibility becomes company-wide."
-                copy="Simple pricing. No hidden costs. Cancel anytime."
+                title="Simple flat pricing for early-stage teams."
+                copy="No per-user billing shock. Pick a team size, start with a trial, and scale when NudgeHQ becomes company-wide."
               />
-              <div className="mx-auto mt-7 max-w-3xl rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-5 py-4 text-center shadow-sm">
-                <p className="text-sm font-extrabold uppercase tracking-[0.12em] text-[#92400E]">Temporary pricing</p>
-                <p className="mt-2 text-base font-bold leading-7 text-[#2C2C2A]">
-                  Pricing is not fixed yet. These plans are early estimates and may change as NudgeHQ grows, adds features, and moves into future releases.
-                </p>
-              </div>
               <div className="mt-14 grid gap-5 lg:grid-cols-4">
-                {pricing.map(({ name, price, description, features, highlighted, entry, button, contact }, index) => (
+                {pricing.map(({ name, priceInr, priceUsd, description, features, highlighted, entry, button, contact }, index) => (
                   <motion.article
                     key={name}
                     {...cardMotion}
@@ -5736,7 +6846,10 @@ const demoSidebarItems = dashboardRole === 'employee'
                       ) : null}
                     </div>
                     <p className={`mt-4 text-3xl font-extrabold ${highlighted ? 'text-white' : 'text-[#3C3489]'}`}>
-                      {price}
+                      {priceInr}
+                    </p>
+                    <p className={`mt-1 text-sm font-bold ${highlighted ? 'text-white/72' : 'text-[#5F5E5A]'}`}>
+                      Global: {priceUsd}
                     </p>
                     <p className={`mt-3 min-h-14 leading-6 ${highlighted ? 'text-white/75' : 'text-[#5F5E5A]'}`}>
                       {description}
@@ -5769,6 +6882,37 @@ const demoSidebarItems = dashboardRole === 'employee'
                   </motion.article>
                 ))}
               </div>
+              <motion.div {...cardMotion} className="mt-8 overflow-hidden rounded-[2rem] border border-[#DAD7FB] bg-[linear-gradient(135deg,#FCFCFF_0%,#F4F3FF_52%,#E8F7F1_100%)] p-6 shadow-xl shadow-[#3C3489]/8 md:p-8">
+                <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.22em] text-[#3C3489]">Custom plan</p>
+                    <h3 className="mt-3 text-3xl font-black tracking-tight text-[#2C2C2A]">Need an exact-fit plan? We can build it around your team.</h3>
+                    <p className="mt-4 text-sm font-semibold leading-7 text-[#5F5E5A]">
+                      Custom is for teams that do not fit fixed packs. Choose your employee limit from 5 onward, add only the features you need, and ask for workflow changes that match how your company actually runs.
+                    </p>
+                    <a
+                      href="mailto:hello.nudgehq@gmail.com?subject=NudgeHQ Custom Plan"
+                      className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#3C3489] px-5 py-3 text-sm font-black text-white transition hover:bg-[#7F77DD]"
+                    >
+                      Discuss custom plan
+                      <ArrowRight className="h-4 w-4" />
+                    </a>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {[
+                      ['Exact employee limit', 'Start from 5 users and scale to the exact headcount your team needs.'],
+                      ['Feature add-ons', 'Add WhatsApp, NudgeAI, reports, proof workflows, integrations, or priority onboarding.'],
+                      ['Workflow customization', 'Need a special approval flow, reminder logic, or dashboard view? We can shape it.'],
+                      ['Flexible pricing', 'We quote based on your team size, required features, and support expectations.'],
+                    ].map(([title, copy]) => (
+                      <div key={title} className="rounded-2xl border border-white/80 bg-white/88 p-5 shadow-sm">
+                        <p className="font-black text-[#2C2C2A]">{title}</p>
+                        <p className="mt-2 text-sm font-semibold leading-6 text-[#5F5E5A]">{copy}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
             </div>
           </section>
 
@@ -5818,23 +6962,30 @@ const demoSidebarItems = dashboardRole === 'employee'
 
           <section className="px-5 pb-20 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl">
-              <div className="grid gap-6 rounded-[1.5rem] border border-[#EEEDFE] bg-white p-6 shadow-sm md:grid-cols-[1fr_auto] md:items-center">
-                <div className="flex items-center gap-4">
-                  <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#161238] text-2xl font-extrabold text-white">N.</span>
-                  <div>
-                    <p className="text-lg font-extrabold text-[#2C2C2A]">Instagram: @hello.nudgehq</p>
-                    <p className="text-sm font-semibold text-[#5F5E5A]">Follow product drops, UI previews, and build updates separately here.</p>
+              <div className="grid gap-5 md:grid-cols-2">
+                {[
+                  ['Instagram', '@hello.nudgehq', 'Product drops, UI previews, build updates, and behind-the-scenes progress.', 'https://www.instagram.com/hello.nudgehq/?__pwa=1', 'Follow on Instagram'],
+                  ['LinkedIn', 'NudgeHQ Web', 'Company updates, launch notes, hiring signals, and B2B product announcements.', 'https://www.linkedin.com/company/nudgehq-web', 'Follow on LinkedIn'],
+                ].map(([channel, handle, copy, href, label]) => (
+                  <div key={channel} className="grid gap-6 rounded-[1.5rem] border border-[#EEEDFE] bg-white p-6 shadow-sm md:grid-cols-[1fr_auto] md:items-center">
+                    <div className="flex items-center gap-4">
+                      <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#161238] text-2xl font-extrabold text-white">N.</span>
+                      <div>
+                        <p className="text-lg font-extrabold text-[#2C2C2A]">{channel}: {handle}</p>
+                        <p className="text-sm font-semibold text-[#5F5E5A]">{copy}</p>
+                      </div>
+                    </div>
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#3C3489] px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#7F77DD]"
+                    >
+                      {label}
+                      <ArrowRight className="h-4 w-4" />
+                    </a>
                   </div>
-                </div>
-                <a
-                  href="https://www.instagram.com/hello.nudgehq/?__pwa=1"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#3C3489] px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#7F77DD]"
-                >
-                  Connect on Instagram
-                  <ArrowRight className="h-4 w-4" />
-                </a>
+                ))}
               </div>
             </div>
           </section>
@@ -5894,7 +7045,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                   <ArrowRight className="h-4 w-4" />
                 </button>
               </div>
-              <p className="mt-6 text-sm font-bold text-white/75">14-day free trial · No credit card required · Cancel anytime</p>
+              <p className="mt-6 text-sm font-bold text-white/75">Real Starter plan free for 14 days · Demo is preview-only · No card today</p>
             </div>
           </section>
 
@@ -5918,8 +7069,28 @@ const demoSidebarItems = dashboardRole === 'employee'
                 <p className="font-semibold text-[#2C2C2A]">Product</p>
                 <div className="mt-4 grid gap-3 text-sm font-medium text-[#5F5E5A]">
                   <a className="hover:text-[#3C3489]" href="#features">Features</a>
+                  <a
+                    className="hover:text-[#3C3489]"
+                    href="/why-nudgehq"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      setCurrentView('why_nudgehq');
+                    }}
+                  >
+                    Why NudgeHQ?
+                  </a>
                   <a className="hover:text-[#3C3489]" href="#pricing">Pricing</a>
                   <a className="hover:text-[#3C3489]" href="#security">Security</a>
+                  <a
+                    className="hover:text-[#3C3489]"
+                    href="/blog"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      setCurrentView('blog');
+                    }}
+                  >
+                    Blog
+                  </a>
                   <button type="button" onClick={openSignup} className="w-fit text-left font-medium hover:text-[#3C3489]">
                     Sign Up
                   </button>
@@ -5931,16 +7102,30 @@ const demoSidebarItems = dashboardRole === 'employee'
                   <a className="hover:text-[#3C3489]" href="mailto:hello.nudgehq@gmail.com">Contact</a>
                   <a
                     className="hover:text-[#3C3489]"
+                    href="/blog"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      setCurrentView('blog');
+                    }}
+                  >
+                    Blog
+                  </a>
+                  <a
+                    className="hover:text-[#3C3489]"
                     href="https://www.instagram.com/hello.nudgehq/?__pwa=1"
                     target="_blank"
                     rel="noreferrer"
                   >
                     Instagram
                   </a>
-                  <span className="inline-flex w-fit items-center gap-2 rounded-full bg-[#EEEDFE] px-3 py-1 text-xs font-bold text-[#3C3489]">
+                  <a
+                    className="hover:text-[#3C3489]"
+                    href="https://www.linkedin.com/company/nudgehq-web"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     LinkedIn
-                    <span className="text-[#5F5E5A]">Coming soon</span>
-                  </span>
+                  </a>
                   <a
                     className="hover:text-[#3C3489]"
                     href="/privacy"
@@ -5965,7 +7150,10 @@ const demoSidebarItems = dashboardRole === 'employee'
               </div>
             </div>
             <div className="mx-auto mt-10 max-w-7xl border-t border-[#EEEDFE] pt-6">
-              <p className="text-sm text-[#5F5E5A]">(c) 2026 NudgeHQ. All rights reserved.</p>
+              <div className="flex flex-col gap-2 text-sm text-[#5F5E5A] sm:flex-row sm:items-center sm:justify-between">
+                <p>(c) 2026 NudgeHQ. All rights reserved.</p>
+                <p className="font-semibold text-[#3C3489]">Proudly made in India.</p>
+              </div>
             </div>
           </footer>
         </>
@@ -6168,7 +7356,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                 <p className="mt-3 max-w-xl text-sm leading-6 text-[#5F5E5A]">Set up your company HQ, verify email, and move into onboarding with a workspace that already feels organized.</p>
                 <div className="mt-6 grid gap-3 sm:grid-cols-3">
                   {[
-                    ['14 days', 'Free to explore'],
+                    ['14 days', 'Starter free'],
                     ['4 roles', 'Ready on day one'],
                     ['No card', 'Fast start'],
                   ].map(([value, label]) => (
@@ -6249,7 +7437,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                   className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#DAD7FB] bg-white px-5 py-3 text-sm font-extrabold text-[#3C3489] shadow-sm transition hover:border-[#7F77DD] hover:bg-[#F4F3FF]"
                 >
                   <Mail className="h-4 w-4" aria-hidden="true" />
-                  Use demo credentials
+                  Use preview credentials
                 </button>
 
                 <label className="flex items-start gap-3 rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-3 text-sm text-[#5F5E5A]">
@@ -6371,24 +7559,24 @@ const demoSidebarItems = dashboardRole === 'employee'
                   <img src="/brand/nudgehq-icon.svg" alt="" className="h-12 w-12 rounded-xl shadow-lg shadow-[#3C3489]/10" />
                   <div>
                     <p className="text-xl font-extrabold text-[#2C2C2A]">NudgeHQ</p>
-                    <p className="text-xs font-semibold text-[#5F5E5A]">Sandbox role studio</p>
+                    <p className="text-xs font-semibold text-[#5F5E5A]">Preview-only role studio</p>
                   </div>
                 </div>
                 <span className="rounded-full bg-[#E8F7F1] px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-wider text-[#1D9E75]">
-                  Safe demo
+                  Preview-only
                 </span>
               </div>
 
               <div className="mt-8">
                 <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-wider text-[#3C3489] shadow-sm ring-1 ring-[#EEEDFE]">
                   <Zap className="h-4 w-4 text-[#F59E0B]" />
-                  Developer demo console
+                  Demo preview console
                 </span>
                 <h2 className="mt-5 text-4xl font-extrabold leading-tight text-[#1E2737] sm:text-5xl">
                   Choose a role. Enter the HQ.
                 </h2>
                 <p className="mt-3 max-w-xl text-sm leading-6 text-[#5F5E5A]">
-                  Preview Employee, Manager, HR, and Admin dashboards without touching real customer data.
+                  Preview Employee, Manager, HR, and Admin dashboards without creating a real company account or touching customer data.
                 </p>
               </div>
 
@@ -6526,7 +7714,7 @@ const demoSidebarItems = dashboardRole === 'employee'
       )}
 
       {/* VIEW 3: LIVE DASHBOARD AREA */}
-      {currentView === 'dashboard' && (isSandbox || (!isSandbox && isEmployeeDashboard)) && (
+      {currentView === 'dashboard' && (isSandbox || (!isSandbox && (isEmployeeDashboard || isLiveManagerWorkspace))) && (
         <section className="dashboard-showcase-bg relative min-h-screen">
           <div className="dashboard-glass-shell grid min-h-screen overflow-hidden border-0 lg:grid-cols-[17rem_minmax(0,1fr)]">
             <aside className="dashboard-sidebar-premium flex border-b border-white/70 p-5 lg:min-h-screen lg:flex-col lg:border-b-0 lg:border-r lg:border-white/70">
@@ -6535,7 +7723,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                   <img src="/brand/nudgehq-icon.svg" alt="" className="h-11 w-11 rounded-xl shadow-lg shadow-[#3C3489]/12" />
                   <div>
                     <p className="text-lg font-extrabold tracking-tight text-[#1C1739]">NudgeHQ</p>
-                    <p className="text-xs font-bold text-[#8A8894]">{isSandbox ? `${dashboardRoleLabel} command` : 'Employee workspace'}</p>
+                    <p className="text-xs font-bold text-[#8A8894]">{dashboardShellSubtitle}</p>
                   </div>
                 </div>
                 {isSandbox ? (
@@ -6545,6 +7733,15 @@ const demoSidebarItems = dashboardRole === 'employee'
                     className="rounded-xl border border-[#FECACA] px-3 py-2 text-xs font-extrabold text-rose-500 transition hover:bg-rose-50 lg:hidden"
                   >
                     Exit
+                  </button>
+                ) : isLiveManagerWorkspace ? (
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-extrabold text-rose-600 transition hover:bg-rose-50 lg:hidden"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Logout
                   </button>
                 ) : null}
               </div>
@@ -6592,6 +7789,15 @@ const demoSidebarItems = dashboardRole === 'employee'
                     <LogOut className="h-4 w-4" />
                     Exit demo
                   </button>
+                ) : isLiveManagerWorkspace ? (
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-extrabold text-rose-600 transition hover:bg-rose-50"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Logout
+                  </button>
                 ) : null}
               </div>
             </aside>
@@ -6601,13 +7807,22 @@ const demoSidebarItems = dashboardRole === 'employee'
                 <div>
                   <div className="mb-4 flex flex-wrap gap-2">
                     {['Daily Signals', 'Blockers', 'NudgeAI', 'WhatsApp'].map((chip) => (
-                      <span key={chip} className="rounded-full border border-white/80 bg-white/72 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#6D63D9] shadow-sm">
+                      <button
+                        key={chip}
+                        type="button"
+                        onClick={() => activateManagerFocusTab(chip)}
+                        className={`rounded-full border px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.14em] shadow-sm transition ${
+                          dashboardRole === 'manager' && activeManagerFocusTab === chip
+                            ? 'border-[#3C3489] bg-[#1C1739] text-white'
+                            : 'border-white/80 bg-white/72 text-[#6D63D9] hover:border-[#B9B4FF] hover:bg-white'
+                        }`}
+                      >
                         {chip}
-                      </span>
+                      </button>
                     ))}
                   </div>
                   <h1 className="relative z-10 text-3xl font-extrabold tracking-tight text-[#1C1739] sm:text-4xl">
-                    {dashboardGreeting}, {demoDisplayName.split(' ')[0] || 'Kunal'}! 👋
+                    {dashboardGreeting}, {demoDisplayName.split(' ')[0] || 'Kunal'}!
                   </h1>
                   <p className="relative z-10 mt-2 text-sm font-semibold text-[#6E6B78]">
                     {dashboardRole === 'employee' ? "Here's your focus for today." : "Here's what's happening with your team today."}
@@ -6620,52 +7835,114 @@ const demoSidebarItems = dashboardRole === 'employee'
               </header>
 
               {dashboardRole === 'manager' && selectedDemoSection === 'Dashboard' && (
-                <div className="mt-7 space-y-4">
-                  <section className="rounded-2xl border border-[#DAD7FB] bg-gradient-to-br from-[#F4F2FF] to-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <p className="text-lg font-extrabold text-[#3C3489]">⚡ NudgeAI Morning Brief</p>
-                        <p className="mt-1 text-xs font-bold text-[#8A8894]">Generated today at 9:00 AM</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => showToast('NudgeAI brief regenerated for your team.', 'success')}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#DAD7FB] bg-white px-4 py-2 text-xs font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]"
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                        Regenerate
-                      </button>
-                    </div>
-                    <div className="mt-4 grid gap-3 md:grid-cols-2">
-                      {[
-                        ['Yesterday', 'The team completed landing page polish, client deck edits, and research notes.'],
-                        ['Today', 'Aman and Priya are moving fast; Rahul needs CRM access before market research can close.'],
-                        ['Needs attention', 'Karan missed the competitor analysis deadline and Neha has no update today.'],
-                        ['Recommendation', 'Send a focused nudge to blocked or inactive members before the afternoon standup.']
-                      ].map(([label, text]) => (
-                        <div key={label} className="rounded-xl border border-[#EEEDFE] bg-white/80 p-4">
-                          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7F77DD]">{label}</p>
-                          <p className="mt-2 text-sm font-semibold leading-6 text-[#5F5E5A]">{text}</p>
+                <section id="manager-demo-brief-section" className="mt-7 overflow-hidden rounded-[28px] border border-[#D7E2F0] bg-[#F8FAFC] shadow-[0_18px_50px_rgba(28,23,57,0.10)]">
+                  <div className="grid gap-0 xl:grid-cols-[1.05fr_1.2fr_0.75fr]">
+                    <div className="bg-[#151326] p-6 text-white">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="inline-flex items-center gap-2 text-xs font-extrabold uppercase text-[#8EF0CD]">
+                            <Zap className="h-4 w-4" />
+                            Manager Morning Brief
+                          </p>
+                          <h2 className="mt-4 text-3xl font-black text-white">Today needs 3 manager moves.</h2>
                         </div>
-                      ))}
+                        <button
+                          type="button"
+                          onClick={() => showToast('NudgeAI brief regenerated for your team.', 'success')}
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/10 text-white transition hover:bg-white/15"
+                          aria-label="Regenerate manager brief"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <div className="mt-6 space-y-3">
+                        {[
+                          ['Done', 'Landing polish and client deck edits are closed.'],
+                          ['At risk', 'CRM access and competitor analysis need manager follow-up.'],
+                          ['Next', 'Nudge inactive members before afternoon standup.']
+                        ].map(([label, text]) => (
+                          <div key={label} className="rounded-2xl border border-white/10 bg-white/8 p-4">
+                            <p className="text-xs font-black uppercase text-white/50">{label}</p>
+                            <p className="mt-2 text-sm font-semibold leading-6 text-white/82">{text}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </section>
 
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <button type="button" onClick={() => setDemoEmployeeSection('Tasks')} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#3C3489] px-4 py-3 text-sm font-extrabold text-white transition hover:bg-[#2D266B]">
-                      <Plus className="h-4 w-4" />
-                      Assign Task
-                    </button>
-                    <button type="button" onClick={() => showToast('Manager report export prepared.', 'success')} className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]">
-                      <Download className="h-4 w-4" />
-                      Export Report
-                    </button>
-                    <button type="button" onClick={() => showToast('Team nudge sent to members without today’s update.', 'success')} className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]">
-                      <Mail className="h-4 w-4" />
-                      Send Team Nudge
-                    </button>
+                    <div className="bg-white p-6">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-black uppercase text-[#64748B]">Team signal graph</p>
+                          <h3 className="mt-2 text-2xl font-black text-[#1C1739]">Updates, output, and blockers</h3>
+                        </div>
+                        <span className="rounded-full bg-[#ECFDF5] px-3 py-1 text-xs font-black text-[#047857]">Live demo</span>
+                      </div>
+                      <div className="mt-5 h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={managerChartData} margin={{ top: 10, right: 12, left: -18, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="managerUpdates" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#3C3489" stopOpacity={0.28} />
+                                <stop offset="95%" stopColor="#3C3489" stopOpacity={0.02} />
+                              </linearGradient>
+                              <linearGradient id="managerCompleted" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#1D9E75" stopOpacity={0.26} />
+                                <stop offset="95%" stopColor="#1D9E75" stopOpacity={0.02} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid stroke="#EEF2F7" vertical={false} />
+                            <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fill: '#64748B', fontSize: 12, fontWeight: 800 }} />
+                            <YAxis tickLine={false} axisLine={false} tick={{ fill: '#94A3B8', fontSize: 12, fontWeight: 700 }} />
+                            <Tooltip contentStyle={{ borderRadius: 14, border: '1px solid #E2E8F0', fontWeight: 700 }} />
+                            <Area type="monotone" dataKey="updates" stroke="#3C3489" strokeWidth={3} fill="url(#managerUpdates)" />
+                            <Area type="monotone" dataKey="completed" stroke="#1D9E75" strokeWidth={3} fill="url(#managerCompleted)" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                        {managerStatusMixData.map((item) => (
+                          <div key={item.label} className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+                            <p className="text-xs font-black uppercase text-[#64748B]">{item.label}</p>
+                            <p className="mt-2 text-2xl font-black" style={{ color: item.fill }}>{item.value}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="border-t border-[#E2E8F0] bg-[#F8FAFC] p-6 xl:border-l xl:border-t-0">
+                      <p className="text-xs font-black uppercase text-[#64748B]">Action queue</p>
+                      <div className="mt-4 space-y-3">
+                        {managerPriorityActions.map(([label, value, copy, Icon, color]) => (
+                          <button
+                            key={label}
+                            type="button"
+                            onClick={() => handleManagerPriorityAction(label)}
+                            className="w-full rounded-2xl border border-[#E2E8F0] bg-white p-4 text-left transition hover:border-[#CBD5E1]"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: `${color}18`, color }}>
+                                <Icon className="h-5 w-5" />
+                              </span>
+                              <span className="text-2xl font-black text-[#1C1739]">{value}</span>
+                            </div>
+                            <p className="mt-3 text-sm font-black text-[#1C1739]">{label}</p>
+                            <p className="mt-1 text-xs font-semibold leading-5 text-[#64748B]">{copy}</p>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="mt-5 grid gap-2">
+                        <button type="button" onClick={() => setDemoEmployeeSection('Tasks')} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1C1739] px-4 py-3 text-sm font-extrabold text-white transition hover:bg-[#2D266B]">
+                          <Plus className="h-4 w-4" />
+                          Assign Task
+                        </button>
+                        <button type="button" onClick={() => showToast('Manager report export prepared.', 'success')} className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#CBD5E1] bg-white px-4 py-3 text-sm font-extrabold text-[#1C1739] transition hover:bg-[#F1F5F9]">
+                          <Download className="h-4 w-4" />
+                          Export Report
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </section>
               )}
 
 {shouldShowDemoStatCards && (
@@ -6690,8 +7967,8 @@ const demoSidebarItems = dashboardRole === 'employee'
               )}
 
               {dashboardRole === 'manager' && selectedDemoSection === 'Dashboard' && managerActiveBlockers.length > 0 && (
-                <section className="mt-6 rounded-2xl border border-rose-100 border-l-[3px] border-l-[#EF4444] bg-[#FFF5F5] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
-                  <h2 className="text-lg font-black text-[#B91C1C]">🚨 Active Blockers — Needs Attention</h2>
+                <section id="manager-demo-blockers-section" className="mt-6 rounded-2xl border border-rose-100 border-l-[3px] border-l-[#EF4444] bg-[#FFF5F5] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                  <h2 className="text-lg font-black text-[#B91C1C]">Active Blockers — Needs Attention</h2>
                   <div className="mt-4 space-y-3">
                     {managerActiveBlockers.map((blocker) => (
                       <div key={blocker.id} className="grid gap-3 rounded-xl bg-white p-4 sm:grid-cols-[minmax(11rem,1fr)_minmax(10rem,1fr)_9rem_auto] sm:items-center">
@@ -6707,7 +7984,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                         <p className="text-sm font-extrabold text-[#2C2C2A]">{blocker.title}</p>
                         <p className="text-xs font-black text-rose-600">{blocker.blockedAgo}</p>
                         <div className="flex gap-2">
-                          <button type="button" onClick={() => showToast('Blocker marked resolved in manager demo.', 'success')} className="rounded-lg bg-[#1D9E75] px-3 py-2 text-xs font-black text-white">
+                          <button type="button" onClick={() => updateTaskStatusApi(blocker.id, 'in_progress', null)} className="rounded-lg bg-[#1D9E75] px-3 py-2 text-xs font-black text-white">
                             Resolve
                           </button>
                           <button type="button" onClick={() => { window.location.href = `mailto:${blocker.assignee?.email || 'hello.nudgehq@gmail.com'}?subject=NudgeHQ blocker follow-up`; }} className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-black text-rose-600">
@@ -6772,7 +8049,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                         </button>
                       ))}
                     </div>
-                    <button type="button" onClick={() => setDemoEmployeeSection('My Tasks')} className="mt-5 inline-flex items-center gap-2 rounded-xl border border-[#DAD7FB] px-4 py-2 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]">
+                    <button type="button" onClick={() => setDemoEmployeeSection(dashboardRole === 'manager' ? 'Tasks' : 'My Tasks')} className="mt-5 inline-flex items-center gap-2 rounded-xl border border-[#DAD7FB] px-4 py-2 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]">
                       View all tasks
                       <ArrowRight className="h-4 w-4" />
                     </button>
@@ -6869,14 +8146,194 @@ const demoSidebarItems = dashboardRole === 'employee'
               )}
 
               {dashboardRole === 'manager' && selectedDemoSection === 'Projects' && (
-                <section className="mt-6 rounded-2xl border border-[#EEEDFE] bg-white p-8 text-center shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#EEEDFE] text-[#3C3489]">
-                    <Building2 className="h-7 w-7" />
-                  </div>
-                  <h2 className="mt-4 text-2xl font-black text-[#2C2C2A]">Projects are coming soon</h2>
-                  <p className="mx-auto mt-2 max-w-xl text-sm font-semibold leading-6 text-[#5F5E5A]">
-                    Manager projects will group tasks, blockers, sprint forecasts, and NudgeAI recommendations into one workspace.
-                  </p>
+                <section className="mt-6 grid gap-6 xl:grid-cols-[1.06fr_0.94fr]">
+                  <section className="dashboard-panel rounded-[28px] p-5">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#7F77DD]">Manager projects</p>
+                        <h2 className="mt-2 text-2xl font-black text-[#2C2C2A]">Edit delivery projects from one clean board.</h2>
+                        <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-[#5F5E5A]">
+                          Track owners, progress, due dates, and risk level without leaving the manager workspace.
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-[#EEEDFE] px-3 py-1 text-xs font-extrabold text-[#3C3489]">
+                        {managerProjects.length} live projects
+                      </span>
+                    </div>
+
+                    <div className="mt-5 space-y-4">
+                      {managerProjects.length ? managerProjects.map((project) => (
+                        <article key={project.id} className="rounded-[24px] border border-[#EEEDFE] bg-[#FCFCFF] p-4 shadow-sm">
+                          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="rounded-full bg-[#1C1739] px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.12em] text-white">
+                                  {project.priority} priority
+                                </span>
+                                <span className={`rounded-full px-3 py-1 text-[11px] font-extrabold ${
+                                  project.status === 'Done' ? 'bg-[#E8F7F1] text-[#1D9E75]' :
+                                  project.status === 'Blocked' ? 'bg-rose-50 text-rose-600' :
+                                  project.status === 'Review' ? 'bg-amber-50 text-amber-700' :
+                                  'bg-[#EEEDFE] text-[#3C3489]'
+                                }`}>
+                                  {project.status}
+                                </span>
+                              </div>
+                              <h3 className="mt-3 text-xl font-black text-[#2C2C2A]">{project.name}</h3>
+                              <p className="mt-2 text-sm font-semibold leading-6 text-[#5F5E5A]">{project.summary}</p>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleEditManagerProject(project)}
+                                className="rounded-xl border border-[#DAD7FB] bg-white px-4 py-2 text-xs font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteManagerProject(project.id)}
+                                className="rounded-xl border border-rose-200 bg-white px-4 py-2 text-xs font-extrabold text-rose-600 transition hover:bg-rose-50"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="mt-5 grid gap-4 sm:grid-cols-[0.95fr_1.05fr]">
+                            <div className="rounded-2xl bg-white p-4 ring-1 ring-[#EEEDFE]">
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#8A8894]">Owner</p>
+                                  <p className="mt-1 text-sm font-black text-[#2C2C2A]">{project.owner}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#8A8894]">Due</p>
+                                  <p className="mt-1 text-sm font-black text-[#2C2C2A]">{project.due}</p>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="rounded-2xl bg-white p-4 ring-1 ring-[#EEEDFE]">
+                              <div className="flex items-center justify-between gap-3">
+                                <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#8A8894]">Progress</p>
+                                <p className="text-sm font-black text-[#3C3489]">{project.progress}%</p>
+                              </div>
+                              <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-[#EEEFF5]">
+                                <div className={`h-full rounded-full ${
+                                  project.status === 'Blocked' ? 'bg-[#EF4444]' :
+                                  project.status === 'Done' ? 'bg-[#1D9E75]' :
+                                  'bg-[#7F77DD]'
+                                }`} style={{ width: `${project.progress}%` }} />
+                              </div>
+                            </div>
+                          </div>
+                        </article>
+                      )) : (
+                        <div className="rounded-2xl border border-dashed border-[#DAD7FB] bg-[#FCFCFF] p-6 text-center">
+                          <Building2 className="mx-auto h-8 w-8 text-[#7F77DD]" />
+                          <p className="mt-3 text-sm font-black text-[#2C2C2A]">No projects yet</p>
+                          <p className="mt-1 text-xs font-semibold leading-5 text-[#5F5E5A]">Create your first manager project from the editor panel.</p>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+
+                  <section className="dashboard-panel rounded-[28px] p-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#1D9E75]">
+                          {editingManagerProjectId ? 'Edit project' : 'New project'}
+                        </p>
+                        <h2 className="mt-2 text-2xl font-black text-[#2C2C2A]">
+                          {editingManagerProjectId ? 'Update manager project' : 'Create a manager project'}
+                        </h2>
+                      </div>
+                      <Building2 className="h-6 w-6 text-[#1D9E75]" />
+                    </div>
+
+                    <form onSubmit={handleSaveManagerProject} className="mt-5 space-y-3">
+                      <input
+                        type="text"
+                        placeholder="Project name *"
+                        value={managerProjectDraft.name}
+                        onChange={(e) => handleManagerProjectDraftChange('name', e.target.value)}
+                        className="block w-full rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]"
+                        required
+                      />
+                      <textarea
+                        placeholder="Short project summary"
+                        value={managerProjectDraft.summary}
+                        onChange={(e) => handleManagerProjectDraftChange('summary', e.target.value)}
+                        className="block min-h-24 w-full rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]"
+                      />
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <input
+                          type="text"
+                          placeholder="Owner"
+                          value={managerProjectDraft.owner}
+                          onChange={(e) => handleManagerProjectDraftChange('owner', e.target.value)}
+                          className="block w-full rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Due date"
+                          value={managerProjectDraft.due}
+                          onChange={(e) => handleManagerProjectDraftChange('due', e.target.value)}
+                          className="block w-full rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]"
+                        />
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <select
+                          value={managerProjectDraft.status}
+                          onChange={(e) => handleManagerProjectDraftChange('status', e.target.value)}
+                          className="block w-full rounded-2xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm outline-none focus:border-[#7F77DD]"
+                        >
+                          {['Planned', 'In Progress', 'Review', 'Blocked', 'Done'].map((status) => (
+                            <option key={status} value={status}>{status}</option>
+                          ))}
+                        </select>
+                        <select
+                          value={managerProjectDraft.priority}
+                          onChange={(e) => handleManagerProjectDraftChange('priority', e.target.value)}
+                          className="block w-full rounded-2xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm outline-none focus:border-[#7F77DD]"
+                        >
+                          {['Low', 'Medium', 'High'].map((priority) => (
+                            <option key={priority} value={priority}>{priority}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <label className="block rounded-2xl border border-[#DAD7FB] bg-[#FCFCFF] px-4 py-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-xs font-extrabold uppercase tracking-[0.14em] text-[#8A8894]">Progress</span>
+                          <span className="text-sm font-black text-[#3C3489]">{managerProjectDraft.progress}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={managerProjectDraft.progress}
+                          onChange={(e) => handleManagerProjectDraftChange('progress', e.target.value)}
+                          className="mt-3 w-full accent-[#7F77DD]"
+                        />
+                      </label>
+                      <div className="flex gap-3">
+                        <button
+                          type="submit"
+                          className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#1C1739] px-4 py-3 text-sm font-extrabold text-white transition hover:bg-[#2D266B]"
+                        >
+                          <Plus className="h-4 w-4" />
+                          {editingManagerProjectId ? 'Save changes' : 'Create project'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={resetManagerProjectDraft}
+                          className="rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </form>
+                  </section>
                 </section>
               )}
 
@@ -6910,6 +8367,302 @@ const demoSidebarItems = dashboardRole === 'employee'
                       </div>
                     ))}
                   </div>
+                </section>
+              )}
+
+              {dashboardRole === 'manager' && selectedDemoSection === 'Tasks' && (
+                <section className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+                  <section className="dashboard-panel rounded-[28px] p-5">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#7F77DD]">Manager tasks</p>
+                        <h2 className="mt-2 text-2xl font-black text-[#2C2C2A]">Assign, review, and unblock your team.</h2>
+                      </div>
+                      <span className="rounded-full bg-[#EEEDFE] px-3 py-1 text-xs font-extrabold text-[#3C3489]">
+                        {managerProgressRows.length} live items
+                      </span>
+                    </div>
+                    <div className="mt-5 space-y-4">
+                      {managerProgressRows.length ? managerProgressRows.map(([name, task, progress, status, color, lastUpdate, updateTone]) => (
+                        <div key={`${name}-${task}-manager-task`} className="grid gap-3 rounded-2xl border border-[#F0EFFA] bg-[#FCFCFF] p-4 sm:grid-cols-[minmax(10rem,1fr)_minmax(9rem,0.7fr)_4rem_7rem_7rem] sm:items-center">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-extrabold text-white" style={{ backgroundColor: color }}>
+                              {name.split(' ').map((part) => part[0]).join('').slice(0, 2)}
+                            </span>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-extrabold text-[#2C2C2A]">{name}</p>
+                              <p className="truncate text-xs font-semibold text-[#8A8894]">{task}</p>
+                            </div>
+                          </div>
+                          <div className="h-2.5 overflow-hidden rounded-full bg-[#EEEFF5]">
+                            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progress}%`, backgroundColor: color }} />
+                          </div>
+                          <p className="text-sm font-extrabold text-[#2C2C2A]">{progress}%</p>
+                          <span className={`w-fit rounded-full px-3 py-1 text-xs font-extrabold ${
+                            status === 'Completed' ? 'bg-[#E8F7F1] text-[#1D9E75]' :
+                            status === 'Overdue' || status === 'Blocked' ? 'bg-rose-50 text-rose-600' :
+                            'bg-[#EEEDFE] text-[#3C3489]'
+                          }`}>
+                            {status}
+                          </span>
+                          <span className={`text-xs font-extrabold ${getManagerLastUpdateClass(updateTone)}`}>
+                            {lastUpdate}
+                          </span>
+                        </div>
+                      )) : (
+                        <div className="rounded-2xl border border-dashed border-[#DAD7FB] bg-[#FCFCFF] p-6 text-center">
+                          <ClipboardCheck className="mx-auto h-8 w-8 text-[#7F77DD]" />
+                          <p className="mt-3 text-sm font-black text-[#2C2C2A]">No department tasks yet</p>
+                          <p className="mt-1 text-xs font-semibold leading-5 text-[#5F5E5A]">Create the first task below to start your manager board.</p>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+
+                  <section id="manager-create-task" className="dashboard-panel rounded-[28px] p-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#7F77DD]">Quick assign</p>
+                        <h2 className="mt-2 text-2xl font-black text-[#2C2C2A]">Create & assign tasks</h2>
+                      </div>
+                      <Plus className="h-6 w-6 text-[#7F77DD]" />
+                    </div>
+                    <p className="mt-2 text-sm font-semibold leading-6 text-[#5F5E5A]">Manager mode keeps assignees scoped to your team.</p>
+                    <form onSubmit={handleCreateTask} className="mt-5 space-y-3">
+                      <input
+                        type="text"
+                        placeholder="Task Title *"
+                        value={newTaskTitle}
+                        onChange={(e) => setNewTaskTitle(e.target.value)}
+                        className="block w-full rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]"
+                        required
+                      />
+                      <textarea
+                        placeholder="Task Description"
+                        value={newTaskDesc}
+                        onChange={(e) => setNewTaskDesc(e.target.value)}
+                        className="block min-h-24 w-full rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]"
+                      />
+                      <select
+                        value={newTaskAssignee}
+                        onChange={(e) => setNewTaskAssignee(e.target.value)}
+                        className="block w-full rounded-2xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm outline-none focus:border-[#7F77DD]"
+                      >
+                        <option value="">Unassigned</option>
+                        {adminUsers.map((u) => (
+                          <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                        ))}
+                      </select>
+                      <button
+                        type="submit"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1C1739] px-4 py-3 text-sm font-extrabold text-white transition hover:bg-[#2D266B]"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Create task
+                      </button>
+                    </form>
+                  </section>
+                </section>
+              )}
+
+              {dashboardRole === 'manager' && selectedDemoSection === 'People' && (
+                <section className="mt-6 grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+                  <section className="dashboard-panel rounded-[28px] p-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#1D9E75]">People signals</p>
+                        <h2 className="mt-2 text-2xl font-black text-[#2C2C2A]">Who needs attention right now.</h2>
+                      </div>
+                      <UsersRound className="h-6 w-6 text-[#1D9E75]" />
+                    </div>
+                    <div className="mt-5 grid gap-3">
+                      {managerNoUpdateAlerts.length ? managerNoUpdateAlerts.map((alert) => (
+                        <div key={`${alert.name}-${alert.detail}-people`} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-black text-[#2C2C2A]">{alert.name}</p>
+                            <span className="rounded-full bg-rose-50 px-3 py-1 text-[11px] font-extrabold text-rose-600">No update</span>
+                          </div>
+                          <p className="mt-2 text-xs font-semibold leading-5 text-[#5F5E5A]">{alert.detail}</p>
+                          <button type="button" onClick={openWhatsAppNudgePreview} className="mt-4 rounded-full bg-[#1C1739] px-3 py-2 text-[11px] font-black text-white">
+                            Send nudge
+                          </button>
+                        </div>
+                      )) : (
+                        <div className="rounded-2xl border border-dashed border-[#DAD7FB] bg-[#FCFCFF] p-5 text-sm font-semibold text-[#5F5E5A]">
+                          Everyone on your team is updated today.
+                        </div>
+                      )}
+                    </div>
+                  </section>
+
+                  <section className="dashboard-panel rounded-[28px] p-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#F59E0B]">Quality + proof</p>
+                        <h2 className="mt-2 text-2xl font-black text-[#2C2C2A]">Proof requests and update coaching.</h2>
+                      </div>
+                      <FileCheck2 className="h-6 w-6 text-[#F59E0B]" />
+                    </div>
+                    <div className="mt-5 grid gap-3">
+                      {managerProofRequiredTasks.map((task) => (
+                        <div key={`${task.title}-${task.owner}-people`} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                          <p className="text-sm font-black text-[#2C2C2A]">{task.title}</p>
+                          <p className="mt-1 text-xs font-semibold text-[#5F5E5A]">{task.owner} · {task.proof}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                      {managerQualityScoreCards.map(([label, value, helper]) => (
+                        <div key={`${label}-people`} className="rounded-2xl border border-[#EEEDFE] bg-white p-4">
+                          <p className="text-xs font-black uppercase tracking-[0.12em] text-[#8A8894]">{label}</p>
+                          <p className="mt-2 text-xl font-black text-[#3C3489]">{value}</p>
+                          <p className="mt-1 text-xs font-semibold leading-5 text-[#5F5E5A]">{helper}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                </section>
+              )}
+
+              {dashboardRole === 'manager' && selectedDemoSection === 'Reports' && (
+                <section className="mt-6 grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+                  <section className="dashboard-panel rounded-[28px] p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#7F77DD]">Reports</p>
+                        <h2 className="mt-2 text-2xl font-black text-[#2C2C2A]">Live team signal graph</h2>
+                      </div>
+                      <span className="rounded-full bg-[#E8F7F1] px-3 py-1 text-xs font-extrabold text-[#1D9E75]">Live</span>
+                    </div>
+                    <div className="mt-5 h-72">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={managerChartData} margin={{ top: 10, right: 12, left: -18, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="managerReportsUpdates" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#3C3489" stopOpacity={0.28} />
+                              <stop offset="95%" stopColor="#3C3489" stopOpacity={0.02} />
+                            </linearGradient>
+                            <linearGradient id="managerReportsCompleted" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#1D9E75" stopOpacity={0.26} />
+                              <stop offset="95%" stopColor="#1D9E75" stopOpacity={0.02} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid stroke="#EEF2F7" vertical={false} />
+                          <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fill: '#64748B', fontSize: 12, fontWeight: 800 }} />
+                          <YAxis tickLine={false} axisLine={false} tick={{ fill: '#94A3B8', fontSize: 12, fontWeight: 700 }} />
+                          <Tooltip contentStyle={{ borderRadius: 14, border: '1px solid #E2E8F0', fontWeight: 700 }} />
+                          <Area type="monotone" dataKey="updates" stroke="#3C3489" strokeWidth={3} fill="url(#managerReportsUpdates)" />
+                          <Area type="monotone" dataKey="completed" stroke="#1D9E75" strokeWidth={3} fill="url(#managerReportsCompleted)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      {managerStatusMixData.map((item) => (
+                        <div key={`${item.label}-report`} className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+                          <p className="text-xs font-black uppercase text-[#64748B]">{item.label}</p>
+                          <p className="mt-2 text-2xl font-black" style={{ color: item.fill }}>{item.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="dashboard-panel rounded-[28px] p-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#7F77DD]">Audit feed</p>
+                        <h2 className="mt-2 text-2xl font-black text-[#2C2C2A]">Recent team updates</h2>
+                      </div>
+                      <button type="button" onClick={generateBoardPack} disabled={boardPackLoading} className="rounded-full border border-[#DAD7FB] px-4 py-2 text-xs font-extrabold text-[#3C3489] disabled:opacity-60">
+                        {boardPackLoading ? 'Preparing...' : 'Export'}
+                      </button>
+                    </div>
+                    <div className="mt-5 space-y-3">
+                      {allUpdates.length ? allUpdates.slice(0, 6).map((u) => (
+                        <div key={`${u.id}-report`} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                          <div className="flex items-center justify-between gap-3 text-xs font-bold text-[#8A8894]">
+                            <span className="text-[#3C3489]">{u.user?.name || 'Employee'}</span>
+                            <span>{formatDisplayDate(u.created_at)}</span>
+                          </div>
+                          <p className="mt-2 text-sm font-semibold leading-6 text-[#5F5E5A]">{u.progress_text}</p>
+                        </div>
+                      )) : (
+                        <div className="rounded-2xl border border-dashed border-[#DAD7FB] bg-[#FCFCFF] p-5 text-sm font-semibold text-[#5F5E5A]">
+                          No updates available yet for the report feed.
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                </section>
+              )}
+
+              {dashboardRole === 'manager' && selectedDemoSection === 'NudgeAI' && (
+                <section className="mt-6 grid gap-6 xl:grid-cols-[0.88fr_1.12fr]">
+                  <section className="rounded-[28px] bg-[linear-gradient(160deg,_#17142C_0%,_#26224B_55%,_#302A62_100%)] p-6 text-white shadow-[0_18px_50px_rgba(23,20,44,0.28)]">
+                    <p className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.18em] text-[#8EF0CD]">
+                      <Zap className="h-4 w-4" />
+                      NudgeAI Desk
+                    </p>
+                    <h2 className="mt-4 text-3xl font-black">Manager copilots for briefs, blockers, and nudges.</h2>
+                    <p className="mt-3 text-sm font-semibold leading-6 text-white/75">
+                      Generate summaries, escalate issues faster, and coach update quality without opening six different tools.
+                    </p>
+                    <div className="mt-5 space-y-3">
+                      {managerStandupCards.slice(0, 4).map(([label, copy]) => (
+                        <div key={`${label}-nudgeai`} className="rounded-2xl border border-white/10 bg-white/8 p-4">
+                          <p className="text-xs font-black uppercase text-white/50">{label}</p>
+                          <p className="mt-2 text-sm font-semibold leading-6 text-white/82">{copy}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="dashboard-panel rounded-[28px] p-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#7F77DD]">Manager actions</p>
+                        <h2 className="mt-2 text-2xl font-black text-[#2C2C2A]">Run the next best action.</h2>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => runNudgeAiFeature('standup', true)}
+                        disabled={nudgeAiLoading.standup}
+                        className="inline-flex items-center gap-2 rounded-full bg-[#1C1739] px-4 py-2 text-xs font-extrabold text-white disabled:opacity-60"
+                      >
+                        <RefreshCw className={`h-4 w-4 ${nudgeAiLoading.standup ? 'animate-spin' : ''}`} />
+                        Refresh brief
+                      </button>
+                    </div>
+                    <div className="mt-5 grid gap-3 md:grid-cols-2">
+                      <button type="button" onClick={() => runNudgeAiFeature('forecast', true)} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4 text-left transition hover:border-[#7F77DD]">
+                        <p className="text-sm font-black text-[#2C2C2A]">Sprint Forecast</p>
+                        <p className="mt-2 text-xs font-semibold leading-5 text-[#5F5E5A]">See delivery risk before the day derails.</p>
+                      </button>
+                      <button type="button" onClick={() => runNudgeAiFeature('appreciation', true)} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4 text-left transition hover:border-[#7F77DD]">
+                        <p className="text-sm font-black text-[#2C2C2A]">Appreciation Draft</p>
+                        <p className="mt-2 text-xs font-semibold leading-5 text-[#5F5E5A]">Turn team wins into a polished shoutout.</p>
+                      </button>
+                      <button type="button" onClick={() => openWhatsAppNudgePreview()} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4 text-left transition hover:border-[#7F77DD]">
+                        <p className="text-sm font-black text-[#2C2C2A]">WhatsApp Nudge</p>
+                        <p className="mt-2 text-xs font-semibold leading-5 text-[#5F5E5A]">Ping silent teammates from one manager queue.</p>
+                      </button>
+                      <button type="button" onClick={() => setDemoEmployeeSection('Reports')} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4 text-left transition hover:border-[#7F77DD]">
+                        <p className="text-sm font-black text-[#2C2C2A]">Open Reports</p>
+                        <p className="mt-2 text-xs font-semibold leading-5 text-[#5F5E5A]">Review the latest audit graph and update trail.</p>
+                      </button>
+                    </div>
+                  </section>
+                </section>
+              )}
+
+              {dashboardRole === 'manager' && selectedDemoSection === 'Settings' && (
+                <section className="mt-6 rounded-2xl border border-[#EEEDFE] bg-white p-8 text-center shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#EEEDFE] text-[#3C3489]">
+                    <Shield className="h-7 w-7" />
+                  </div>
+                  <h2 className="mt-4 text-2xl font-black text-[#2C2C2A]">Manager settings stay intentionally light.</h2>
+                  <p className="mx-auto mt-2 max-w-xl text-sm font-semibold leading-6 text-[#5F5E5A]">
+                    Billing, org setup, and company-wide controls stay with admins. Managers only get the tools needed to run their own team cleanly.
+                  </p>
                 </section>
               )}
 
@@ -7133,10 +8886,10 @@ const demoSidebarItems = dashboardRole === 'employee'
                     </p>
                     <div className="mt-5 flex flex-wrap gap-2">
                       {[
-                        ['Office', '🏢 Office'],
-                        ['Home', '🏠 Home'],
-                        ['Client site', '🤝 Client site'],
-                        ['Travel', '✈️ Travel']
+                        ['Office', 'Office'],
+                        ['Home', 'Home'],
+                        ['Client site', 'Client site'],
+                        ['Travel', 'Travel']
                       ].map(([location, label]) => (
                         <button
                           key={location}
@@ -8251,9 +10004,9 @@ const demoSidebarItems = dashboardRole === 'employee'
                     key={label}
                     type="button"
                     onClick={() => {
-                      if (demoEmployeeCanNavigate) setDemoEmployeeSection(label);
+                      if (demoDashboardCanNavigate) setDemoEmployeeSection(label);
                     }}
-                    className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-extrabold ${(demoEmployeeCanNavigate ? selectedDemoSection === label : index === 0) ? 'bg-[#7F77DD] text-white' : 'text-[#6E6B78]'}`}
+                    className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-extrabold ${(demoDashboardCanNavigate ? selectedDemoSection === label : index === 0) ? 'bg-[#7F77DD] text-white' : 'text-[#6E6B78]'}`}
                   >
                     <Icon className="h-4 w-4" />
                     {label.replace('My ', '')}
@@ -8265,7 +10018,7 @@ const demoSidebarItems = dashboardRole === 'employee'
         </section>
       )}
 
-      {currentView === 'dashboard' && !isSandbox && !isEmployeeDashboard && (
+      {currentView === 'dashboard' && !isSandbox && !isEmployeeDashboard && authRole !== 'manager' && (
         <section
           className={`workspace-surface workspace-surface-${dashboardRole} relative min-h-screen overflow-hidden px-5 py-8 sm:px-6 lg:px-8`}
           style={{
@@ -8287,129 +10040,172 @@ const demoSidebarItems = dashboardRole === 'employee'
             </div>
           ) : null}
           
-          {/* Welcome User Header */}
-          <div className={`command-surface command-surface-${dashboardRole} relative overflow-hidden rounded-[1.75rem] p-6 text-white shadow-2xl sm:p-8`}>
-            <div className="soft-grid absolute inset-0 opacity-10" />
-            <div className="relative grid gap-7 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 backdrop-blur">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: roleAccent }} />
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-white/90">
-                    {getDashboardLabel(authRole)}
+          {authRole === 'manager' ? (
+            <section className="mb-8 rounded-[30px] border border-[#D7E2F0] bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_48%,#f5f0ff_100%)] p-6 shadow-[0_18px_50px_rgba(28,23,57,0.08)] sm:p-7">
+              <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+                <div className="max-w-3xl">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-[#1C1739] px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.22em] text-white">
+                    <Zap className="h-3.5 w-3.5" />
+                    Manager Team HQ
                   </span>
-                </div>
-                <h2 className="mt-5 max-w-3xl text-4xl font-extrabold leading-tight tracking-normal text-white sm:text-5xl">
-                  {getDashboardHeadline(authRole)}
-                </h2>
-                <p className="mt-4 max-w-2xl text-base leading-7 text-white/78">
-                  {getDashboardCopy(authRole)}
-                </p>
-                <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-white/78">
-                  <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5 font-semibold">{user?.name || 'Demo User'}</span>
-                  <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5 font-semibold">{user?.email}</span>
-                  <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5 font-semibold capitalize">{authRole || 'employee'}</span>
-                  <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5 font-semibold">{roleTheme.badge}</span>
-                  {user?.organizations?.name ? (
-                    <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5 font-semibold">{user.organizations.name}</span>
-                  ) : null}
-                </div>
-                {user?.role === 'admin' || getDemoUserFromEmail(user?.email || '').role === 'admin' ? (
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    {['admin', 'hr', 'manager', 'employee'].map((role) => (
-                      <button
-                        key={role}
-                        type="button"
-                        onClick={() => navigateDashboard(role)}
-                        className={`rounded-full border px-3 py-1.5 text-xs font-extrabold capitalize transition ${authRole === role ? 'border-white bg-white text-[#3C3489]' : 'border-white/15 bg-white/10 text-white/75 hover:bg-white/20'}`}
-                      >
-                        Preview {role}
-                      </button>
-                    ))}
+                  <h2 className="mt-4 text-3xl font-black tracking-[-0.04em] text-[#1C1739] sm:text-4xl">
+                    Run your team from live signals, not scattered follow-ups.
+                  </h2>
+                  <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-[#5F5E5A] sm:text-base">
+                    Morning brief, blockers, proof checks, NudgeAI coaching, and WhatsApp nudges now sit in one focused manager flow.
+                  </p>
+                  <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-[#5F5E5A]">
+                    <span className="rounded-full border border-[#DAD7FB] bg-white px-3 py-1.5 font-semibold">{user?.name || 'Manager User'}</span>
+                    <span className="rounded-full border border-[#DAD7FB] bg-white px-3 py-1.5 font-semibold">{user?.email}</span>
+                    <span className="rounded-full border border-[#DAD7FB] bg-white px-3 py-1.5 font-semibold capitalize">{authRole || 'manager'}</span>
+                    <span className="rounded-full border border-[#DAD7FB] bg-white px-3 py-1.5 font-semibold">{roleTheme.badge}</span>
                   </div>
-                ) : null}
+                </div>
+                <div className="grid gap-2 sm:grid-cols-4">
+                  {['Daily Signals', 'Blockers', 'NudgeAI', 'WhatsApp'].map((tab) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => activateManagerFocusTab(tab)}
+                      className={`rounded-full px-4 py-3 text-xs font-extrabold uppercase tracking-[0.14em] transition ${
+                        activeManagerFocusTab === tab
+                          ? 'bg-[#1C1739] text-white shadow-[0_14px_28px_rgba(28,23,57,0.22)]'
+                          : 'border border-[#DAD7FB] bg-white text-[#3C3489] hover:border-[#BEB7FF] hover:bg-[#F8F6FF]'
+                      }`}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
               </div>
-
-              <div className="role-glow-card rounded-2xl border border-white/15 bg-white/10 p-5 shadow-xl shadow-black/10 backdrop-blur">
-                <div className="flex items-center justify-between gap-4">
+            </section>
+          ) : (
+            <>
+              {/* Welcome User Header */}
+              <div className={`command-surface command-surface-${dashboardRole} relative overflow-hidden rounded-[1.75rem] p-6 text-white shadow-2xl sm:p-8`}>
+                <div className="soft-grid absolute inset-0 opacity-10" />
+                <div className="relative grid gap-7 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/55">Live Command View</p>
-                    <p className="mt-2 text-2xl font-extrabold text-white">{getDashboardHubName(authRole)}</p>
+                    <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 backdrop-blur">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: roleAccent }} />
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-white/90">
+                        {getDashboardLabel(authRole)}
+                      </span>
+                    </div>
+                    <h2 className="mt-5 max-w-3xl text-4xl font-extrabold leading-tight tracking-normal text-white sm:text-5xl">
+                      {getDashboardHeadline(authRole)}
+                    </h2>
+                    <p className="mt-4 max-w-2xl text-base leading-7 text-white/78">
+                      {getDashboardCopy(authRole)}
+                    </p>
+                    <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-white/78">
+                      <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5 font-semibold">{user?.name || 'Demo User'}</span>
+                      <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5 font-semibold">{user?.email}</span>
+                      <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5 font-semibold capitalize">{authRole || 'employee'}</span>
+                      <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5 font-semibold">{roleTheme.badge}</span>
+                      {user?.organizations?.name ? (
+                        <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5 font-semibold">{user.organizations.name}</span>
+                      ) : null}
+                    </div>
+                    {user?.role === 'admin' || getDemoUserFromEmail(user?.email || '').role === 'admin' ? (
+                      <div className="mt-5 flex flex-wrap gap-2">
+                        {['admin', 'hr', 'manager', 'employee'].map((role) => (
+                          <button
+                            key={role}
+                            type="button"
+                            onClick={() => navigateDashboard(role)}
+                            className={`rounded-full border px-3 py-1.5 text-xs font-extrabold capitalize transition ${authRole === role ? 'border-white bg-white text-[#3C3489]' : 'border-white/15 bg-white/10 text-white/75 hover:bg-white/20'}`}
+                          >
+                            Preview {role}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
-                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-lg" style={{ color: roleAccent }}>
-                    <Sparkles className="h-6 w-6" />
-                  </span>
+
+                  <div className="role-glow-card rounded-2xl border border-white/15 bg-white/10 p-5 shadow-xl shadow-black/10 backdrop-blur">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/55">Live Command View</p>
+                        <p className="mt-2 text-2xl font-extrabold text-white">{getDashboardHubName(authRole)}</p>
+                      </div>
+                      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-lg" style={{ color: roleAccent }}>
+                        <Sparkles className="h-6 w-6" />
+                      </span>
+                    </div>
+                    <div className="mt-5 grid grid-cols-3 gap-3">
+                      {[
+                        ['NudgeAI', 'Live'],
+                        [isLeaderDashboard ? 'People' : 'Tasks', isLeaderDashboard ? `${adminUsers.length || analytics?.summary?.totalEmployees || 0}` : `${empTasks.length}`],
+                        ['Sync', 'Ready']
+                      ].map(([label, value]) => (
+                        <div key={label} className="rounded-xl border border-white/10 bg-white/10 p-3">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-white/55">{label}</p>
+                          <p className="mt-1 text-sm font-extrabold text-white">{value}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 grid gap-3">
+                      {roleSignals.map(([label, value]) => (
+                        <div key={label} className="role-signal-card flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/10 px-4 py-3">
+                          <span className="text-xs font-bold uppercase tracking-wider text-white/60">{label}</span>
+                          <span className="max-w-[11rem] truncate text-right text-sm font-extrabold text-white">{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      onClick={refreshDashboardData}
+                      className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      Refresh Workspace
+                    </button>
+                  </div>
                 </div>
-                <div className="mt-5 grid grid-cols-3 gap-3">
-                  {[
-                    ['NudgeAI', 'Live'],
-                    [isLeaderDashboard ? 'People' : 'Tasks', isLeaderDashboard ? `${adminUsers.length || analytics?.summary?.totalEmployees || 0}` : `${empTasks.length}`],
-                    ['Sync', 'Ready']
-                  ].map(([label, value]) => (
-                    <div key={label} className="rounded-xl border border-white/10 bg-white/10 p-3">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-white/55">{label}</p>
-                      <p className="mt-1 text-sm font-extrabold text-white">{value}</p>
+
+                <div className="relative mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                  {roleMetricCards.map(([title, copy, Icon, color]) => (
+                    <div key={title} className="metric-lift role-metric-card rounded-2xl border border-white/15 bg-white/10 p-5 shadow-sm backdrop-blur">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white shadow-sm" style={{ color }}>
+                          <Icon className="h-5 w-5" aria-hidden="true" />
+                        </span>
+                        <div>
+                          <p className="text-base font-extrabold text-white">{title}</p>
+                          <p className="mt-1 text-xs leading-5 text-white/70">{copy}</p>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
-                <div className="mt-4 grid gap-3">
-                  {roleSignals.map(([label, value]) => (
-                    <div key={label} className="role-signal-card flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/10 px-4 py-3">
-                      <span className="text-xs font-bold uppercase tracking-wider text-white/60">{label}</span>
-                      <span className="max-w-[11rem] truncate text-right text-sm font-extrabold text-white">{value}</span>
-                    </div>
-                  ))}
-                </div>
-                <button
-                  onClick={refreshDashboardData}
-                  className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Refresh Workspace
-                </button>
               </div>
-            </div>
 
-            <div className="relative mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-              {roleMetricCards.map(([title, copy, Icon, color]) => (
-                <div key={title} className="metric-lift role-metric-card rounded-2xl border border-white/15 bg-white/10 p-5 shadow-sm backdrop-blur">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white shadow-sm" style={{ color }}>
-                      <Icon className="h-5 w-5" aria-hidden="true" />
-                    </span>
-                    <div>
-                      <p className="text-base font-extrabold text-white">{title}</p>
-                      <p className="mt-1 text-xs leading-5 text-white/70">{copy}</p>
+              <div className="role-scope-card mt-7 grid gap-4 rounded-[1.5rem] p-4 sm:p-5 lg:grid-cols-[0.9fr_1.1fr]">
+                <div className="rounded-2xl border border-white/70 bg-white/82 p-5 shadow-sm">
+                  <p className="text-xs font-extrabold uppercase tracking-[0.22em]" style={{ color: roleAccent }}>
+                    Role Access Map
+                  </p>
+                  <h3 className="mt-3 text-2xl font-extrabold text-[#2C2C2A]">
+                    {getDashboardLabel(authRole)} gets a focused workspace.
+                  </h3>
+                  <p className="mt-3 text-sm leading-6 text-[#5F5E5A]">
+                    Each dashboard now opens with only the controls that role should naturally use, so the product feels cleaner and more professional as the company grows.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {roleScopeCards.map(([title, copy, Icon]) => (
+                    <div key={title} className="metric-lift rounded-2xl border border-[#E6E3FF] bg-white p-4 shadow-sm">
+                      <span className="flex h-11 w-11 items-center justify-center rounded-xl" style={{ backgroundColor: roleTheme.soft, color: roleAccent }}>
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <p className="mt-4 text-sm font-extrabold text-[#2C2C2A]">{title}</p>
+                      <p className="mt-1 text-xs leading-5 text-[#5F5E5A]">{copy}</p>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="role-scope-card mt-7 grid gap-4 rounded-[1.5rem] p-4 sm:p-5 lg:grid-cols-[0.9fr_1.1fr]">
-            <div className="rounded-2xl border border-white/70 bg-white/82 p-5 shadow-sm">
-              <p className="text-xs font-extrabold uppercase tracking-[0.22em]" style={{ color: roleAccent }}>
-                Role Access Map
-              </p>
-              <h3 className="mt-3 text-2xl font-extrabold text-[#2C2C2A]">
-                {getDashboardLabel(authRole)} gets a focused workspace.
-              </h3>
-              <p className="mt-3 text-sm leading-6 text-[#5F5E5A]">
-                Each dashboard now opens with only the controls that role should naturally use, so the product feels cleaner and more professional as the company grows.
-              </p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              {roleScopeCards.map(([title, copy, Icon]) => (
-                <div key={title} className="metric-lift rounded-2xl border border-[#E6E3FF] bg-white p-4 shadow-sm">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl" style={{ backgroundColor: roleTheme.soft, color: roleAccent }}>
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <p className="mt-4 text-sm font-extrabold text-[#2C2C2A]">{title}</p>
-                  <p className="mt-1 text-xs leading-5 text-[#5F5E5A]">{copy}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+              </div>
+            </>
+          )}
 
           {!demoEmployeeCanNavigate && selectedDemoSection === 'NudgeSpace' && (
             <section className="mt-7 space-y-6">
@@ -9079,34 +10875,70 @@ const demoSidebarItems = dashboardRole === 'employee'
               {/* Admin Left Column */}
               <div className="space-y-7">
                 {authRole === 'manager' ? (
-                  <section className="workspace-card rounded-2xl border border-[#DAD7FB] bg-gradient-to-br from-[#F4F3FF] via-white to-[#E8F7F1] p-6">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#3C3489]">⚡ NudgeAI Morning Brief</p>
-                        <h3 className="mt-2 text-2xl font-black text-[#2C2C2A]">Your team snapshot for today.</h3>
-                        <p className="mt-1 text-sm font-semibold text-[#5F5E5A]">Generated today at 9:00 AM</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => runNudgeAiFeature('standup', true)}
-                        className="inline-flex items-center justify-center gap-2 rounded-full border border-[#DAD7FB] bg-white px-4 py-2 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]"
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                        Regenerate
-                      </button>
-                    </div>
-                    <div className="mt-5 grid gap-3 md:grid-cols-2">
-                      {[
-                        ['Yesterday', 'The team closed priority follow-ups and pushed the client deck forward.'],
-                        ['Today', 'Focus is on clearing CRM access, finalizing research notes, and confirming proof uploads.'],
-                        ['Needs attention', 'Rahul is blocked on CRM permissions and Neha has no update today.'],
-                        ['Recommendation', 'Send a short team nudge, then resolve the access blocker before noon.']
-                      ].map(([label, copy]) => (
-                        <div key={label} className="rounded-2xl border border-white bg-white/80 p-4 shadow-sm">
-                          <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#7F77DD]">{label}</p>
-                          <p className="mt-2 text-sm font-semibold leading-6 text-[#2C2C2A]">{copy}</p>
+                  <section id="manager-live-brief-section" className="overflow-hidden rounded-[28px] border border-[#D7E2F0] bg-white shadow-[0_18px_50px_rgba(28,23,57,0.10)]">
+                    <div className="grid gap-0 xl:grid-cols-[1fr_1.05fr]">
+                      <div className="bg-[#151326] p-6 text-white">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <p className="inline-flex items-center gap-2 text-xs font-extrabold uppercase text-[#8EF0CD]">
+                              <Zap className="h-4 w-4" />
+                              Manager Morning Brief
+                            </p>
+                            <h3 className="mt-3 text-3xl font-black text-white">Run today from signal, not status calls.</h3>
+                            <p className="mt-2 text-sm font-semibold leading-6 text-white/70">
+                              {nudgeAiData.standup?.generated_at ? `Generated ${formatDisplayDate(nudgeAiData.standup.generated_at)}` : 'Generate from live team signals'}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => runNudgeAiFeature('standup', true)}
+                            disabled={nudgeAiLoading.standup}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-extrabold text-white transition hover:bg-white/15 disabled:opacity-60"
+                          >
+                            <RefreshCw className={`h-4 w-4 ${nudgeAiLoading.standup ? 'animate-spin' : ''}`} />
+                            {nudgeAiLoading.standup ? 'Generating...' : 'Regenerate'}
+                          </button>
                         </div>
-                      ))}
+                        <div className="mt-5 grid gap-3">
+                          {managerStandupCards.slice(0, 4).map(([label, copy]) => (
+                            <div key={label} className="rounded-2xl border border-white/10 bg-white/8 p-4">
+                              <p className="text-xs font-black uppercase text-white/50">{label}</p>
+                              <p className="mt-2 text-sm font-semibold leading-6 text-white/82">{copy}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="p-6">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-black uppercase text-[#64748B]">Department graph</p>
+                            <h3 className="mt-2 text-2xl font-black text-[#1C1739]">Output and update pulse</h3>
+                          </div>
+                          <span className="rounded-full bg-[#ECFDF5] px-3 py-1 text-xs font-black text-[#047857]">{managerActiveTodayLabel}</span>
+                        </div>
+                        <div className="mt-5 h-56">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={managerChartData} margin={{ top: 10, right: 8, left: -18, bottom: 0 }}>
+                              <CartesianGrid stroke="#EEF2F7" vertical={false} />
+                              <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fill: '#64748B', fontSize: 12, fontWeight: 800 }} />
+                              <YAxis tickLine={false} axisLine={false} tick={{ fill: '#94A3B8', fontSize: 12, fontWeight: 700 }} />
+                              <Tooltip contentStyle={{ borderRadius: 14, border: '1px solid #E2E8F0', fontWeight: 700 }} />
+                              <Bar dataKey="completed" fill="#1D9E75" radius={[8, 8, 0, 0]} />
+                              <Bar dataKey="updates" fill="#3C3489" radius={[8, 8, 0, 0]} />
+                              <Bar dataKey="blockers" fill="#EF4444" radius={[8, 8, 0, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                          {managerStatusMixData.map((item) => (
+                            <div key={item.label} className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+                              <p className="text-xs font-black uppercase text-[#64748B]">{item.label}</p>
+                              <p className="mt-2 text-2xl font-black" style={{ color: item.fill }}>{item.value}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </section>
                 ) : (
@@ -9118,32 +10950,171 @@ const demoSidebarItems = dashboardRole === 'employee'
                 )}
 
                 {authRole === 'manager' ? (
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <button
-                      type="button"
-                      onClick={() => showToast('Assign task panel opens from Tasks.', 'info')}
-                      className="workspace-card-quiet metric-lift inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-4 text-sm font-extrabold text-[#3C3489]"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Assign Task
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => showToast('Manager report export prepared.', 'success')}
-                      className="workspace-card-quiet metric-lift inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-4 text-sm font-extrabold text-[#3C3489]"
-                    >
-                      <Download className="h-4 w-4" />
-                      Export Report
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => showToast("Team nudge sent to members without today's update.", 'success')}
-                      className="workspace-card-quiet metric-lift inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-4 text-sm font-extrabold text-[#3C3489]"
-                    >
-                      <Mail className="h-4 w-4" />
-                      Send Team Nudge
-                    </button>
-                  </div>
+                  <section id="manager-action-queue-section" className="rounded-[24px] border border-[#D7E2F0] bg-[#F8FAFC] p-5">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                      <div>
+                        <p className="text-xs font-black uppercase text-[#64748B]">Manager action queue</p>
+                        <h3 className="mt-2 text-xl font-black text-[#1C1739]">Convert risk into one-click actions.</h3>
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-3">
+                        <button
+                          type="button"
+                          onClick={() => document.getElementById('manager-create-task')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1C1739] px-4 py-3 text-sm font-extrabold text-white"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Assign
+                        </button>
+                        <button
+                          type="button"
+                          onClick={generateBoardPack}
+                          disabled={boardPackLoading}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#CBD5E1] bg-white px-4 py-3 text-sm font-extrabold text-[#1C1739] disabled:opacity-60"
+                        >
+                          {boardPackLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                          Export
+                        </button>
+                        <button
+                          type="button"
+                          onClick={openWhatsAppNudgePreview}
+                          disabled={whatsappNudgeLoading}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#CBD5E1] bg-white px-4 py-3 text-sm font-extrabold text-[#1C1739] disabled:opacity-60"
+                        >
+                          {whatsappNudgeLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+                          Nudge
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-5 grid gap-3 md:grid-cols-3">
+                      {managerPriorityActions.map(([label, value, copy, Icon, color]) => (
+                        <button
+                          key={label}
+                          type="button"
+                          onClick={() => handleManagerPriorityAction(label)}
+                          className="rounded-2xl border border-[#E2E8F0] bg-white p-4 text-left transition hover:border-[#CBD5E1] hover:shadow-sm"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: `${color}18`, color }}>
+                              <Icon className="h-5 w-5" />
+                            </span>
+                            <span className="text-2xl font-black text-[#1C1739]">{value}</span>
+                          </div>
+                          <p className="mt-3 text-sm font-black text-[#1C1739]">{label}</p>
+                          <p className="mt-1 text-xs font-semibold leading-5 text-[#64748B]">{copy}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+
+                {authRole === 'manager' ? (
+                  <section className="workspace-card rounded-2xl p-6">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                      <div>
+                        <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#7F77DD]">Manager action layer</p>
+                        <h3 className="mt-2 text-2xl font-black text-[#2C2C2A]">Less chasing. More next actions.</h3>
+                        <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-[#5F5E5A]">
+                          These cards turn missing updates, blockers, proof requirements, and low-quality updates into manager actions.
+                        </p>
+                      </div>
+                      <span className="w-fit rounded-full bg-[#E8F7F1] px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#1D9E75]">Live manager tools</span>
+                    </div>
+
+                    <div className="mt-6 grid gap-4 xl:grid-cols-3">
+                      <div id="manager-no-updates-section" className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-5">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#EF4444]">No Update Alert</p>
+                            <h4 className="mt-2 text-lg font-black text-[#2C2C2A]">{managerNoUpdateAlerts.length || 0} people need follow-up</h4>
+                          </div>
+                          <AlertCircle className="h-6 w-6 text-[#EF4444]" />
+                        </div>
+                        <div className="mt-4 space-y-3">
+                          {managerNoUpdateAlerts.length ? managerNoUpdateAlerts.map((alert) => (
+                            <div key={`${alert.name}-${alert.detail}`} className="rounded-xl bg-white p-3 ring-1 ring-[#EEEDFE]">
+                              <p className="text-sm font-black text-[#2C2C2A]">{alert.name}</p>
+                              <p className="mt-1 text-xs font-semibold text-[#5F5E5A]">{alert.detail}</p>
+                              <button type="button" onClick={openWhatsAppNudgePreview} className="mt-3 rounded-full bg-[#3C3489] px-3 py-1.5 text-[11px] font-black text-white">
+                                {alert.action}
+                              </button>
+                            </div>
+                          )) : (
+                            <p className="rounded-xl border border-dashed border-[#DAD7FB] bg-white p-4 text-sm font-semibold text-[#5F5E5A]">
+                              No missing updates found right now.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div id="manager-proof-required-section" className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-5">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#F59E0B]">Proof Required Tasks</p>
+                            <h4 className="mt-2 text-lg font-black text-[#2C2C2A]">{managerProofRequiredTasks.length || 0} proof checkpoints</h4>
+                          </div>
+                          <FileCheck2 className="h-6 w-6 text-[#F59E0B]" />
+                        </div>
+                        <div className="mt-4 space-y-3">
+                          {managerProofRequiredTasks.length ? managerProofRequiredTasks.map((task) => (
+                            <div key={`${task.title}-${task.owner}`} className="rounded-xl bg-white p-3 ring-1 ring-[#EEEDFE]">
+                              <p className="text-sm font-black text-[#2C2C2A]">{task.title}</p>
+                              <p className="mt-1 text-xs font-semibold text-[#5F5E5A]">{task.owner} · {task.proof}</p>
+                            </div>
+                          )) : (
+                            <p className="rounded-xl border border-dashed border-[#DAD7FB] bg-white p-4 text-sm font-semibold text-[#5F5E5A]">
+                              No proof-required tasks yet. Use templates to create one.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-5">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7F77DD]">Update Quality Score</p>
+                            <h4 className="mt-2 text-lg font-black text-[#2C2C2A]">NudgeAI coaching signals</h4>
+                          </div>
+                          <Sparkles className="h-6 w-6 text-[#7F77DD]" />
+                        </div>
+                        <div className="mt-4 grid gap-3">
+                          {managerQualityScoreCards.map(([label, value, helper]) => (
+                            <div key={label} className="rounded-xl bg-white p-3 ring-1 ring-[#EEEDFE]">
+                              <div className="flex items-center justify-between gap-3">
+                                <p className="text-xs font-black uppercase tracking-[0.12em] text-[#8A8894]">{label}</p>
+                                <span className="text-lg font-black text-[#3C3489]">{value}</span>
+                              </div>
+                              <p className="mt-1 text-xs font-semibold text-[#5F5E5A]">{helper}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 rounded-2xl border border-[#DAD7FB] bg-white p-5">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#3C3489]">Smart Task Templates</p>
+                          <h4 className="mt-2 text-lg font-black text-[#2C2C2A]">Create common manager tasks faster.</h4>
+                        </div>
+                        <button type="button" onClick={() => document.getElementById('manager-create-task')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} className="rounded-full bg-[#3C3489] px-4 py-2 text-xs font-black text-white">
+                          Create from template
+                        </button>
+                      </div>
+                      <div className="mt-4 grid gap-3 md:grid-cols-3">
+                        {managerSmartTaskTemplates.map(([title, copy]) => (
+                          <button
+                            key={title}
+                            type="button"
+                            onClick={() => applyManagerTaskTemplate(title)}
+                            className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4 text-left transition hover:border-[#7F77DD] hover:bg-white"
+                          >
+                            <p className="text-sm font-black text-[#2C2C2A]">{title}</p>
+                            <p className="mt-2 text-xs font-semibold leading-5 text-[#5F5E5A]">{copy}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </section>
                 ) : null}
 
                 {isPeopleDashboard ? (
@@ -9161,6 +11132,36 @@ const demoSidebarItems = dashboardRole === 'employee'
                       Sends reminders only to employees with a saved phone number and no update/check-in today.
                     </div>
                   </div>
+                ) : null}
+
+                {authRole === 'admin' ? (
+                  <section className="workspace-card rounded-2xl p-6">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#1D9E75]">Admin Setup Checklist</p>
+                        <h3 className="mt-2 text-2xl font-black text-[#2C2C2A]">Get the workspace launch-ready.</h3>
+                        <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-[#5F5E5A]">
+                          A simple setup guide for admins before inviting the full company or starting a paid rollout.
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-[#E8F7F1] px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#1D9E75]">
+                        {adminSetupChecklist.filter(([, done]) => done).length}/{adminSetupChecklist.length} done
+                      </span>
+                    </div>
+                    <div className="mt-6 grid gap-3 md:grid-cols-2">
+                      {adminSetupChecklist.map(([title, done, helper]) => (
+                        <div key={title} className="flex items-start gap-3 rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${done ? 'bg-[#E8F7F1] text-[#1D9E75]' : 'bg-[#EEEDFE] text-[#3C3489]'}`}>
+                            {done ? <Check className="h-5 w-5" /> : <Clock3 className="h-5 w-5" />}
+                          </span>
+                          <div>
+                            <p className="text-sm font-black text-[#2C2C2A]">{title}</p>
+                            <p className="mt-1 text-xs font-semibold leading-5 text-[#5F5E5A]">{helper}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
                 ) : null}
                 
                 {/* Role-specific command stats */}
@@ -9180,8 +11181,11 @@ const demoSidebarItems = dashboardRole === 'employee'
                 {authRole === 'manager' ? (
                   <div className="space-y-5">
                     {managerActiveBlockers.length > 0 ? (
-                      <section className="rounded-2xl border border-rose-100 border-l-[3px] border-l-[#EF4444] bg-[#FFF5F5] p-5 shadow-sm">
-                        <h3 className="text-lg font-black text-[#B91C1C]">🚨 Active Blockers — Needs Attention</h3>
+                      <section id="manager-live-blockers-section" className="rounded-2xl border border-rose-100 border-l-[3px] border-l-[#EF4444] bg-[#FFF5F5] p-5 shadow-sm">
+                        <div className="flex items-center gap-2 text-[#B91C1C]">
+                          <AlertCircle className="h-5 w-5" />
+                          <h3 className="text-lg font-black">Active Blockers — Needs Attention</h3>
+                        </div>
                         <div className="mt-4 space-y-3">
                           {managerActiveBlockers.map((blocker) => (
                             <div key={blocker.id} className="flex flex-col gap-3 rounded-2xl border border-rose-100 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -9196,7 +11200,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                                 </div>
                               </div>
                               <div className="flex gap-2">
-                                <button type="button" onClick={() => showToast('Blocker marked resolved for this manager view.', 'success')} className="rounded-full bg-[#1D9E75] px-4 py-2 text-xs font-extrabold text-white">
+                                <button type="button" onClick={() => updateTaskStatusApi(blocker.id, 'in_progress', null)} className="rounded-full bg-[#1D9E75] px-4 py-2 text-xs font-extrabold text-white">
                                   Resolve
                                 </button>
                                 <button type="button" onClick={() => window.location.href = `mailto:${blocker.assignee?.email || 'hello.nudgehq@gmail.com'}?subject=NudgeHQ blocker follow-up`} className="rounded-full border border-[#EF4444]/30 bg-white px-4 py-2 text-xs font-extrabold text-[#B91C1C]">
@@ -9216,8 +11220,8 @@ const demoSidebarItems = dashboardRole === 'employee'
                             <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#3C3489]">Team Progress</p>
                             <h3 className="mt-2 text-xl font-extrabold text-[#2C2C2A]">Only your department’s work.</h3>
                           </div>
-                          <button type="button" onClick={() => showToast('Opening all manager tasks soon.', 'info')} className="rounded-full border border-[#DAD7FB] px-4 py-2 text-xs font-extrabold text-[#3C3489]">
-                            View all tasks →
+                          <button type="button" onClick={() => document.getElementById('manager-create-task')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} className="rounded-full border border-[#DAD7FB] px-4 py-2 text-xs font-extrabold text-[#3C3489]">
+                            Assign task
                           </button>
                         </div>
                         <div className="mt-5 overflow-x-auto">
@@ -9232,7 +11236,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-[#EEEDFE]">
-                              {managerProgressRows.map(([name, task, progress, status, color, lastUpdate, updateTone]) => (
+                              {managerProgressRows.length ? managerProgressRows.map(([name, task, progress, status, color, lastUpdate, updateTone]) => (
                                 <tr key={`${name}-${task}`}>
                                   <td className="py-4 pr-4">
                                     <div className="flex items-center gap-3">
@@ -9258,7 +11262,17 @@ const demoSidebarItems = dashboardRole === 'employee'
                                   </td>
                                   <td className={`py-4 text-xs font-extrabold ${getManagerLastUpdateClass(updateTone)}`}>{lastUpdate}</td>
                                 </tr>
-                              ))}
+                              )) : (
+                                <tr>
+                                  <td colSpan={5} className="py-10 text-center">
+                                    <div className="mx-auto flex max-w-sm flex-col items-center rounded-2xl border border-dashed border-[#DAD7FB] bg-[#FCFCFF] p-6">
+                                      <ClipboardCheck className="h-8 w-8 text-[#7F77DD]" />
+                                      <p className="mt-3 text-sm font-black text-[#2C2C2A]">No team tasks yet</p>
+                                      <p className="mt-1 text-xs font-semibold leading-5 text-[#5F5E5A]">Assign the first task to start tracking your department.</p>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
                             </tbody>
                           </table>
                         </div>
@@ -9270,7 +11284,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                           <span className="rounded-full bg-[#EEEDFE] px-3 py-1 text-xs font-extrabold text-[#3C3489]">Live</span>
                         </div>
                         <div className="mt-5 space-y-3">
-                          {managerActivityRows.map(([action, task, time, Icon, color, preview]) => {
+                          {managerActivityRows.length ? managerActivityRows.map(([action, task, time, Icon, color, preview]) => {
                             const isCritical = color === '#EF4444';
                             const isExpanded = expandedManagerActivity === `${action}-${task}`;
                             return (
@@ -9295,9 +11309,15 @@ const demoSidebarItems = dashboardRole === 'employee'
                                 {isExpanded ? <p className="mt-3 rounded-xl bg-[#FCFCFF] p-3 text-xs font-semibold leading-5 text-[#5F5E5A]">{preview}</p> : null}
                               </button>
                             );
-                          })}
+                          }) : (
+                            <div className="rounded-2xl border border-dashed border-[#DAD7FB] bg-[#FCFCFF] p-6 text-center">
+                              <Activity className="mx-auto h-8 w-8 text-[#7F77DD]" />
+                              <p className="mt-3 text-sm font-black text-[#2C2C2A]">No activity yet</p>
+                              <p className="mt-1 text-xs font-semibold leading-5 text-[#5F5E5A]">Team updates and blockers will appear here in real time.</p>
+                            </div>
+                          )}
                         </div>
-                        <button type="button" onClick={() => window.history.pushState({}, '', '/manager/activity')} className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#DAD7FB] px-4 py-2 text-sm font-extrabold text-[#3C3489]">
+                        <button type="button" onClick={() => scrollToWorkspaceSection('manager-audit-feed-section')} className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#DAD7FB] px-4 py-2 text-sm font-extrabold text-[#3C3489]">
                           View all activity
                           <ArrowRight className="h-4 w-4" />
                         </button>
@@ -9394,7 +11414,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                 </div>
 
                 {/* NudgeAI Control Panel */}
-                <div className="workspace-card rounded-2xl p-7">
+                <div id="manager-nudgeai-desk-section" className="workspace-card rounded-2xl p-7">
                   <div className="flex items-center gap-2">
                     <Zap className="h-5 w-5 text-[#F59E0B]" />
                     <h3 className="text-lg font-bold text-[#2C2C2A]">NudgeAI Operations Desk</h3>
@@ -9561,7 +11581,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                 </div>
 
                 {/* Audit All Employee Updates feed */}
-                <div className="workspace-card rounded-2xl p-7">
+                <div id="manager-audit-feed-section" className="workspace-card rounded-2xl p-7">
                   <h3 className="text-lg font-bold text-[#2C2C2A]">Auditing Employee Update Feed</h3>
                   <div className="mt-5 divide-y divide-[#EEEDFE] max-h-96 overflow-y-auto pr-2">
                     {allUpdates.length === 0 ? (
@@ -9698,7 +11718,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                 </div>}
 
                 {/* Create & Assign Tasks */}
-                {isOpsDashboard && <div className="workspace-card rounded-2xl p-7">
+                {isOpsDashboard && <div id="manager-create-task" className="workspace-card rounded-2xl p-7">
                   <h3 className="text-base font-extrabold text-[#2C2C2A]">Create & Assign Tasks</h3>
                   {authRole === 'manager' ? (
                     <p className="mt-1 text-xs text-[#5F5E5A]">Manager mode: assignees are limited to your department.</p>
@@ -9798,7 +11818,7 @@ const demoSidebarItems = dashboardRole === 'employee'
         </section>
       )}
 
-      {['landing', 'signin', 'signup', 'privacy', 'terms', 'contact', 'dashboard'].includes(currentView) ? (
+      {['landing', 'signin', 'signup', 'blog', 'privacy', 'terms', 'contact', 'why_nudgehq', 'dashboard'].includes(currentView) ? (
         <NudgeAssistant
           context={currentView === 'dashboard' ? 'dashboard' : 'public'}
           role={authRole || 'visitor'}
@@ -9807,6 +11827,47 @@ const demoSidebarItems = dashboardRole === 'employee'
           onAsk={askNudgeAi}
         />
       ) : null}
+
+      <AnimatePresence>
+        {!cookieConsent && ['landing', 'blog', 'privacy', 'terms', 'contact', 'why_nudgehq'].includes(currentView) ? (
+          <motion.section
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-5 left-1/2 z-[120] w-[calc(100%-2rem)] max-w-3xl -translate-x-1/2 rounded-[1.35rem] border border-[#DAD7FB] bg-white/94 p-4 shadow-2xl shadow-[#3C3489]/14 backdrop-blur sm:p-5"
+          >
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EEEDFE] text-[#3C3489]">
+                  <ShieldCheck className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-sm font-black text-[#2C2C2A]">Cookie notice</p>
+                  <p className="mt-1 text-xs font-semibold leading-5 text-[#5F5E5A]">
+                    We use essential cookies for login/session and may use lightweight analytics to improve NudgeHQ. No selling personal data.
+                  </p>
+                </div>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <button
+                  type="button"
+                  onClick={() => acceptCookieConsent('essential')}
+                  className="rounded-full border border-[#DAD7FB] px-4 py-2 text-xs font-black text-[#3C3489] transition hover:bg-[#EEEDFE]"
+                >
+                  Essential only
+                </button>
+                <button
+                  type="button"
+                  onClick={() => acceptCookieConsent('accepted')}
+                  className="rounded-full bg-[#3C3489] px-4 py-2 text-xs font-black text-white transition hover:bg-[#7F77DD]"
+                >
+                  Accept
+                </button>
+              </div>
+            </div>
+          </motion.section>
+        ) : null}
+      </AnimatePresence>
     </main>
   )
 }

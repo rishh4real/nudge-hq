@@ -35,23 +35,34 @@ export const generateBoardPack = async (req, res) => {
     const year = Number(req.body?.year) || now.getFullYear();
     const start = new Date(year, month - 1, 1);
     const end = new Date(year, month, 0, 23, 59, 59);
+    const orgId = req.user.organization_id || req.user.company_id;
+    const scopedDepartmentId = req.user.role === 'manager' ? req.user.department_id : null;
 
     const [usersRes, tasksRes, blockersRes, departmentsRes, checkinsRes] = await Promise.all([
-      supabase.from('users').select('id, name, role, department_id, departments(name)'),
-      supabase.from('tasks').select('id, title, status, assignee_id, created_at').gte('created_at', start.toISOString()).lte('created_at', end.toISOString()),
-      supabase.from('blocker_logs').select('id, blocker_text, resolved, created_at, resolved_at, reporter:users(departments(name))').gte('created_at', start.toISOString()).lte('created_at', end.toISOString()),
-      supabase.from('departments').select('id, name'),
-      supabase.from('daily_checkins').select('energy_level, date').gte('date', start.toISOString().slice(0, 10)).lte('date', end.toISOString().slice(0, 10))
+      supabase.from('users').select('id, name, role, department_id, organization_id, departments(name)').eq('organization_id', orgId),
+      supabase.from('tasks').select('id, title, status, assignee_id, created_at, organization_id').eq('organization_id', orgId).gte('created_at', start.toISOString()).lte('created_at', end.toISOString()),
+      supabase.from('blocker_logs').select('id, task_id, blocker_text, resolved, created_at, resolved_at, reporter:users(id, department_id, organization_id, departments(name))').gte('created_at', start.toISOString()).lte('created_at', end.toISOString()),
+      supabase.from('departments').select('id, name, organization_id').eq('organization_id', orgId),
+      supabase.from('daily_checkins').select('energy_level, date, user:users(id, department_id, organization_id)').gte('date', start.toISOString().slice(0, 10)).lte('date', end.toISOString().slice(0, 10))
     ]);
 
     if (usersRes.error) throw usersRes.error;
     if (tasksRes.error) throw tasksRes.error;
     if (blockersRes.error) throw blockersRes.error;
 
-    const users = usersRes.data || [];
-    const tasks = tasksRes.data || [];
-    const blockers = blockersRes.data || [];
-    const departments = departmentsRes.data || [];
+    const allUsers = usersRes.data || [];
+    const scopedUserIds = new Set(
+      allUsers
+        .filter((user) => !scopedDepartmentId || user.department_id === scopedDepartmentId)
+        .map((user) => user.id)
+    );
+    const users = allUsers.filter((user) => scopedUserIds.has(user.id));
+    const tasks = (tasksRes.data || []).filter((task) => !scopedDepartmentId || scopedUserIds.has(task.assignee_id));
+    const blockers = (blockersRes.data || []).filter((blocker) => (
+      blocker.reporter?.organization_id === orgId &&
+      (!scopedDepartmentId || blocker.reporter?.department_id === scopedDepartmentId || tasks.some((task) => task.id === blocker.task_id))
+    ));
+    const departments = (departmentsRes.data || []).filter((department) => !scopedDepartmentId || department.id === scopedDepartmentId);
     const completed = tasks.filter((task) => task.status === 'completed').length;
     const completionRate = tasks.length ? Math.round((completed / tasks.length) * 100) : 0;
 
@@ -100,7 +111,12 @@ export const generateBoardPack = async (req, res) => {
       department_performance: departmentPerformance,
       team_health: {
         blocker_count: blockers.length,
-        energy_patterns: checkinsRes.error ? [] : checkinsRes.data,
+        energy_patterns: checkinsRes.error
+          ? []
+          : (checkinsRes.data || []).filter((checkin) => (
+              checkin.user?.organization_id === orgId &&
+              (!scopedDepartmentId || checkin.user?.department_id === scopedDepartmentId)
+            )),
         burnout_risk_summary: 'Use NudgeAI Burnout Predictor for detailed private HR care signals.'
       },
       ai_highlights: {

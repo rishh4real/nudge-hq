@@ -15,8 +15,8 @@ router.post('/whatsapp/reply', handleWhatsAppReply);
 
 router.use(authenticate);
 
-router.get('/whatsapp/preview', authorize('admin', 'hr'), previewWhatsAppNudges);
-router.post('/whatsapp', authorize('admin', 'hr'), sendWhatsAppNudgesForRequest);
+router.get('/whatsapp/preview', authorize('admin', 'hr', 'manager'), previewWhatsAppNudges);
+router.post('/whatsapp', authorize('admin', 'hr', 'manager'), sendWhatsAppNudgesForRequest);
 router.post('/whatsapp/deadlines', authorize('admin', 'hr', 'manager'), sendDeadlineWhatsAppRemindersForRequest);
 router.post('/whatsapp/weekly-wins', authorize('admin', 'hr'), sendWeeklyWhatsAppWinsForRequest);
 router.post('/whatsapp/weekly-report', authorize('admin', 'hr', 'manager'), sendWeeklyWhatsAppManagerReportsForRequest);

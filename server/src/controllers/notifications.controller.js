@@ -86,7 +86,7 @@ const getLastSubmissionLabel = async (employeeId) => {
   return `Last seen ${diffDays} days ago`;
 };
 
-const getEmployeesForPreview = async (organizationId = null) => {
+const getEmployeesForPreview = async (organizationId = null, departmentId = null) => {
   let query = supabase
     .from('users')
     .select('id, name, email, phone_number, organization_id, last_whatsapp_nudge, whatsapp_nudge_sent_at')
@@ -95,6 +95,7 @@ const getEmployeesForPreview = async (organizationId = null) => {
     .order('name', { ascending: true });
 
   if (organizationId) query = query.eq('organization_id', organizationId);
+  if (departmentId) query = query.eq('department_id', departmentId);
 
   const { data: employees, error } = await query;
   if (error) throw error;
@@ -298,8 +299,8 @@ const buildWeeklyReport = async ({ organizationId, departmentId = null }) => {
   };
 };
 
-export const sendPendingWhatsAppNudges = async ({ organizationId = null, employeeIds = null, triggeredBy = null } = {}) => {
-  const employees = await getEmployeesForPreview(organizationId);
+export const sendPendingWhatsAppNudges = async ({ organizationId = null, departmentId = null, employeeIds = null, triggeredBy = null } = {}) => {
+  const employees = await getEmployeesForPreview(organizationId, departmentId);
   const selectedIds = employeeIds?.length ? new Set(employeeIds) : null;
   const targets = employees.filter((employee) => (
     !employee.submitted_today &&
@@ -393,7 +394,8 @@ export const sendDeadlineWhatsAppReminders = async ({ organizationId = null, dep
 export const previewWhatsAppNudges = async (req, res) => {
   try {
     const organizationId = req.user.organization_id || req.user.company_id;
-    const employees = await getEmployeesForPreview(organizationId);
+    const departmentId = req.user.role === 'manager' ? req.user.department_id : null;
+    const employees = await getEmployeesForPreview(organizationId, departmentId);
     return res.status(200).json({ success: true, employees });
   } catch (error) {
     console.error('WhatsApp preview error:', error);
@@ -404,8 +406,9 @@ export const previewWhatsAppNudges = async (req, res) => {
 export const sendWhatsAppNudgesForRequest = async (req, res) => {
   try {
     const organizationId = req.user.organization_id || req.user.company_id;
+    const departmentId = req.user.role === 'manager' ? req.user.department_id : null;
     const employeeIds = Array.isArray(req.body?.employee_ids) ? req.body.employee_ids : null;
-    const result = await sendPendingWhatsAppNudges({ organizationId, employeeIds, triggeredBy: req.user.id });
+    const result = await sendPendingWhatsAppNudges({ organizationId, departmentId, employeeIds, triggeredBy: req.user.id });
 
     return res.status(200).json({
       success: true,
