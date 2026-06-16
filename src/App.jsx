@@ -3047,37 +3047,125 @@ function App() {
     showToast('90-day growth PDF downloaded.', 'success');
   };
 
-  const chooseStarterPlan = () => {
-    if (!token) {
-      showToast('Please verify your email and log in before activating Starter.', 'info');
-      setCurrentView('signin');
-      return;
-    }
-    setSelectedPlan('starter');
-    window.localStorage.setItem('nudgehq_selected_plan', 'starter');
-    setCurrentView('payment');
-  }
-
-  const activateStarterPlan = async () => {
+  const activateFreeTrial = async () => {
     setPaymentLoading(true);
     try {
-      await fetchApi('/payment/create-order', { method: 'POST', body: JSON.stringify({ plan: 'starter' }) }, token);
-      const { data } = await fetchApi('/payment/verify', {
-        method: 'POST',
-        body: JSON.stringify({
-          razorpay_order_id: `order_test_${Date.now()}`,
-          razorpay_payment_id: `pay_test_${Date.now()}`,
-          razorpay_signature: 'test_signature'
-        })
-      }, token);
-      showToast(data.message || 'Starter plan activated.', 'success');
+      const { data } = await fetchApi('/payment/activate-trial', { method: 'POST' }, token);
+      showToast(data.message || '14-Day Free Trial activated.', 'success');
       setCurrentView('onboarding');
     } catch (error) {
-      showToast(error.message || 'Payment could not be completed.', 'error');
+      showToast(error.message || 'Free trial could not be activated.', 'error');
     } finally {
       setPaymentLoading(false);
     }
   }
+
+  const choosePlan = (planKey) => {
+    if (!token) {
+      showToast('Please verify your email and log in before selecting a plan.', 'info');
+      setCurrentView('signin');
+      return;
+    }
+    if (planKey === 'free_trial') {
+      activateFreeTrial();
+      return;
+    }
+    setSelectedPlan(planKey);
+    window.localStorage.setItem('nudgehq_selected_plan', planKey);
+    setCurrentView('payment');
+  }
+
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const activateStarterPlan = async () => {
+    setPaymentLoading(true);
+    try {
+      const isScriptLoaded = await loadRazorpayScript();
+      if (!isScriptLoaded) {
+        showToast('Razorpay SDK failed to load. Are you online?', 'error');
+        setPaymentLoading(false);
+        return;
+      }
+
+      const currentPlan = selectedPlan || 'starter';
+      const { data: orderData } = await fetchApi('/payment/create-order', { method: 'POST', body: JSON.stringify({ plan: currentPlan }) }, token);
+      
+      if (orderData.order && orderData.order.test_mode) {
+        // If in backend test mode (no keys configured), bypass the modal and do a test verification
+        const { data } = await fetchApi('/payment/verify', {
+          method: 'POST',
+          body: JSON.stringify({
+            razorpay_order_id: orderData.order.id,
+            razorpay_payment_id: `pay_test_${Date.now()}`,
+            razorpay_signature: 'test_signature',
+            plan: currentPlan
+          })
+        }, token);
+        showToast(data.message || 'Plan activated (Test Mode).', 'success');
+        setCurrentView('onboarding');
+      } else {
+        const options = {
+          key: orderData.key_id,
+          amount: orderData.order.amount,
+          currency: orderData.order.currency,
+          name: 'NudgeHQ',
+          description: currentPlan === 'free_trial' ? '14-Day Free Trial Verification' : 'Starter Plan Subscription',
+          order_id: orderData.order.id,
+          handler: async function (response) {
+            setPaymentLoading(true);
+            try {
+              const { data } = await fetchApi('/payment/verify', {
+                method: 'POST',
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                  plan: currentPlan
+                })
+              }, token);
+              showToast(data.message || 'Plan activated.', 'success');
+              setCurrentView('onboarding');
+            } catch (verifyErr) {
+              showToast(verifyErr.message || 'Payment verification failed.', 'error');
+            } finally {
+              setPaymentLoading(false);
+            }
+          },
+          prefill: {
+            name: user?.name || '',
+            email: user?.email || '',
+          },
+          theme: {
+            color: '#3C3489'
+          },
+          modal: {
+            ondismiss: function () {
+              setPaymentLoading(false);
+            }
+          }
+        };
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+      }
+    } catch (error) {
+      showToast(error.message || 'Payment could not be completed.', 'error');
+      setPaymentLoading(false);
+    }
+  }
+
+
 
   const parseEmployeeCsv = (file) => {
     const reader = new FileReader();
@@ -4348,7 +4436,16 @@ const demoSidebarItems = dashboardRole === 'employee'
                   <LogOut className="h-4 w-4" />
                   Exit Demo
                 </button>
-              ) : null}
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-rose-50 border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-100"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </button>
+              )}
             </div>
           )}
         </nav>
@@ -4964,35 +5061,36 @@ const demoSidebarItems = dashboardRole === 'employee'
             <SectionHeader
               eyebrow="Choose plan"
               title="Start with the plan that matches your team."
-              copy="INR pricing for Indian teams, USD pricing for global teams. New companies get the real Starter plan free for 14 days before any payment is needed."
+              copy="INR pricing for Indian teams, USD pricing for global teams. Get started with our 14-day free trial."
             />
-            <div className="mt-12 grid gap-5 lg:grid-cols-4">
+            <div className="mt-12 grid gap-5 lg:grid-cols-5">
               {[
-                ['Starter', '₹2,000/month', '$9/month', ['Up to 20 employees', 'Daily check-ins', 'NudgeAI basic', 'Email support'], 'Choose Starter'],
-                ['Growth', '₹4,500/month', '$25/month', ['Up to 50 employees', 'WhatsApp nudges', 'NudgeAI summaries', 'Priority support'], 'Contact Us'],
-                ['Business', '₹8,500/month', '$49/month', ['Up to 100 employees', 'Advanced dashboards', 'Board-ready reports', 'Priority onboarding'], 'Contact Us'],
-                ['Enterprise', 'Custom', 'Custom', ['Custom employee limit from 5+', 'Custom integrations', 'Dedicated manager', 'SLA options'], 'Contact Us']
+                ['Free Trial', '₹0', '$0', ['14-day trial', 'Up to 5 employees', 'Daily check-ins', 'NudgeAI basic'], 'Start Free Trial', 'free_trial'],
+                ['Starter', '₹2,000/month', '$9/month', ['Up to 20 employees', 'Daily check-ins', 'NudgeAI basic', 'Email support'], 'Choose Starter', 'starter'],
+                ['Growth', '₹4,500/month', '$25/month', ['Up to 50 employees', 'WhatsApp nudges', 'NudgeAI summaries', 'Priority support'], 'Contact Us', 'growth'],
+                ['Business', '₹8,500/month', '$49/month', ['Up to 100 employees', 'Advanced dashboards', 'Board-ready reports', 'Priority onboarding'], 'Contact Us', 'business'],
+                ['Enterprise', 'Custom', 'Custom', ['Custom employee limit from 5+', 'Custom integrations', 'Dedicated manager', 'SLA options'], 'Contact Us', 'enterprise']
               ].map((plan, index) => (
-                <motion.article key={plan[0]} {...cardMotion} className={`rounded-2xl border p-7 shadow-xl ${index === 0 ? 'border-[#7F77DD] bg-[#3C3489] text-white shadow-[#3C3489]/20' : 'border-[#DAD7FB] bg-white text-[#2C2C2A] shadow-[#3C3489]/5'}`}>
+                <motion.article key={plan[0]} {...cardMotion} className={`rounded-2xl border p-7 shadow-xl ${index === 1 ? 'border-[#7F77DD] bg-[#3C3489] text-white shadow-[#3C3489]/20' : 'border-[#DAD7FB] bg-white text-[#2C2C2A] shadow-[#3C3489]/5'}`}>
                   <h2 className="text-2xl font-extrabold">{plan[0]}</h2>
-                  <p className={`mt-3 text-3xl font-extrabold ${index === 0 ? 'text-white' : 'text-[#3C3489]'}`}>{plan[1]}</p>
-                  <p className={`mt-1 text-sm font-bold ${index === 0 ? 'text-white/72' : 'text-[#5F5E5A]'}`}>Global: {plan[2]}</p>
+                  <p className={`mt-3 text-3xl font-extrabold ${index === 1 ? 'text-white' : 'text-[#3C3489]'}`}>{plan[1]}</p>
+                  <p className={`mt-1 text-sm font-bold ${index === 1 ? 'text-white/72' : 'text-[#5F5E5A]'}`}>Global: {plan[2]}</p>
                   <ul className="mt-7 space-y-3">
                     {plan[3].map((feature) => (
-                      <li key={feature} className={`flex gap-3 text-sm font-semibold ${index === 0 ? 'text-white/85' : 'text-[#5F5E5A]'}`}>
-                        <Check className={`h-5 w-5 shrink-0 ${index === 0 ? 'text-[#8DE4C3]' : 'text-[#1D9E75]'}`} />
+                      <li key={feature} className={`flex gap-3 text-sm font-semibold ${index === 1 ? 'text-white/85' : 'text-[#5F5E5A]'}`}>
+                        <Check className={`h-5 w-5 shrink-0 ${index === 1 ? 'text-[#8DE4C3]' : 'text-[#1D9E75]'}`} />
                         {feature}
                       </li>
                     ))}
                   </ul>
-                  {index === 0 ? (
-                    <button type="button" onClick={chooseStarterPlan} className="mt-9 w-full rounded-md bg-white px-5 py-3 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]">
-                      Choose Starter
-                    </button>
-                  ) : (
+                  {plan[4] === 'Contact Us' ? (
                     <a href="mailto:hello.nudgehq@gmail.com" className="mt-9 inline-flex w-full justify-center rounded-md bg-[#EEEDFE] px-5 py-3 text-sm font-extrabold text-[#3C3489] transition hover:bg-[#7F77DD] hover:text-white">
                       Contact Us
                     </a>
+                  ) : (
+                    <button type="button" onClick={() => choosePlan(plan[5])} className={`mt-9 w-full rounded-md px-5 py-3 text-sm font-extrabold transition ${index === 1 ? 'bg-white text-[#3C3489] hover:bg-[#EEEDFE]' : 'bg-[#7F77DD] text-white hover:bg-[#3C3489]'}`}>
+                      {plan[4]}
+                    </button>
                   )}
                 </motion.article>
               ))}
@@ -5016,16 +5114,21 @@ const demoSidebarItems = dashboardRole === 'employee'
               <div className="relative">
                 <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-extrabold uppercase tracking-[0.16em] text-white/90">
                   <Sparkles className="h-4 w-4 text-[#BFEFDF]" aria-hidden="true" />
-                  Trial ready
+                  {selectedPlan === 'free_trial' ? 'Trial Verification' : 'Premium Workspace'}
                 </span>
                 <h1 className="mt-8 text-4xl font-extrabold leading-tight sm:text-5xl">
-                  Start your real Starter workspace free for 14 days.
+                  {selectedPlan === 'free_trial' ? 'Start your real 14-Day Free Trial.' : 'Start your Premium Starter workspace.'}
                 </h1>
                 <p className="mt-5 max-w-md text-sm font-semibold leading-7 text-white/75">
-                  This is the actual company workspace, not the demo. Invite up to 20 employees and use the full Starter workflow before adding INR or USD billing.
+                  {selectedPlan === 'free_trial'
+                    ? 'Invite up to 5 employees, use daily check-ins and NudgeAI. We charge a refundable ₹1 / $1 verification fee to verify your payment method.'
+                    : 'Invite up to 20 employees and use the full Starter workflow, check-ins, tasks, and email support.'}
                 </p>
                 <div className="mt-10 grid gap-3 text-sm font-bold">
-                  {['No payment needed today', 'Full Starter pack unlocked', 'Demo stays preview-only'].map((item) => (
+                  {(selectedPlan === 'free_trial'
+                    ? ['Refundable verification fee', 'Full Trial pack unlocked', 'Demo stays preview-only']
+                    : ['Full Starter pack unlocked', 'Flat monthly billing', 'Demo stays preview-only']
+                  ).map((item) => (
                     <div key={item} className="flex items-center gap-3 rounded-2xl border border-white/12 bg-white/10 px-4 py-3">
                       <CheckCircle2 className="h-5 w-5 text-[#8DE4C3]" aria-hidden="true" />
                       {item}
@@ -5036,28 +5139,30 @@ const demoSidebarItems = dashboardRole === 'employee'
             </div>
 
             <div className="p-8 sm:p-10">
-              <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#1D9E75]">Continue free</p>
+              <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#1D9E75]">{selectedPlan === 'free_trial' ? 'Verification Payment' : 'Activate Plan'}</p>
               <h2 className="mt-3 text-3xl font-extrabold text-[#2C2C2A]">
-                {selectedPlan === 'starter' ? 'Starter Plan' : 'Starter Plan'}
+                {selectedPlan === 'free_trial' ? '14-Day Free Trial' : 'Starter Plan'}
               </h2>
               <p className="mt-3 text-sm font-semibold leading-6 text-[#5F5E5A]">
-                You are activating the real Starter plan. The first 14 days are free, and billing starts only if you continue after the trial.
+                {selectedPlan === 'free_trial'
+                  ? 'Verify your payment method to begin your 14-day trial. You will be charged ₹1 today.'
+                  : 'Start your Starter subscription today. Billing begins immediately.'}
               </p>
               <div className="mt-8 rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-5">
                 <div className="flex items-center justify-between border-b border-[#EEEDFE] pb-4">
-                  <span className="font-bold text-[#2C2C2A]">Starter Plan</span>
+                  <span className="font-bold text-[#2C2C2A]">{selectedPlan === 'free_trial' ? '14-Day Trial' : 'Starter Plan'}</span>
                   <span className="text-right">
-                    <span className="block font-extrabold text-[#3C3489]">₹2,000/month</span>
-                    <span className="block text-xs font-bold text-[#8A8894]">Global: $9/month</span>
+                    <span className="block font-extrabold text-[#3C3489]">{selectedPlan === 'free_trial' ? '₹1' : '₹2,000/month'}</span>
+                    <span className="block text-xs font-bold text-[#8A8894]">Global: {selectedPlan === 'free_trial' ? '$1' : '$9/month'}</span>
                   </span>
                 </div>
                 <div className="flex items-center justify-between border-b border-[#EEEDFE] py-4 text-sm font-bold text-[#1D9E75]">
-                  <span>First 14 days</span>
-                  <span>Free</span>
+                  <span>Verification method</span>
+                  <span>Razorpay</span>
                 </div>
                 <div className="flex items-center justify-between pt-4 text-sm font-bold text-[#5F5E5A]">
                   <span>Due today</span>
-                  <span className="text-[#2C2C2A]">₹0 / $0</span>
+                  <span className="text-[#2C2C2A]">{selectedPlan === 'free_trial' ? '₹1 / $1' : '₹2,000 / $9'}</span>
                 </div>
               </div>
               <button
@@ -5067,10 +5172,10 @@ const demoSidebarItems = dashboardRole === 'employee'
                 className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#7F77DD] px-5 py-4 text-sm font-extrabold text-white shadow-xl shadow-[#7F77DD]/20 transition hover:-translate-y-0.5 hover:bg-[#3C3489] disabled:translate-y-0 disabled:opacity-50"
               >
                 {paymentLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                {paymentLoading ? 'Starting your trial...' : 'Start Starter trial free'}
+                {paymentLoading ? 'Verifying...' : (selectedPlan === 'free_trial' ? 'Pay ₹1 & Start Trial' : 'Pay & Activate Starter')}
               </button>
               <p className="mt-4 text-center text-xs font-semibold text-[#7A7974]">
-                No card needed today. Demo access is separate and only for viewing the dashboards.
+                Secured by Razorpay. Cancel anytime. Demo access remains separate.
               </p>
             </div>
           </div>
@@ -7734,7 +7839,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                   >
                     Exit
                   </button>
-                ) : isLiveManagerWorkspace ? (
+                ) : token ? (
                   <button
                     type="button"
                     onClick={handleLogout}
@@ -7789,7 +7894,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                     <LogOut className="h-4 w-4" />
                     Exit demo
                   </button>
-                ) : isLiveManagerWorkspace ? (
+                ) : token ? (
                   <button
                     type="button"
                     onClick={handleLogout}
@@ -10029,6 +10134,26 @@ const demoSidebarItems = dashboardRole === 'employee'
           }}
         >
           <div className="soft-grid absolute inset-x-0 top-0 -z-10 h-[34rem] opacity-45" />
+
+          {/* Top Header Navigation */}
+          <div className="mb-8 flex items-center justify-between border-b border-[#EEEDFE]/80 pb-5">
+            <div className="flex items-center gap-3">
+              <img src="/brand/nudgehq-icon.svg" alt="" className="h-10 w-10 rounded-xl shadow-md" />
+              <div>
+                <span className="text-base font-extrabold tracking-tight text-[#1C1739]">NudgeHQ</span>
+                <span className="ml-2.5 rounded bg-[#FCFCFF] border border-[#EEEDFE] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#3C3489]">Live Workspace</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-xs font-bold text-rose-600 transition hover:bg-rose-50 hover:shadow-sm"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Logout
+            </button>
+          </div>
+
           {authRole === 'admin' && user?.organizations?.plan === 'free_trial' ? (
             <div className="mb-6 flex flex-col gap-3 rounded-xl border border-[#FDE68A] bg-[#FFFBEB] px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm font-extrabold text-[#92400E]">

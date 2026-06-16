@@ -15,7 +15,9 @@ const razorpay = new Razorpay({
 
 export const createOrder = async (req, res) => {
   try {
-    const amount = 2000 * 100;
+    const { plan } = req.body;
+    const isTrial = plan === 'free_trial';
+    const amount = isTrial ? 1 * 100 : 2000 * 100;
     let order = null;
 
     if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
@@ -24,7 +26,7 @@ export const createOrder = async (req, res) => {
         currency: 'INR',
         receipt: `nudgehq_${Date.now()}`,
         notes: {
-          plan: 'starter',
+          plan: isTrial ? 'free_trial' : 'starter',
           user_id: req.user.id,
           organization_id: req.user.organization_id
         }
@@ -52,7 +54,7 @@ export const createOrder = async (req, res) => {
 
 export const verifyPayment = async (req, res) => {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, plan } = req.body;
 
     if (process.env.RAZORPAY_KEY_SECRET && razorpay_signature) {
       const expected = crypto
@@ -65,20 +67,44 @@ export const verifyPayment = async (req, res) => {
       }
     }
 
+    const isTrial = plan === 'free_trial';
+    const activatedPlan = isTrial ? 'free_trial' : 'starter';
+    const durationDays = isTrial ? 14 : 30;
+
     const { error } = await supabase
       .from('organizations')
-      .update({ plan: 'starter', plan_expires_at: addDays(30) })
+      .update({ plan: activatedPlan, plan_expires_at: addDays(durationDays), trial_ends_at: isTrial ? addDays(durationDays) : null })
       .eq('id', req.user.organization_id);
 
     if (error) throw error;
 
     return res.status(200).json({
       success: true,
-      message: 'Starter plan activated.',
+      message: isTrial ? '14-Day Free Trial activated.' : 'Starter plan activated.',
       redirect_to: '/onboarding'
     });
   } catch (error) {
     console.error('Verify Razorpay payment error:', error);
     return res.status(500).json({ success: false, message: 'Failed to verify payment.', error: error.message });
+  }
+};
+
+export const activateTrial = async (req, res) => {
+  try {
+    const { error } = await supabase
+      .from('organizations')
+      .update({ plan: 'free_trial', plan_expires_at: addDays(14), trial_ends_at: addDays(14) })
+      .eq('id', req.user.organization_id);
+
+    if (error) throw error;
+
+    return res.status(200).json({
+      success: true,
+      message: '14-Day Free Trial activated successfully.',
+      redirect_to: '/onboarding'
+    });
+  } catch (error) {
+    console.error('Activate trial error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to activate free trial.', error: error.message });
   }
 };
