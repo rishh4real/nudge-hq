@@ -1412,6 +1412,14 @@ function App() {
   const [feedbackCategory, setFeedbackCategory] = useState('Product feedback')
   const [integrationRequestTitle, setIntegrationRequestTitle] = useState('')
   const [integrationRequestDetails, setIntegrationRequestDetails] = useState('')
+  const [integrationRequests, setIntegrationRequests] = useState(() => {
+    try {
+      const savedRequests = JSON.parse(window.localStorage.getItem('nudgehq_integration_requests') || '[]')
+      return Array.isArray(savedRequests) ? savedRequests : []
+    } catch {
+      return []
+    }
+  })
   const [feedbackComments, setFeedbackComments] = useState(() => {
     try {
       const savedComments = JSON.parse(window.localStorage.getItem('nudgehq_early_feedback_comments') || '[]')
@@ -1463,6 +1471,10 @@ function App() {
   useEffect(() => {
     window.localStorage.setItem('nudgehq_early_feedback_comments', JSON.stringify(feedbackComments.slice(0, 8)))
   }, [feedbackComments])
+
+  useEffect(() => {
+    window.localStorage.setItem('nudgehq_integration_requests', JSON.stringify(integrationRequests.slice(0, 10)))
+  }, [integrationRequests])
 
   useEffect(() => {
     window.localStorage.setItem('nudgehq_manager_projects', JSON.stringify(managerProjects))
@@ -1965,6 +1977,14 @@ function App() {
   };
 
   const getActiveNudgeSpace = () => demoNudgeSpaceView === 'U Space' ? 'u_space' : 'social';
+  const getDefaultNudgeSpacePostType = (view = demoNudgeSpaceView) => view === 'U Space' ? 'goal' : 'status';
+
+  const handleNudgeSpaceViewChange = (view) => {
+    setDemoNudgeSpaceView(view);
+    setNudgeSpacePostType(getDefaultNudgeSpacePostType(view));
+    setNudgeSpaceDraft('');
+    if (!isSandbox) loadNudgeSpacePosts(view === 'U Space' ? 'u_space' : 'social');
+  };
 
   const loadNudgeSpacePosts = async (space = getActiveNudgeSpace()) => {
     if (isSandbox || !token) return;
@@ -1994,12 +2014,15 @@ function App() {
 
     setNudgeSpaceSaving(true);
     const space = getActiveNudgeSpace();
+    const safePostType = space === 'u_space'
+      ? (['goal', 'reminder', 'focus'].includes(nudgeSpacePostType) ? nudgeSpacePostType : 'goal')
+      : (['status', 'win', 'question', 'idea', 'announcement'].includes(nudgeSpacePostType) ? nudgeSpacePostType : 'status');
     try {
       const { data } = await fetchApi('/nudgespace/posts', {
         method: 'POST',
         body: JSON.stringify({
           space,
-          post_type: space === 'u_space' ? 'goal' : nudgeSpacePostType,
+          post_type: safePostType,
           content,
         }),
       }, token);
@@ -2266,16 +2289,17 @@ function App() {
       return;
     }
 
-    setFeedbackComments((comments) => [
+    setIntegrationRequests((requests) => [
       {
         id: Date.now(),
-        name: feedbackCommentName.trim() || user?.name || 'Workspace user',
-        category: 'Integration request',
-        comment: `${cleanTitle}: ${cleanDetails}`,
-        time: 'Just now'
+        title: cleanTitle,
+        details: cleanDetails,
+        requester: user?.name || user?.email || 'Workspace user',
+        status: 'Requested',
+        time: new Date().toISOString()
       },
-      ...comments
-    ].slice(0, 8));
+      ...requests
+    ].slice(0, 10));
     setIntegrationRequestTitle('');
     setIntegrationRequestDetails('');
     showToast('Integration request saved for review.', 'success');
@@ -3642,6 +3666,7 @@ const demoDisplayFirstName = demoDisplayName.split(' ').filter(Boolean)[0] || 't
 const demoEmployeeCanNavigate = dashboardRole === 'employee';
 const isLiveManagerWorkspace = !isSandbox && dashboardRole === 'manager';
 const isLiveAdminOrHrWorkspace = !isSandbox && ['admin', 'hr'].includes(dashboardRole);
+const shouldRenderLegacyDashboard = Boolean(window.__NUDGEHQ_ENABLE_LEGACY_DASHBOARD__) && currentView === 'dashboard' && !isSandbox && !isEmployeeDashboard && !isLiveManagerWorkspace && !isLiveAdminOrHrWorkspace;
 const demoDashboardCanNavigate = isSandbox || dashboardRole === 'employee' || isLiveManagerWorkspace || isLiveAdminOrHrWorkspace;
 const allowedDashboardSections = DASHBOARD_SECTIONS_BY_ROLE[dashboardRole] || DASHBOARD_SECTIONS_BY_ROLE.employee;
 const selectedDemoSection = demoDashboardCanNavigate
@@ -3666,13 +3691,6 @@ const openDemoAiHelper = () => {
     ? demoProfileEmail
     : user?.email || 'Registered email unavailable';
   const demoInitials = demoDisplayName.split(' ').filter(Boolean).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'K';
-
-  useEffect(() => {
-    if (currentView !== 'dashboard') return;
-    if (!allowedDashboardSections.includes(demoEmployeeSection)) {
-      setDemoEmployeeSection(dashboardRole === 'employee' ? 'My Dashboard' : 'Dashboard');
-    }
-  }, [allowedDashboardSections, currentView, dashboardRole, demoEmployeeSection]);
 
   const leaderDemoSidebarItems = [
     ['Dashboard', LayoutDashboard],
@@ -3800,23 +3818,23 @@ const demoSidebarItems = dashboardRole === 'employee'
   };
   const demoStatCards = dashboardRole === 'employee'
     ? [
-        ['Total Tasks', leaderTaskCount || 6, ListTodo, '#7F77DD', '▲ 12% vs yesterday', 'up'],
-        ['Completed Today', leaderCompletedTasks || 3, CheckCircle2, '#1D9E75', '▲ 18% vs yesterday', 'up'],
-        ['In Progress', Math.max(leaderOpenTasks - leaderBlockedTasks, 2), Clock3, '#F59E0B', '— No change', 'flat'],
-        ['Blocked', leaderBlockedTasks || 1, AlertCircle, '#EF4444', leaderBlockedTasks ? '▼ needs attention' : '— Clear', leaderBlockedTasks ? 'down' : 'flat'],
+        ['Total Tasks', isSandbox ? (leaderTaskCount || 6) : leaderTaskCount, ListTodo, '#7F77DD', isSandbox ? '▲ 12% vs yesterday' : 'Synced from assigned tasks', isSandbox ? 'up' : 'flat'],
+        ['Completed Today', isSandbox ? (leaderCompletedTasks || 3) : leaderCompletedTasks, CheckCircle2, '#1D9E75', isSandbox ? '▲ 18% vs yesterday' : 'Completed live tasks', isSandbox ? 'up' : 'flat'],
+        ['In Progress', isSandbox ? Math.max(leaderOpenTasks - leaderBlockedTasks, 2) : Math.max(leaderOpenTasks - leaderBlockedTasks, 0), Clock3, '#F59E0B', '— No change', 'flat'],
+        ['Blocked', isSandbox ? (leaderBlockedTasks || 1) : leaderBlockedTasks, AlertCircle, '#EF4444', leaderBlockedTasks ? '▼ needs attention' : '— Clear', leaderBlockedTasks ? 'down' : 'flat'],
       ]
     : dashboardRole === 'manager'
       ? [
-          ['Team Tasks', leaderTaskCount || 15, ListTodo, '#7F77DD', '▲ 12% vs yesterday', 'up'],
-          ['Completion Rate', `${leaderCompletionRate || 67}%`, CheckCircle2, '#1D9E75', '▲ 8% vs yesterday', 'up'],
+          ['Team Tasks', isSandbox ? (leaderTaskCount || 15) : leaderTaskCount, ListTodo, '#7F77DD', isSandbox ? '▲ 12% vs yesterday' : '— waiting on team activity', isSandbox ? 'up' : 'flat'],
+          ['Completion Rate', `${isSandbox ? (leaderCompletionRate || 67) : leaderCompletionRate}%`, CheckCircle2, '#1D9E75', isSandbox ? '▲ 8% vs yesterday' : '— waiting on updates', isSandbox ? 'up' : 'flat'],
           ['Active Blockers', managerBlockerCountForCards, AlertCircle, '#EF4444', managerBlockerCountForCards ? '▼ needs attention' : '▲ all clear', managerBlockerCountForCards ? 'down' : 'up'],
           ['Active Today', managerActiveTodayLabel, UsersRound, '#1D9E75', 'Live check-ins', 'flat'],
         ]
     : [
-        ['Total Tasks', leaderTaskCount || 42, ListTodo, '#7F77DD', '▲ 12% vs yesterday', 'up'],
-        ['Completed', leaderCompletedTasks || 28, CheckCircle2, '#1D9E75', '▲ 18% vs yesterday', 'up'],
-        ['In Progress', Math.max(leaderOpenTasks - leaderBlockedTasks, 9), Clock3, '#F59E0B', '— No change', 'flat'],
-        ['Overdue', leaderBlockedTasks || 5, AlertCircle, '#EF4444', '▼ 20% vs yesterday', 'down'],
+        ['Total Tasks', isSandbox ? (leaderTaskCount || 42) : leaderTaskCount, ListTodo, '#7F77DD', isSandbox ? '▲ 12% vs yesterday' : 'Real workspace tasks', isSandbox ? 'up' : 'flat'],
+        ['Completed', isSandbox ? (leaderCompletedTasks || 28) : leaderCompletedTasks, CheckCircle2, '#1D9E75', isSandbox ? '▲ 18% vs yesterday' : 'Completed live tasks', isSandbox ? 'up' : 'flat'],
+        ['In Progress', isSandbox ? Math.max(leaderOpenTasks - leaderBlockedTasks, 9) : Math.max(leaderOpenTasks - leaderBlockedTasks, 0), Clock3, '#F59E0B', '— No change', 'flat'],
+        ['Overdue', isSandbox ? (leaderBlockedTasks || 5) : leaderBlockedTasks, AlertCircle, '#EF4444', isSandbox ? '▼ 20% vs yesterday' : 'Live overdue and blocked work', leaderBlockedTasks ? 'down' : 'flat'],
       ];
   const demoProgressRows = [
     ['Aman Verma', 'Landing Page', 100, 'Completed', '#1D9E75'],
@@ -4217,6 +4235,11 @@ const demoSidebarItems = dashboardRole === 'employee'
     }
 
     const sections = result.sections && typeof result.sections === 'object' ? Object.entries(result.sections) : [];
+    const formatAiItem = (item) => {
+      if (typeof item === 'string') return item;
+      if (!item || typeof item !== 'object') return String(item || '');
+      return item.title || item.summary || item.recommendation || item.message || item.name || Object.values(item).filter(Boolean).join(' · ');
+    };
 
     return (
       <div className="space-y-4">
@@ -4234,7 +4257,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                 <div className="mt-3 space-y-2">
                   {Array.isArray(items) && items.length ? items.map((item, index) => (
                     <p key={`${label}-${index}`} className="rounded-xl bg-[#FCFCFF] px-3 py-2 text-xs font-semibold leading-5 text-[#5F5E5A]">
-                      {typeof item === 'string' ? item : JSON.stringify(item)}
+                      {formatAiItem(item)}
                     </p>
                   )) : (
                     <p className="text-xs font-semibold text-[#8A8894]">No items yet</p>
@@ -8537,34 +8560,74 @@ const demoSidebarItems = dashboardRole === 'employee'
                   {activeDashboardSection === 'NudgeSpace' && (
                     <section className="grid gap-6 xl:grid-cols-[1fr_0.8fr]">
                       <div className="dashboard-panel rounded-[28px] p-5">
-                        <h2 className="text-2xl font-black text-[#2C2C2A]">Team NudgeSpace</h2>
-                        <p className="mt-2 text-sm font-semibold text-[#6E6B78]">Only real workspace posts show here.</p>
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <h2 className="text-2xl font-black text-[#2C2C2A]">NudgeSpace</h2>
+                            <p className="mt-2 text-sm font-semibold text-[#6E6B78]">
+                              Social is for workspace posts. U Space is your private todo and focus board.
+                            </p>
+                          </div>
+                          <div className="flex rounded-full border border-[#DAD7FB] bg-white p-1">
+                            {['Social', 'U Space'].map((view) => (
+                              <button
+                                key={view}
+                                type="button"
+                                onClick={() => handleNudgeSpaceViewChange(view)}
+                                className={`rounded-full px-4 py-2 text-xs font-black transition ${
+                                  demoNudgeSpaceView === view ? 'bg-[#1C1739] text-white shadow-sm' : 'text-[#6E6B78] hover:text-[#1C1739]'
+                                }`}
+                              >
+                                {view}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                         <div className="mt-5 rounded-2xl border border-[#DAD7FB] bg-[#FCFCFF] p-4">
-                          <textarea value={nudgeSpaceDraft} onChange={(e) => setNudgeSpaceDraft(e.target.value)} placeholder="Write a real announcement, win, question, or idea..." className="min-h-28 w-full resize-none rounded-2xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" />
+                          <textarea
+                            value={nudgeSpaceDraft}
+                            onChange={(e) => setNudgeSpaceDraft(e.target.value)}
+                            placeholder={demoNudgeSpaceView === 'U Space' ? 'Add a private goal, reminder, or focus note...' : 'Write a real announcement, win, question, or idea...'}
+                            className="min-h-28 w-full resize-none rounded-2xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm outline-none focus:border-[#7F77DD]"
+                          />
                           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                             <select value={nudgeSpacePostType} onChange={(e) => setNudgeSpacePostType(e.target.value)} className="rounded-xl border border-[#DAD7FB] bg-white px-3 py-2 text-xs font-bold text-[#3C3489]">
-                              {['status', 'win', 'question', 'idea'].map((type) => <option key={type} value={type}>{type}</option>)}
+                              {(demoNudgeSpaceView === 'U Space' ? ['goal', 'reminder', 'focus'] : ['status', 'announcement', 'win', 'question', 'idea']).map((type) => <option key={type} value={type}>{type}</option>)}
                             </select>
                             <button type="button" onClick={submitNudgeSpacePost} disabled={nudgeSpaceSaving} className="rounded-xl bg-[#1D9E75] px-4 py-2 text-sm font-black text-white disabled:opacity-60">
-                              {nudgeSpaceSaving ? 'Posting...' : 'Post to NudgeSpace'}
+                              {nudgeSpaceSaving ? 'Saving...' : demoNudgeSpaceView === 'U Space' ? 'Save to U Space' : 'Post to Social'}
                             </button>
                           </div>
                         </div>
                         <div className="mt-5">
                           {renderNudgeSpacePostList({
-                            emptyTitle: 'No real NudgeSpace posts yet',
-                            emptySub: 'Posts will appear only after someone in this workspace publishes them.',
-                            emptyIcon: MessageSquareText
+                            emptyTitle: demoNudgeSpaceView === 'U Space' ? 'No private U Space items yet' : 'No real Social posts yet',
+                            emptySub: demoNudgeSpaceView === 'U Space'
+                              ? 'Private goals, reminders, and focus notes you save will appear here.'
+                              : 'Posts will appear only after someone in this workspace publishes them.',
+                            emptyIcon: demoNudgeSpaceView === 'U Space' ? ListTodo : MessageSquareText
                           })}
                         </div>
                       </div>
                       <div className="dashboard-panel rounded-[28px] p-5">
-                        <h2 className="text-xl font-black text-[#2C2C2A]">U Space / Todo</h2>
-                        {renderEmptyState({
-                          title: 'Personal todo space is ready for real data',
-                          sub: 'This area will connect to personal goals and private todos without demo filler.',
-                          Icon: ListTodo
-                        })}
+                        <h2 className="text-xl font-black text-[#2C2C2A]">{demoNudgeSpaceView === 'U Space' ? 'Private U Space' : 'Social rules'}</h2>
+                        <div className="mt-4 space-y-3">
+                          {(demoNudgeSpaceView === 'U Space'
+                            ? [
+                                ['Visibility', 'Only you can see private U Space posts.'],
+                                ['Best for', 'Goals, reminders, focus notes, and personal todo planning.'],
+                                ['Storage', 'Saved to the live workspace backend, not demo data.'],
+                              ]
+                            : [
+                                ['Visibility', dashboardRole === 'manager' ? 'Scoped to your department.' : 'Visible to the workspace audience for your role.'],
+                                ['Best for', 'Announcements, wins, questions, blockers, and ideas.'],
+                                ['Storage', 'Only real posts from this organization appear here.'],
+                              ]).map(([label, copy]) => (
+                              <div key={label} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8A8894]">{label}</p>
+                                <p className="mt-2 text-sm font-bold leading-5 text-[#2C2C2A]">{copy}</p>
+                              </div>
+                            ))}
+                        </div>
                       </div>
                     </section>
                   )}
@@ -8607,7 +8670,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                         </div>
                         <div className="rounded-2xl border border-dashed border-[#DAD7FB] bg-white p-5">
                           <p className="text-sm font-black text-[#2C2C2A]">Payment history</p>
-                          <p className="mt-2 text-sm font-semibold text-[#8A8894]">No payments yet. Razorpay history will appear after real transactions.</p>
+                          <p className="mt-2 text-sm font-semibold text-[#8A8894]">No payments yet. Successful Razorpay payments will be listed here for this workspace.</p>
                         </div>
                       </div>
                     </section>
@@ -8826,7 +8889,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                           ))}
                         </div>
                         <div className="mt-5 rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
-                          <p className="text-sm font-black text-[#2C2C2A]">Latest result</p>
+                          <p className="text-sm font-black text-[#2C2C2A]">Readable AI result</p>
                           <div className="mt-3">
                             {renderLatestAiResult(latestAiResult)}
                           </div>
@@ -8839,17 +8902,42 @@ const demoSidebarItems = dashboardRole === 'employee'
                     <section className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
                       <div className="dashboard-panel rounded-[28px] p-5">
                         <h2 className="text-2xl font-black text-[#2C2C2A]">Integrations</h2>
+                        <p className="mt-2 text-sm font-semibold text-[#6E6B78]">Track what is available now and request the next tools your team needs.</p>
                         <div className="mt-5 grid gap-4 md:grid-cols-3">
                           {[
-                            ['WhatsApp nudges', 'Coming in V2. Currently in building phase.'],
-                            ['HRMS tools', 'Attendance, timetable, leave, payroll, and HR workflows can be added in custom plans.'],
-                            ['Razorpay', 'Payment setup is connected from billing and checkout.'],
-                          ].map(([title, copy]) => (
+                            ['WhatsApp nudges', 'V2 build phase', 'Templates and manager nudges are planned for the next communication release.'],
+                            ['HRMS tools', 'Custom pack', 'Attendance, timetable, leave, payroll, and HR workflows can be requested here.'],
+                            ['Razorpay', 'Connected', 'Checkout and trial activation use the live billing flow.'],
+                          ].map(([title, status, copy]) => (
                             <div key={title} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
-                              <p className="text-sm font-black text-[#2C2C2A]">{title}</p>
+                              <div className="flex items-center justify-between gap-3">
+                                <p className="text-sm font-black text-[#2C2C2A]">{title}</p>
+                                <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#3C3489]">{status}</span>
+                              </div>
                               <p className="mt-2 text-xs font-semibold leading-5 text-[#6E6B78]">{copy}</p>
                             </div>
                           ))}
+                        </div>
+                        <div className="mt-5 rounded-2xl border border-[#EEEDFE] bg-white p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-black text-[#2C2C2A]">Saved requests</p>
+                            <span className="rounded-full bg-[#F6F4FF] px-3 py-1 text-xs font-black text-[#3C3489]">{integrationRequests.length}</span>
+                          </div>
+                          <div className="mt-3 space-y-3">
+                            {integrationRequests.length ? integrationRequests.slice(0, 5).map((request) => (
+                              <article key={request.id} className="rounded-2xl border border-[#F0ECFF] bg-[#FCFCFF] p-3">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <p className="text-sm font-black text-[#1C1739]">{request.title}</p>
+                                  <span className="rounded-full bg-[#E8F7F1] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#1D9E75]">{request.status}</span>
+                                </div>
+                                <p className="mt-1 text-xs font-semibold leading-5 text-[#6E6B78]">{request.details}</p>
+                              </article>
+                            )) : (
+                              <p className="rounded-2xl border border-dashed border-[#DAD7FB] p-4 text-sm font-semibold text-[#8A8894]">
+                                No integration requests yet. Add one from the form and it will stay saved on this device.
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </div>
 
@@ -9638,19 +9726,22 @@ const demoSidebarItems = dashboardRole === 'employee'
                       </div>
                       <textarea
                         rows={4}
+                        value={nudgeSpaceDraft}
+                        onChange={(event) => setNudgeSpaceDraft(event.target.value)}
                         className="w-full resize-none rounded-2xl border border-[#DAD7FB] bg-white p-4 text-sm font-semibold text-[#2C2C2A] outline-none transition focus:border-[#7F77DD] focus:ring-4 focus:ring-[#EEEDFE]"
                         placeholder="Draft a workspace post, recognition, blocker note, or quick team question..."
                       />
                       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                        <p className="text-xs font-semibold text-[#8A8894]">Live posting will connect to the NudgeSpace backend later.</p>
+                        <p className="text-xs font-semibold text-[#8A8894]">Posts save to the live NudgeSpace backend.</p>
                         <button
                           type="button"
-                          onClick={() => showToast('NudgeSpace draft ready. Live posting will connect to backend next.', 'success')}
+                          onClick={submitNudgeSpacePost}
+                          disabled={nudgeSpaceSaving}
                           className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-extrabold text-white transition hover:opacity-90"
                           style={{ backgroundColor: roleAccent }}
                         >
-                          <Send className="h-4 w-4" />
-                          Post to NudgeSpace
+                          {nudgeSpaceSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                          {nudgeSpaceSaving ? 'Posting...' : 'Post to NudgeSpace'}
                         </button>
                       </div>
                     </div>
@@ -10030,10 +10121,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                           <button
                             key={view}
                             type="button"
-                            onClick={() => {
-                              setDemoNudgeSpaceView(view);
-                              if (!isSandbox) loadNudgeSpacePosts(view === 'U Space' ? 'u_space' : 'social');
-                            }}
+                            onClick={() => handleNudgeSpaceViewChange(view)}
                             className={`inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-extrabold transition ${
                               demoNudgeSpaceView === view
                                 ? 'bg-[#1C1739] text-white shadow-[0_14px_30px_rgba(28,23,57,0.28)]'
@@ -10094,7 +10182,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                               <p className="text-xs font-bold text-white/65">Internal only. Demo posting for vibe check.</p>
                               <button
                                 type="button"
-                                onClick={() => showToast('NudgeSpace post drafted. Live posting will connect to backend next.', 'success')}
+                                onClick={() => showToast('Demo Social post drafted in sandbox.', 'success')}
                                 className="inline-flex items-center gap-2 rounded-full bg-[#8EF0CD] px-5 py-3 text-sm font-extrabold text-[#10211C] transition hover:bg-[#B5F6DE]"
                               >
                                 <Send className="h-4 w-4" />
@@ -10340,10 +10428,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                           <button
                             key={view}
                             type="button"
-                            onClick={() => {
-                              setDemoNudgeSpaceView(view);
-                              if (!isSandbox) loadNudgeSpacePosts(view === 'U Space' ? 'u_space' : 'social');
-                            }}
+                            onClick={() => handleNudgeSpaceViewChange(view)}
                             className={`inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-extrabold transition ${
                               demoNudgeSpaceView === view
                                 ? 'bg-[#1C1739] text-white shadow-[0_14px_30px_rgba(28,23,57,0.28)]'
@@ -10448,6 +10533,18 @@ const demoSidebarItems = dashboardRole === 'employee'
                           Keep personal goals, reminders, and protected focus blocks separate from the public workspace feed.
                         </p>
                         <div className="mt-6 rounded-[24px] border border-[#ECE8FF] bg-[#FBFAFF] p-4">
+                          <div className="mb-3 flex flex-wrap gap-2">
+                            {['goal', 'reminder', 'focus'].map((type) => (
+                              <button
+                                key={type}
+                                type="button"
+                                onClick={() => setNudgeSpacePostType(type)}
+                                className={`rounded-full px-3 py-1 text-xs font-extrabold capitalize ${nudgeSpacePostType === type ? 'bg-[#1C1739] text-white' : 'border border-[#DAD7FB] bg-white text-[#6E6B78]'}`}
+                              >
+                                {type}
+                              </button>
+                            ))}
+                          </div>
                           <textarea
                             rows={4}
                             value={nudgeSpaceDraft}
@@ -10481,7 +10578,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                           <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-[#8EF0CD]">Today map</p>
                           <h3 className="mt-3 text-2xl font-black tracking-[-0.04em]">Focus blocks will appear here</h3>
                           <p className="mt-3 text-sm font-semibold leading-6 text-white/70">
-                            Your saved deep work sessions and reminders will show up once U Space persistence is wired.
+                            Your saved goals, reminders, and focus notes stay private and sync from the live workspace backend.
                           </p>
                         </section>
 
@@ -11007,7 +11104,7 @@ const demoSidebarItems = dashboardRole === 'employee'
         </section>
       )}
 
-      {false && currentView === 'dashboard' && !isSandbox && !isEmployeeDashboard && !isLiveManagerWorkspace && !isLiveAdminOrHrWorkspace && (
+      {shouldRenderLegacyDashboard && (
         <section
           className={`workspace-surface workspace-surface-${dashboardRole} relative min-h-screen overflow-hidden px-5 py-8 sm:px-6 lg:px-8`}
           style={{
@@ -11237,10 +11334,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                       <button
                         key={view}
                         type="button"
-                        onClick={() => {
-                          setDemoNudgeSpaceView(view);
-                          if (!isSandbox) loadNudgeSpacePosts(view === 'U Space' ? 'u_space' : 'social');
-                        }}
+                          onClick={() => handleNudgeSpaceViewChange(view)}
                         className={`inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-extrabold transition ${
                           demoNudgeSpaceView === view
                             ? 'bg-[#1C1739] text-white shadow-[0_14px_30px_rgba(28,23,57,0.28)]'
@@ -11387,7 +11481,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                       <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-[#8EF0CD]">Today map</p>
                       <h3 className="mt-3 text-2xl font-black tracking-[-0.04em]">Focus blocks will appear here</h3>
                       <p className="mt-3 text-sm font-semibold leading-6 text-white/70">
-                        Saved private planning and reminders will show here once U Space persistence is wired.
+                        Saved private planning, reminders, and focus notes sync from live U Space.
                       </p>
                     </section>
 
