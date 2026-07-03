@@ -1658,7 +1658,6 @@ function App() {
               activeServerPort = port;
               setServerPort(port);
               setIsSandbox(false);
-              console.log(`Connected to NudgeHQ backend on port ${port}`);
               return;
             }
           }
@@ -12733,8 +12732,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                     onClick={(e) => {
                       if (isSandbox) {
                         e.preventDefault();
-                        showToast("Sandbox data export simulated. Check console.", "info");
-                        console.log(analytics);
+                        showToast("Sandbox export preview is available in demo reports.", "info");
                       }
                     }}
                     className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-md bg-[#3C3489] py-3 text-xs font-semibold text-white shadow hover:bg-[#7F77DD] transition"
