@@ -36,6 +36,7 @@ NudgeHQ is a B2B SaaS web app for real-time workforce progress tracking. It help
 
 ```text
 .
+├── CODEMAP.md             # Teammate guide to the codebase
 ├── public/brand/          # NudgeHQ brand icon
 ├── postman/               # API collection and local environment
 ├── src/                   # React frontend
@@ -43,6 +44,8 @@ NudgeHQ is a B2B SaaS web app for real-time workforce progress tracking. It help
 ├── package.json           # Frontend scripts and dependencies
 └── vite.config.js
 ```
+
+New teammates should start with [CODEMAP.md](./CODEMAP.md) before editing dashboards or backend routes.
 
 ## Local Development
 

@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Ferrofluid from './Ferrofluid'
+import { fetchApi, getActiveServerPort, isBackendConnectionError, setActiveServerPort } from './lib/api'
+import { formatDisplayDate, normalizeTaskStatus } from './lib/format'
+import { getStoredJson } from './lib/storage'
 import {
   Activity,
   ArrowRight,
@@ -1180,17 +1183,6 @@ const legalPages = {
   },
 }
 
-const formatDisplayDate = (value) => {
-  if (!value) return 'Not available';
-  return new Intl.DateTimeFormat('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  }).format(new Date(value));
-}
-
 const formatRelativeTime = (value) => {
   if (!value) return 'No update yet';
   const then = new Date(value).getTime();
@@ -1226,12 +1218,6 @@ const cardMotion = {
   transition: { duration: 0.5, ease: 'easeOut' },
 }
 
-let activeServerPort = null;
-
-const isBackendConnectionError = (message = '') => (
-  /fetch failed|aborted|timed out|connection refused|supabase/i.test(message)
-)
-
 const getInitialView = () => {
   const path = window.location.pathname;
   const storedToken = window.localStorage.getItem('nudgehq_auth_token');
@@ -1256,66 +1242,6 @@ const getInitialView = () => {
   if (path === '/dashboard' || Object.values(DASHBOARD_PATHS).includes(path)) return storedToken ? 'dashboard' : 'signin';
   if (path === '/demo') return 'demo_console';
   return 'landing';
-}
-
-// --- API UTILITY (Auto-probe ports 5000 and 5001) ---
-const fetchApi = async (endpoint, options = {}, token = null) => {
-  const ports = activeServerPort ? [activeServerPort] : [5000, 5001];
-  let lastError = null;
-
-  for (const port of ports) {
-    try {
-      const url = `http://localhost:${port}/api${endpoint}`;
-      const headers = {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), 8000);
-
-      const response = await fetch(url, {
-        ...options,
-        headers,
-        signal: controller.signal
-      });
-
-      clearTimeout(id);
-
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        const error = new Error(data.message || data.error || 'API request failed.');
-        error.status = response.status;
-        error.data = data;
-        throw error;
-      }
-      return { data, port };
-    } catch (err) {
-      lastError = err;
-    }
-  }
-
-  if (lastError?.name === 'AbortError') {
-    throw new Error('Backend request timed out. Supabase may be unreachable or not configured yet.');
-  }
-
-  if (lastError?.message === 'Failed to authenticate user.' || lastError?.message?.includes('fetch failed')) {
-    throw new Error('Backend is running, but Supabase is not reachable or the Supabase credentials are incomplete.');
-  }
-
-  throw lastError || new Error('Connection refused on ports 5000/5001');
-}
-
-const getStoredJson = (key, fallback = null) => {
-  try {
-    const value = window.localStorage.getItem(key);
-    return value ? JSON.parse(value) : fallback;
-  } catch {
-    return fallback;
-  }
 }
 
 // --- MAIN APPLICATION ---
@@ -1502,7 +1428,35 @@ function App() {
     setManagerProjectDraft((current) => ({ ...current, [field]: field === 'progress' ? Number(value) : value }));
   };
 
-  const handleSaveManagerProject = (event) => {
+  const loadWorkspaceOpsData = async (activeDashboardRole = dashboardRole) => {
+    if (isSandbox || !token || !LEADER_ROLES.includes(activeDashboardRole)) return;
+
+    const roleScope = ['admin', 'hr', 'manager'].includes(activeDashboardRole) ? activeDashboardRole : 'manager';
+    try {
+      const { data: projectRes } = await fetchApi(`/admin/projects?role_scope=${roleScope}`, { method: 'GET' }, token);
+      setManagerProjects(projectRes.projects || []);
+    } catch (error) {
+      if (error.status !== 503) showToast(error.message || 'Could not load workspace projects.', 'error');
+    }
+
+    if (['admin', 'hr'].includes(activeDashboardRole)) {
+      try {
+        const { data: integrationRes } = await fetchApi('/admin/integration-requests', { method: 'GET' }, token);
+        setIntegrationRequests(integrationRes.requests || []);
+      } catch (error) {
+        if (error.status !== 503) showToast(error.message || 'Could not load integration requests.', 'error');
+      }
+    }
+
+    try {
+      const { data: feedbackRes } = await fetchApi('/admin/feedback', { method: 'GET' }, token);
+      setFeedbackComments(feedbackRes.feedback || []);
+    } catch (error) {
+      if (error.status !== 503) showToast(error.message || 'Could not load feedback.', 'error');
+    }
+  };
+
+  const handleSaveManagerProject = async (event) => {
     event.preventDefault();
     if (!managerProjectDraft.name.trim()) {
       showToast('Project name is required.', 'error');
@@ -1517,8 +1471,33 @@ function App() {
       progress: Number(managerProjectDraft.progress) || 0,
       due: managerProjectDraft.due.trim() || 'No date',
       summary: managerProjectDraft.summary.trim() || 'No project summary added yet.',
-      priority: managerProjectDraft.priority
+      priority: managerProjectDraft.priority,
+      role_scope: dashboardRole === 'admin' ? 'admin' : dashboardRole === 'hr' ? 'hr' : 'manager'
     };
+
+    if (!isSandbox && token) {
+      try {
+        const { data } = await fetchApi(editingManagerProjectId ? `/admin/projects/${editingManagerProjectId}` : '/admin/projects', {
+          method: editingManagerProjectId ? 'PUT' : 'POST',
+          body: JSON.stringify(normalizedProject)
+        }, token);
+        const savedProject = data.project || normalizedProject;
+        setManagerProjects((current) => (
+          editingManagerProjectId
+            ? current.map((project) => project.id === editingManagerProjectId ? savedProject : project)
+            : [savedProject, ...current]
+        ));
+        showToast(data.message || (editingManagerProjectId ? 'Project updated.' : 'Project created.'), 'success');
+        resetManagerProjectDraft();
+        return;
+      } catch (error) {
+        if (error.status !== 503) {
+          showToast(error.message || 'Could not save project.', 'error');
+          return;
+        }
+        showToast('Project saved locally. Run the latest database schema to enable cloud sync.', 'info');
+      }
+    }
 
     setManagerProjects((current) => (
       editingManagerProjectId
@@ -1543,7 +1522,18 @@ function App() {
     });
   };
 
-  const handleDeleteManagerProject = (projectId) => {
+  const handleDeleteManagerProject = async (projectId) => {
+    if (!isSandbox && token && !String(projectId).startsWith('proj-')) {
+      try {
+        await fetchApi(`/admin/projects/${projectId}`, { method: 'DELETE' }, token);
+      } catch (error) {
+        if (error.status !== 503) {
+          showToast(error.message || 'Could not delete project.', 'error');
+          return;
+        }
+        showToast('Project removed locally. Run the latest database schema to enable cloud sync.', 'info');
+      }
+    }
     setManagerProjects((current) => current.filter((project) => project.id !== projectId));
     if (editingManagerProjectId === projectId) resetManagerProjectDraft();
     showToast('Project removed.', 'success');
@@ -1655,7 +1645,7 @@ function App() {
           if (res.ok) {
             const data = await res.json();
             if (data.status === 'healthy') {
-              activeServerPort = port;
+              setActiveServerPort(port);
               setServerPort(port);
               setIsSandbox(false);
               return;
@@ -1950,6 +1940,8 @@ function App() {
 
         const { data: deepWorkRes } = await fetchApi(`/deepwork/team${departmentScope}`, { method: 'GET' }, token);
         setDeepWorkTeam(deepWorkRes || null);
+
+        await loadWorkspaceOpsData(activeDashboardRole);
 
         runNudgeAiFeature('standup', false);
         if (activeDashboardRole !== 'manager') runNudgeAiFeature('skillGap', false);
@@ -2253,7 +2245,7 @@ function App() {
     }
   };
 
-  const handleFeedbackCommentSubmit = (event) => {
+  const handleFeedbackCommentSubmit = async (event) => {
     event.preventDefault();
     const cleanComment = feedbackCommentText.trim();
 
@@ -2262,23 +2254,47 @@ function App() {
       return;
     }
 
-    setFeedbackComments((comments) => [
-      {
-        id: Date.now(),
-        name: feedbackCommentName.trim() || 'Early visitor',
-        category: feedbackCategory,
-        comment: cleanComment,
-        time: 'Just now'
-      },
-      ...comments
-    ].slice(0, 8));
+    const fallbackFeedback = {
+      id: Date.now(),
+      name: feedbackCommentName.trim() || user?.name || 'Early visitor',
+      category: feedbackCategory,
+      comment: cleanComment,
+      time: 'Just now'
+    };
+
+    if (!isSandbox && token) {
+      try {
+        const { data } = await fetchApi('/admin/feedback', {
+          method: 'POST',
+          body: JSON.stringify({
+            name: fallbackFeedback.name,
+            category: fallbackFeedback.category,
+            comment: cleanComment
+          })
+        }, token);
+        setFeedbackComments((comments) => [data.feedback || fallbackFeedback, ...comments].slice(0, 8));
+        setFeedbackCommentName('');
+        setFeedbackCommentText('');
+        setFeedbackCategory('Product feedback');
+        showToast(data.message || 'Feedback saved.', 'success');
+        return;
+      } catch (error) {
+        if (error.status !== 503) {
+          showToast(error.message || 'Could not save feedback.', 'error');
+          return;
+        }
+        showToast('Feedback saved locally. Run the latest database schema to enable cloud sync.', 'info');
+      }
+    }
+
+    setFeedbackComments((comments) => [fallbackFeedback, ...comments].slice(0, 8));
     setFeedbackCommentName('');
     setFeedbackCommentText('');
     setFeedbackCategory('Product feedback');
     showToast('Feedback comment added.', 'success');
   };
 
-  const handleIntegrationRequestSubmit = (event) => {
+  const handleIntegrationRequestSubmit = async (event) => {
     event.preventDefault();
     const cleanTitle = integrationRequestTitle.trim();
     const cleanDetails = integrationRequestDetails.trim();
@@ -2288,17 +2304,36 @@ function App() {
       return;
     }
 
-    setIntegrationRequests((requests) => [
-      {
-        id: Date.now(),
-        title: cleanTitle,
-        details: cleanDetails,
-        requester: user?.name || user?.email || 'Workspace user',
-        status: 'Requested',
-        time: new Date().toISOString()
-      },
-      ...requests
-    ].slice(0, 10));
+    const fallbackRequest = {
+      id: Date.now(),
+      title: cleanTitle,
+      details: cleanDetails,
+      requester: user?.name || user?.email || 'Workspace user',
+      status: 'Requested',
+      time: new Date().toISOString()
+    };
+
+    if (!isSandbox && token) {
+      try {
+        const { data } = await fetchApi('/admin/integration-requests', {
+          method: 'POST',
+          body: JSON.stringify({ title: cleanTitle, details: cleanDetails })
+        }, token);
+        setIntegrationRequests((requests) => [data.request || fallbackRequest, ...requests].slice(0, 10));
+        setIntegrationRequestTitle('');
+        setIntegrationRequestDetails('');
+        showToast(data.message || 'Integration request saved.', 'success');
+        return;
+      } catch (error) {
+        if (error.status !== 503) {
+          showToast(error.message || 'Could not save integration request.', 'error');
+          return;
+        }
+        showToast('Integration request saved locally. Run the latest database schema to enable cloud sync.', 'info');
+      }
+    }
+
+    setIntegrationRequests((requests) => [fallbackRequest, ...requests].slice(0, 10));
     setIntegrationRequestTitle('');
     setIntegrationRequestDetails('');
     showToast('Integration request saved for review.', 'success');
@@ -2926,7 +2961,7 @@ function App() {
   const generateBoardPack = async () => {
     setBoardPackLoading(true);
     try {
-      const port = activeServerPort || serverPort || 5001;
+      const port = getActiveServerPort() || serverPort || 5001;
       const response = await fetch(`http://localhost:${port}/api/reports/board-pack`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -4074,7 +4109,6 @@ const demoSidebarItems = dashboardRole === 'employee'
     return { day, tasks: completedTasks };
   });
   const actualProgressHasSignals = actualWeeklyProgressData.some((item) => item.tasks > 0);
-  const normalizeTaskStatus = (status = '') => String(status).toLowerCase().replace(/\s+/g, '_');
   const realEmployeeTasks = empTasks.map((task) => ({
     ...task,
     normalizedStatus: normalizeTaskStatus(task.status),
@@ -5212,7 +5246,7 @@ const demoSidebarItems = dashboardRole === 'employee'
             />
             <div className="mt-12 grid gap-5 lg:grid-cols-5">
               {[
-                ['Free Trial', '₹0', '$0', ['14-day trial', 'Up to 5 employees', 'Daily check-ins', 'NudgeAI basic'], 'Start Free Trial', 'free_trial'],
+                ['Free Trial', '₹2 verification', '$1 verification', ['14-day trial', 'Up to 15 employees', 'Daily check-ins', 'NudgeAI basic'], 'Start Free Trial', 'free_trial'],
                 ['Starter', '₹2,000/month', '$9/month', ['Up to 20 employees', 'Daily check-ins', 'NudgeAI basic', 'Email support'], 'Choose Starter', 'starter'],
                 ['Growth', '₹4,500/month', '$25/month', ['Up to 50 employees', 'WhatsApp nudges', 'NudgeAI summaries', 'Priority support'], 'Contact Us', 'growth'],
                 ['Business', '₹8,500/month', '$49/month', ['Up to 100 employees', 'Advanced dashboards', 'Board-ready reports', 'Priority onboarding'], 'Contact Us', 'business'],
@@ -5268,7 +5302,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                 </h1>
                 <p className="mt-5 max-w-md text-sm font-semibold leading-7 text-white/75">
                   {selectedPlan === 'free_trial'
-                    ? 'Invite up to 5 employees, use daily check-ins and NudgeAI. We charge a refundable ₹1 / $1 verification fee to verify your payment method.'
+                    ? 'Invite up to 15 employees, use daily check-ins and NudgeAI. We charge a small ₹2 / $1 verification fee to verify your payment method.'
                     : 'Invite up to 20 employees and use the full Starter workflow, check-ins, tasks, and email support.'}
                 </p>
                 <div className="mt-10 grid gap-3 text-sm font-bold">
@@ -5292,14 +5326,14 @@ const demoSidebarItems = dashboardRole === 'employee'
               </h2>
               <p className="mt-3 text-sm font-semibold leading-6 text-[#5F5E5A]">
                 {selectedPlan === 'free_trial'
-                  ? 'Verify your payment method to begin your 14-day trial. You will be charged ₹1 today.'
+                  ? 'Verify your payment method to begin your 14-day trial. You will be charged ₹2 today.'
                   : 'Start your Starter subscription today. Billing begins immediately.'}
               </p>
               <div className="mt-8 rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-5">
                 <div className="flex items-center justify-between border-b border-[#EEEDFE] pb-4">
                   <span className="font-bold text-[#2C2C2A]">{selectedPlan === 'free_trial' ? '14-Day Trial' : 'Starter Plan'}</span>
                   <span className="text-right">
-                    <span className="block font-extrabold text-[#3C3489]">{selectedPlan === 'free_trial' ? '₹1' : '₹2,000/month'}</span>
+                    <span className="block font-extrabold text-[#3C3489]">{selectedPlan === 'free_trial' ? '₹2' : '₹2,000/month'}</span>
                     <span className="block text-xs font-bold text-[#8A8894]">Global: {selectedPlan === 'free_trial' ? '$1' : '$9/month'}</span>
                   </span>
                 </div>
@@ -5309,7 +5343,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                 </div>
                 <div className="flex items-center justify-between pt-4 text-sm font-bold text-[#5F5E5A]">
                   <span>Due today</span>
-                  <span className="text-[#2C2C2A]">{selectedPlan === 'free_trial' ? '₹1 / $1' : '₹2,000 / $9'}</span>
+                  <span className="text-[#2C2C2A]">{selectedPlan === 'free_trial' ? '₹2 / $1' : '₹2,000 / $9'}</span>
                 </div>
               </div>
               <button
@@ -5319,7 +5353,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                 className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#7F77DD] px-5 py-4 text-sm font-extrabold text-white shadow-xl shadow-[#7F77DD]/20 transition hover:-translate-y-0.5 hover:bg-[#3C3489] disabled:translate-y-0 disabled:opacity-50"
               >
                 {paymentLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                {paymentLoading ? 'Verifying...' : (selectedPlan === 'free_trial' ? 'Pay ₹1 & Start Trial' : 'Pay & Activate Starter')}
+                {paymentLoading ? 'Verifying...' : (selectedPlan === 'free_trial' ? 'Pay ₹2 & Start Trial' : 'Pay & Activate Starter')}
               </button>
               <p className="mt-4 text-center text-xs font-semibold text-[#7A7974]">
                 Secured by Razorpay. Cancel anytime. Demo access remains separate.

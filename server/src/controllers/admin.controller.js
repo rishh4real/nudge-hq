@@ -19,6 +19,50 @@ const isMissingSchema = (error) => (
   /does not exist|schema cache|column/i.test(error?.message || '')
 );
 
+const normalizeProjectPayload = (payload = {}, fallbackRole = 'manager') => ({
+  name: String(payload.name || '').trim(),
+  owner: String(payload.owner || '').trim() || null,
+  status: String(payload.status || 'Planned').trim(),
+  progress: Math.max(0, Math.min(100, Number(payload.progress) || 0)),
+  due: String(payload.due || '').trim() || null,
+  summary: String(payload.summary || '').trim() || null,
+  priority: String(payload.priority || 'Medium').trim(),
+  role_scope: ['admin', 'hr', 'manager'].includes(payload.role_scope) ? payload.role_scope : fallbackRole
+});
+
+const mapWorkspaceProject = (project = {}) => ({
+  id: project.id,
+  name: project.name,
+  owner: project.owner || '',
+  status: project.status || 'Planned',
+  progress: Number(project.progress) || 0,
+  due: project.due || '',
+  summary: project.summary || '',
+  priority: project.priority || 'Medium',
+  role_scope: project.role_scope || 'manager',
+  created_at: project.created_at,
+  updated_at: project.updated_at
+});
+
+const mapIntegrationRequest = (request = {}) => ({
+  id: request.id,
+  title: request.title,
+  details: request.details,
+  status: request.status || 'Requested',
+  requester: request.requester?.name || request.requester?.email || 'Workspace user',
+  time: request.created_at,
+  created_at: request.created_at
+});
+
+const mapFeedbackItem = (item = {}) => ({
+  id: item.id,
+  name: item.name || item.user?.name || 'Workspace user',
+  category: item.category || 'Product feedback',
+  comment: item.comment,
+  time: item.created_at,
+  created_at: item.created_at
+});
+
 /**
  * Get all employee progress updates with filters
  * GET /admin/updates
@@ -484,6 +528,302 @@ export const exportReportData = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to compile report export database.',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * List workspace projects
+ * GET /admin/projects
+ */
+export const getWorkspaceProjects = async (req, res) => {
+  try {
+    const { role_scope } = req.query;
+    const orgId = req.user.organization_id;
+
+    let query = supabase
+      .from('workspace_projects')
+      .select('id, name, owner, status, progress, due, summary, priority, role_scope, created_at, updated_at')
+      .eq('organization_id', orgId)
+      .order('updated_at', { ascending: false });
+
+    if (role_scope && ['admin', 'hr', 'manager'].includes(role_scope)) {
+      query = query.eq('role_scope', role_scope);
+    }
+
+    const { data: projects, error } = await query;
+    if (error) throw error;
+
+    return res.status(200).json({
+      success: true,
+      projects: (projects || []).map(mapWorkspaceProject)
+    });
+  } catch (error) {
+    console.error('Get workspace projects error:', error);
+    return res.status(isMissingSchema(error) ? 503 : 500).json({
+      success: false,
+      message: isMissingSchema(error)
+        ? 'Workspace projects table is not ready. Run the latest schema migration.'
+        : 'Failed to retrieve workspace projects.',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Create workspace project
+ * POST /admin/projects
+ */
+export const createWorkspaceProject = async (req, res) => {
+  try {
+    const payload = normalizeProjectPayload(req.body, req.user.role === 'admin' ? 'admin' : req.user.role === 'hr' ? 'hr' : 'manager');
+    if (!payload.name) {
+      return res.status(400).json({ success: false, message: 'Project name is required.' });
+    }
+
+    const { data: project, error } = await supabase
+      .from('workspace_projects')
+      .insert([{
+        ...payload,
+        organization_id: req.user.organization_id,
+        created_by: req.user.id,
+        updated_at: new Date().toISOString()
+      }])
+      .select('id, name, owner, status, progress, due, summary, priority, role_scope, created_at, updated_at')
+      .single();
+
+    if (error) throw error;
+
+    return res.status(201).json({
+      success: true,
+      message: 'Project saved.',
+      project: mapWorkspaceProject(project)
+    });
+  } catch (error) {
+    console.error('Create workspace project error:', error);
+    return res.status(isMissingSchema(error) ? 503 : 500).json({
+      success: false,
+      message: isMissingSchema(error)
+        ? 'Workspace projects table is not ready. Run the latest schema migration.'
+        : 'Failed to create workspace project.',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Update workspace project
+ * PUT /admin/projects/:id
+ */
+export const updateWorkspaceProject = async (req, res) => {
+  try {
+    const payload = normalizeProjectPayload(req.body, req.user.role === 'admin' ? 'admin' : req.user.role === 'hr' ? 'hr' : 'manager');
+    if (!payload.name) {
+      return res.status(400).json({ success: false, message: 'Project name is required.' });
+    }
+
+    const { data: project, error } = await supabase
+      .from('workspace_projects')
+      .update({ ...payload, updated_at: new Date().toISOString() })
+      .eq('id', req.params.id)
+      .eq('organization_id', req.user.organization_id)
+      .select('id, name, owner, status, progress, due, summary, priority, role_scope, created_at, updated_at')
+      .single();
+
+    if (error) throw error;
+
+    return res.status(200).json({
+      success: true,
+      message: 'Project updated.',
+      project: mapWorkspaceProject(project)
+    });
+  } catch (error) {
+    console.error('Update workspace project error:', error);
+    return res.status(isMissingSchema(error) ? 503 : 500).json({
+      success: false,
+      message: isMissingSchema(error)
+        ? 'Workspace projects table is not ready. Run the latest schema migration.'
+        : 'Failed to update workspace project.',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Delete workspace project
+ * DELETE /admin/projects/:id
+ */
+export const deleteWorkspaceProject = async (req, res) => {
+  try {
+    const { error } = await supabase
+      .from('workspace_projects')
+      .delete()
+      .eq('id', req.params.id)
+      .eq('organization_id', req.user.organization_id);
+
+    if (error) throw error;
+
+    return res.status(200).json({
+      success: true,
+      message: 'Project removed.'
+    });
+  } catch (error) {
+    console.error('Delete workspace project error:', error);
+    return res.status(isMissingSchema(error) ? 503 : 500).json({
+      success: false,
+      message: isMissingSchema(error)
+        ? 'Workspace projects table is not ready. Run the latest schema migration.'
+        : 'Failed to delete workspace project.',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * List integration requests
+ * GET /admin/integration-requests
+ */
+export const getIntegrationRequests = async (req, res) => {
+  try {
+    const { data: requests, error } = await supabase
+      .from('integration_requests')
+      .select('id, title, details, status, created_at, requester:users(name, email)')
+      .eq('organization_id', req.user.organization_id)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error) throw error;
+
+    return res.status(200).json({
+      success: true,
+      requests: (requests || []).map(mapIntegrationRequest)
+    });
+  } catch (error) {
+    console.error('Get integration requests error:', error);
+    return res.status(isMissingSchema(error) ? 503 : 500).json({
+      success: false,
+      message: isMissingSchema(error)
+        ? 'Integration requests table is not ready. Run the latest schema migration.'
+        : 'Failed to retrieve integration requests.',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Create integration request
+ * POST /admin/integration-requests
+ */
+export const createIntegrationRequest = async (req, res) => {
+  try {
+    const title = String(req.body.title || '').trim();
+    const details = String(req.body.details || '').trim();
+    if (!title || !details) {
+      return res.status(400).json({ success: false, message: 'Integration name and details are required.' });
+    }
+
+    const { data: request, error } = await supabase
+      .from('integration_requests')
+      .insert([{
+        organization_id: req.user.organization_id,
+        requested_by: req.user.id,
+        title,
+        details,
+        status: 'Requested'
+      }])
+      .select('id, title, details, status, created_at, requester:users(name, email)')
+      .single();
+
+    if (error) throw error;
+
+    return res.status(201).json({
+      success: true,
+      message: 'Integration request saved.',
+      request: mapIntegrationRequest(request)
+    });
+  } catch (error) {
+    console.error('Create integration request error:', error);
+    return res.status(isMissingSchema(error) ? 503 : 500).json({
+      success: false,
+      message: isMissingSchema(error)
+        ? 'Integration requests table is not ready. Run the latest schema migration.'
+        : 'Failed to create integration request.',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * List feedback items
+ * GET /admin/feedback
+ */
+export const getFeedbackItems = async (req, res) => {
+  try {
+    const { data: items, error } = await supabase
+      .from('feedback_items')
+      .select('id, name, category, comment, created_at, user:users(name, email)')
+      .or(`organization_id.eq.${req.user.organization_id},organization_id.is.null`)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error) throw error;
+
+    return res.status(200).json({
+      success: true,
+      feedback: (items || []).map(mapFeedbackItem)
+    });
+  } catch (error) {
+    console.error('Get feedback items error:', error);
+    return res.status(isMissingSchema(error) ? 503 : 500).json({
+      success: false,
+      message: isMissingSchema(error)
+        ? 'Feedback table is not ready. Run the latest schema migration.'
+        : 'Failed to retrieve feedback.',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Create feedback item
+ * POST /admin/feedback
+ */
+export const createFeedbackItem = async (req, res) => {
+  try {
+    const comment = String(req.body.comment || '').trim();
+    const category = String(req.body.category || 'Product feedback').trim();
+    const name = String(req.body.name || req.user.name || '').trim() || null;
+    if (!comment) {
+      return res.status(400).json({ success: false, message: 'Feedback comment is required.' });
+    }
+
+    const { data: item, error } = await supabase
+      .from('feedback_items')
+      .insert([{
+        organization_id: req.user.organization_id || null,
+        user_id: req.user.id || null,
+        name,
+        category,
+        comment
+      }])
+      .select('id, name, category, comment, created_at, user:users(name, email)')
+      .single();
+
+    if (error) throw error;
+
+    return res.status(201).json({
+      success: true,
+      message: 'Feedback saved.',
+      feedback: mapFeedbackItem(item)
+    });
+  } catch (error) {
+    console.error('Create feedback item error:', error);
+    return res.status(isMissingSchema(error) ? 503 : 500).json({
+      success: false,
+      message: isMissingSchema(error)
+        ? 'Feedback table is not ready. Run the latest schema migration.'
+        : 'Failed to save feedback.',
       error: error.message
     });
   }

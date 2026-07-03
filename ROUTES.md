@@ -101,6 +101,14 @@ Mounted at both `/api/employees` and `/api/employee`.
 - `GET /api/admin/employees`: List employees.
 - `POST /api/admin/employees/invite`: Invite employees.
 - `GET /api/admin/updates`: List company updates.
+- `GET /api/admin/projects`: List live workspace projects.
+- `POST /api/admin/projects`: Create a workspace project.
+- `PUT /api/admin/projects/:id`: Update a workspace project.
+- `DELETE /api/admin/projects/:id`: Delete a workspace project.
+- `GET /api/admin/integration-requests`: List requested integrations.
+- `POST /api/admin/integration-requests`: Request a new integration.
+- `GET /api/admin/feedback`: List product feedback/review items.
+- `POST /api/admin/feedback`: Submit product feedback/review item.
 - `GET /api/admin/reports/export`: Export operational report.
 
 ## Analytics API

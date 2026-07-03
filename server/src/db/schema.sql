@@ -231,6 +231,45 @@ CREATE TABLE IF NOT EXISTS whatsapp_notification_logs (
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+-- 18. Workspace Projects
+CREATE TABLE IF NOT EXISTS workspace_projects (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    name VARCHAR(180) NOT NULL,
+    owner VARCHAR(120),
+    status VARCHAR(30) NOT NULL DEFAULT 'Planned',
+    progress INTEGER NOT NULL DEFAULT 0 CHECK (progress BETWEEN 0 AND 100),
+    due VARCHAR(80),
+    summary TEXT,
+    priority VARCHAR(30) NOT NULL DEFAULT 'Medium',
+    role_scope VARCHAR(20) NOT NULL DEFAULT 'manager' CHECK (role_scope IN ('admin', 'hr', 'manager')),
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+-- 19. Integration Requests
+CREATE TABLE IF NOT EXISTS integration_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    requested_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    title VARCHAR(160) NOT NULL,
+    details TEXT NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'Requested',
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+-- 20. Product Feedback Items
+CREATE TABLE IF NOT EXISTS feedback_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    name VARCHAR(120),
+    category VARCHAR(80) NOT NULL DEFAULT 'Product feedback',
+    comment TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
 -- Backfill-safe migrations for existing Supabase projects
 ALTER TABLE departments ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
@@ -274,6 +313,27 @@ ALTER TABLE nudgespace_posts ADD COLUMN IF NOT EXISTS space VARCHAR(20) DEFAULT 
 ALTER TABLE nudgespace_posts ADD COLUMN IF NOT EXISTS visibility_scope VARCHAR(20) DEFAULT 'company';
 ALTER TABLE nudgespace_posts ADD COLUMN IF NOT EXISTS post_type VARCHAR(30) DEFAULT 'status';
 ALTER TABLE nudgespace_posts ADD COLUMN IF NOT EXISTS content TEXT;
+ALTER TABLE workspace_projects ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE workspace_projects ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE workspace_projects ADD COLUMN IF NOT EXISTS name VARCHAR(180);
+ALTER TABLE workspace_projects ADD COLUMN IF NOT EXISTS owner VARCHAR(120);
+ALTER TABLE workspace_projects ADD COLUMN IF NOT EXISTS status VARCHAR(30) DEFAULT 'Planned';
+ALTER TABLE workspace_projects ADD COLUMN IF NOT EXISTS progress INTEGER DEFAULT 0;
+ALTER TABLE workspace_projects ADD COLUMN IF NOT EXISTS due VARCHAR(80);
+ALTER TABLE workspace_projects ADD COLUMN IF NOT EXISTS summary TEXT;
+ALTER TABLE workspace_projects ADD COLUMN IF NOT EXISTS priority VARCHAR(30) DEFAULT 'Medium';
+ALTER TABLE workspace_projects ADD COLUMN IF NOT EXISTS role_scope VARCHAR(20) DEFAULT 'manager';
+ALTER TABLE workspace_projects ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL;
+ALTER TABLE integration_requests ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE integration_requests ADD COLUMN IF NOT EXISTS requested_by UUID REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE integration_requests ADD COLUMN IF NOT EXISTS title VARCHAR(160);
+ALTER TABLE integration_requests ADD COLUMN IF NOT EXISTS details TEXT;
+ALTER TABLE integration_requests ADD COLUMN IF NOT EXISTS status VARCHAR(30) DEFAULT 'Requested';
+ALTER TABLE feedback_items ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE feedback_items ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE feedback_items ADD COLUMN IF NOT EXISTS name VARCHAR(120);
+ALTER TABLE feedback_items ADD COLUMN IF NOT EXISTS category VARCHAR(80) DEFAULT 'Product feedback';
+ALTER TABLE feedback_items ADD COLUMN IF NOT EXISTS comment TEXT;
 
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
 ALTER TABLE users
@@ -287,6 +347,12 @@ ALTER TABLE nudgespace_posts
 ALTER TABLE nudgespace_posts DROP CONSTRAINT IF EXISTS nudgespace_posts_visibility_scope_check;
 ALTER TABLE nudgespace_posts
   ADD CONSTRAINT nudgespace_posts_visibility_scope_check CHECK (visibility_scope IN ('company', 'people', 'department', 'private'));
+ALTER TABLE workspace_projects DROP CONSTRAINT IF EXISTS workspace_projects_progress_check;
+ALTER TABLE workspace_projects
+  ADD CONSTRAINT workspace_projects_progress_check CHECK (progress BETWEEN 0 AND 100);
+ALTER TABLE workspace_projects DROP CONSTRAINT IF EXISTS workspace_projects_role_scope_check;
+ALTER TABLE workspace_projects
+  ADD CONSTRAINT workspace_projects_role_scope_check CHECK (role_scope IN ('admin', 'hr', 'manager'));
 
 ALTER TABLE organizations
   DROP CONSTRAINT IF EXISTS organizations_owner_id_fkey;
@@ -344,3 +410,9 @@ CREATE INDEX IF NOT EXISTS idx_whatsapp_notification_logs_user ON whatsapp_notif
 CREATE INDEX IF NOT EXISTS idx_whatsapp_notification_logs_type ON whatsapp_notification_logs(notification_type);
 CREATE INDEX IF NOT EXISTS idx_whatsapp_notification_logs_task ON whatsapp_notification_logs(task_id);
 CREATE INDEX IF NOT EXISTS idx_whatsapp_notification_logs_created ON whatsapp_notification_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_workspace_projects_organization ON workspace_projects(organization_id);
+CREATE INDEX IF NOT EXISTS idx_workspace_projects_scope ON workspace_projects(role_scope);
+CREATE INDEX IF NOT EXISTS idx_workspace_projects_updated ON workspace_projects(updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_integration_requests_organization ON integration_requests(organization_id);
+CREATE INDEX IF NOT EXISTS idx_feedback_items_organization ON feedback_items(organization_id);
+CREATE INDEX IF NOT EXISTS idx_feedback_items_created ON feedback_items(created_at DESC);
