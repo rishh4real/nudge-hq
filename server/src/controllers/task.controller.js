@@ -194,7 +194,9 @@ export const updateTaskStatus = async (req, res) => {
             task_id: taskId,
             reporter_id: userId,
             blocker_text,
-            resolved: false
+            resolved: false,
+            status: 'open',
+            visible_to_admin: false
           }
         ]);
 

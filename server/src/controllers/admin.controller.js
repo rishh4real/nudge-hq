@@ -6,6 +6,12 @@ import { isValidPhoneNumber } from '../services/whatsapp.js';
 
 const TEMP_PASSWORD = 'nudgehq123';
 const VALID_INVITE_ROLES = ['employee', 'manager', 'hr', 'admin'];
+const FREE_TRIAL_EMPLOYEE_LIMIT = 15;
+const STARTER_EMPLOYEE_LIMIT = 20;
+
+const getEmployeeLimitForPlan = (plan = '') => (
+  plan === 'free_trial' ? FREE_TRIAL_EMPLOYEE_LIMIT : STARTER_EMPLOYEE_LIMIT
+);
 
 const isMissingSchema = (error) => (
   error?.code === '42P01' ||
@@ -326,6 +332,37 @@ export const inviteEmployee = async (req, res) => {
       return res.status(409).json({
         success: false,
         message: 'This email is already a member of your workspace. You can update their role from People.'
+      });
+    }
+
+    const [{ data: org, error: orgError }, { count: activeMemberCount, error: activeMembersError }, { count: pendingInviteCount, error: pendingInvitesError }] = await Promise.all([
+      supabase
+        .from('organizations')
+        .select('plan')
+        .eq('id', adminOrgId)
+        .single(),
+      supabase
+        .from('users')
+        .select('id', { count: 'exact', head: true })
+        .eq('organization_id', adminOrgId)
+        .neq('role', 'admin'),
+      supabase
+        .from('employee_invitations')
+        .select('id', { count: 'exact', head: true })
+        .eq('organization_id', adminOrgId)
+        .eq('status', 'pending'),
+    ]);
+
+    if (orgError) throw orgError;
+    if (activeMembersError) throw activeMembersError;
+    if (pendingInvitesError) throw pendingInvitesError;
+
+    const workspaceEmployeeLimit = getEmployeeLimitForPlan(org?.plan);
+    const occupiedSlots = Number(activeMemberCount || 0) + Number(pendingInviteCount || 0);
+    if (occupiedSlots >= workspaceEmployeeLimit) {
+      return res.status(409).json({
+        success: false,
+        message: `This workspace plan allows up to ${workspaceEmployeeLimit} employees. Remove one before inviting another.`
       });
     }
 

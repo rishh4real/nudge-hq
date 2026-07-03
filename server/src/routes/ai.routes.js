@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   generateDailySummary,
+  generateManagerRecommendations,
   detectDelayedTasks,
   identifyInactiveEmployees,
   burnoutCheck,
@@ -11,6 +12,7 @@ import {
   appreciation,
   skillGapAnalysis,
   assistantChat,
+  executeManagerRecommendationAction,
 } from '../controllers/ai.controller.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 
@@ -32,5 +34,7 @@ router.post('/anomaly-check', authorize('admin', 'hr'), anomalyCheck);
 router.post('/appreciation', authorize('admin', 'manager'), appreciation);
 router.get('/skill-gap-analysis', authorize('admin', 'hr'), skillGapAnalysis);
 router.post('/skill-gap-analysis', authorize('admin', 'hr'), skillGapAnalysis);
+router.get('/manager-recommendations', authorize('admin', 'manager'), generateManagerRecommendations);
+router.post('/manager-recommendations/action', authorize('admin', 'manager'), executeManagerRecommendationAction);
 
 export default router;

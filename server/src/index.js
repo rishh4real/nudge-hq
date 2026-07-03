@@ -2,7 +2,6 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import express from 'express';
-import cors from 'cors';
 import morgan from 'morgan';
 import cron from 'node-cron';
 
@@ -27,32 +26,49 @@ import {
   sendWeeklyWhatsAppManagerReports,
   sendWeeklyWhatsAppWins,
 } from './controllers/notifications.controller.js';
+import {
+  aiRateLimiter,
+  apiCors,
+  apiSecurityHeaders,
+  authRateLimiter,
+  contactRateLimiter,
+  generalApiLimiter,
+  notificationRateLimiter,
+  requestBodyLimit,
+} from './middleware/security.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const TRUST_PROXY = process.env.TRUST_PROXY;
 
 // Global Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.disable('x-powered-by');
+if (TRUST_PROXY && TRUST_PROXY !== '0' && TRUST_PROXY !== 'false') {
+  app.set('trust proxy', TRUST_PROXY === 'true' ? 1 : TRUST_PROXY);
+}
+app.use(apiSecurityHeaders);
+app.use(apiCors);
+app.use(express.json({ limit: requestBodyLimit }));
+app.use(express.urlencoded({ extended: false, limit: requestBodyLimit }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use('/api', generalApiLimiter);
 
 // API Routing Mountpoints
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authRateLimiter, authRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/employee', employeeRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/analytics', analyticsRoutes);
-app.use('/api/ai', aiRoutes);
+app.use('/api/ai', aiRateLimiter, aiRoutes);
 app.use('/api/focus', focusRoutes);
 app.use('/api/checkin', checkinRoutes);
 app.use('/api/deepwork', deepworkRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/payment', paymentRoutes);
-app.use('/api/contact', contactRoutes);
+app.use('/api/contact', contactRateLimiter, contactRoutes);
 app.use('/api/nudgespace', nudgeSpaceRoutes);
-app.use('/api/notify', notificationRoutes);
+app.use('/api/notify', notificationRateLimiter, notificationRoutes);
 
 // Base Health Check endpoint
 app.get('/health', (req, res) => {
@@ -83,6 +99,12 @@ app.use((req, res, next) => {
 // Global Error Handling Middleware
 app.use((err, req, res, next) => {
   console.error('Unhandled Server Error:', err);
+  if (err?.message === 'Origin not allowed by CORS policy.') {
+    return res.status(403).json({
+      success: false,
+      message: err.message,
+    });
+  }
   res.status(err.status || 500).json({
     success: false,
     message: 'An internal server error occurred.',
@@ -91,13 +113,16 @@ app.use((err, req, res, next) => {
 });
 
 // Start listening for traffic
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`========================================`);
   console.log(` NudgeHQ Backend running on port ${PORT}`);
   console.log(` Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(` Health: http://localhost:${PORT}/health`);
   console.log(`========================================`);
 });
+
+server.headersTimeout = 65 * 1000;
+server.requestTimeout = 60 * 1000;
 
 cron.schedule('0 17 * * *', async () => {
   try {

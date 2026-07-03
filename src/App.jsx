@@ -76,6 +76,18 @@ const OPS_ROLES = ['admin', 'manager']
 
 const getDashboardPath = (role = 'employee') => DASHBOARD_PATHS[role] || DASHBOARD_PATHS.employee
 
+const getRoleFromDashboardPath = (path = '') => {
+  const match = Object.entries(DASHBOARD_PATHS).find(([, dashboardPath]) => dashboardPath === path)
+  return match?.[0] || null
+}
+
+const DASHBOARD_SECTIONS_BY_ROLE = {
+  admin: ['Dashboard', 'Tasks', 'People', 'NudgeSpace', 'Reports', 'Billing', 'Projects', 'NudgeAI', 'Integrations', 'Settings'],
+  hr: ['Dashboard', 'Tasks', 'People', 'NudgeSpace', 'Reports', 'Projects', 'NudgeAI', 'Integrations', 'Settings'],
+  manager: ['Dashboard', 'Tasks', 'People', 'NudgeSpace', 'Reports', 'Projects', 'NudgeAI', 'Settings'],
+  employee: ['My Dashboard', 'My Tasks', 'Check-in', 'My Progress', 'Growth Portal', 'NudgeSpace', 'NudgeAI', 'Settings'],
+}
+
 const getDashboardLabel = (role) => ({
   admin: 'Admin Command Center',
   hr: 'HR People HQ',
@@ -1240,7 +1252,7 @@ const getInitialView = () => {
   if (path === '/oauth/callback') return 'oauth_callback';
   if (path === '/accept-invite' || path === '/set-password') return 'accept_invite';
   if (path === '/signup') return 'signup';
-  if (path === '/login' || path === '/signin') return storedToken ? 'dashboard' : 'signin';
+  if (path === '/login' || path === '/signin') return 'signin';
   if (path === '/dashboard' || Object.values(DASHBOARD_PATHS).includes(path)) return storedToken ? 'dashboard' : 'signin';
   if (path === '/demo') return 'demo_console';
   return 'landing';
@@ -1348,38 +1360,10 @@ function App() {
   const [demoProofFiles, setDemoProofFiles] = useState([])
   const [demoTaskOverrides, setDemoTaskOverrides] = useState({})
   const [demoCheckinLocation, setDemoCheckinLocation] = useState('Office')
-  const [managerProjects, setManagerProjects] = useState(() => getStoredJson('nudgehq_manager_projects', [
-    {
-      id: 'proj-sales-revival',
-      name: 'Sales revival sprint',
-      owner: 'Sales Manager',
-      status: 'In Progress',
-      progress: 68,
-      due: '18 Jun',
-      summary: 'Recover silent leads, clean pipeline quality, and unblock conversion-ready deals.',
-      priority: 'High'
-    },
-    {
-      id: 'proj-proof-cleanup',
-      name: 'Proof workflow cleanup',
-      owner: 'Priya Singh',
-      status: 'Review',
-      progress: 84,
-      due: '21 Jun',
-      summary: 'Tighten proof-required tasks so managers can review faster without back-and-forth.',
-      priority: 'Medium'
-    },
-    {
-      id: 'proj-whatsapp-nudges',
-      name: 'WhatsApp nudge rollout',
-      owner: 'Aman Verma',
-      status: 'Blocked',
-      progress: 39,
-      due: '25 Jun',
-      summary: 'Expand automated nudges across the department and fix Twilio delivery gaps.',
-      priority: 'High'
-    }
-  ]))
+  const [managerProjects, setManagerProjects] = useState(() => {
+    const seededDemoIds = new Set(['proj-sales-revival', 'proj-proof-cleanup', 'proj-whatsapp-nudges']);
+    return getStoredJson('nudgehq_manager_projects', []).filter((project) => !seededDemoIds.has(project?.id));
+  })
   const [managerProjectDraft, setManagerProjectDraft] = useState({
     name: '',
     owner: '',
@@ -1425,6 +1409,9 @@ function App() {
   const [contactSuccess, setContactSuccess] = useState(false)
   const [feedbackCommentName, setFeedbackCommentName] = useState('')
   const [feedbackCommentText, setFeedbackCommentText] = useState('')
+  const [feedbackCategory, setFeedbackCategory] = useState('Product feedback')
+  const [integrationRequestTitle, setIntegrationRequestTitle] = useState('')
+  const [integrationRequestDetails, setIntegrationRequestDetails] = useState('')
   const [feedbackComments, setFeedbackComments] = useState(() => {
     try {
       const savedComments = JSON.parse(window.localStorage.getItem('nudgehq_early_feedback_comments') || '[]')
@@ -1513,7 +1500,7 @@ function App() {
     const normalizedProject = {
       id: editingManagerProjectId || `proj-${Date.now()}`,
       name: managerProjectDraft.name.trim(),
-      owner: managerProjectDraft.owner.trim() || 'Manager',
+      owner: managerProjectDraft.owner.trim() || (dashboardRole === 'admin' ? 'Admin' : dashboardRole === 'hr' ? 'HR' : 'Manager'),
       status: managerProjectDraft.status,
       progress: Number(managerProjectDraft.progress) || 0,
       due: managerProjectDraft.due.trim() || 'No date',
@@ -1724,6 +1711,8 @@ function App() {
         setCurrentView('signin');
       } else if (path === '/dashboard' || Object.values(DASHBOARD_PATHS).includes(path)) {
         if (token) {
+          const pathRole = getRoleFromDashboardPath(path);
+          if (pathRole) setAuthRole(pathRole);
           setCurrentView('dashboard');
         } else {
           window.history.replaceState({}, '', '/login');
@@ -1762,7 +1751,10 @@ function App() {
     else if (currentView === 'onboarding') targetPath = '/onboarding';
     else if (currentView === 'join_workspace') targetPath = currentPath.startsWith('/join/') ? currentPath : '/join';
     else if (currentView === 'demo_console') targetPath = '/demo';
-    else if (currentView === 'dashboard') targetPath = getDashboardPath(user?.role || authRole || 'employee');
+    else if (currentView === 'dashboard') {
+      const pathRole = getRoleFromDashboardPath(currentPath);
+      targetPath = pathRole ? currentPath : getDashboardPath(user?.role || authRole || 'employee');
+    }
     else if (currentView === 'verify_email') targetPath = '/verify-email';
     else if (currentView === 'forgot_password') targetPath = '/forgot-password';
     else if (currentView === 'reset_password') targetPath = '/reset-password';
@@ -1878,15 +1870,26 @@ function App() {
   // --- REFRESH DATA API CALLS ---
   const refreshDashboardData = async () => {
     if (isSandbox) return;
-    if (authRole === 'employee') {
+    const activeDashboardRole = getRoleFromDashboardPath(window.location.pathname) || authRole || user?.role || 'employee';
+    if (activeDashboardRole === 'employee') {
       setEmpTasks([]);
       setEmpHistory([]);
       setEmpStats(null);
       setNotifications([]);
       setGrowthSummary(null);
+    } else if (LEADER_ROLES.includes(activeDashboardRole)) {
+      setAnalytics(null);
+      setAllUpdates([]);
+      setDepartments([]);
+      setAdminUsers([]);
+      setEmpTasks([]);
+      setTeamFocus([]);
+      setTeamPresence([]);
+      setDeepWorkTeam(null);
+      setNudgeAiData({});
     }
     try {
-      if (authRole === 'employee') {
+      if (activeDashboardRole === 'employee') {
         // Fetch employee tasks
         const { data: taskRes } = await fetchApi('/tasks', { method: 'GET' }, token);
         setEmpTasks(taskRes.tasks || []);
@@ -1901,10 +1904,10 @@ function App() {
 
         const { data: notifRes } = await fetchApi('/employees/notifications', { method: 'GET' }, token);
         setNotifications(notifRes.notifications || []);
-      } else if (LEADER_ROLES.includes(authRole)) {
-        const departmentScope = authRole === 'manager' && user?.department_id ? `?department_id=${user.department_id}` : '';
+      } else if (LEADER_ROLES.includes(activeDashboardRole)) {
+        const departmentScope = activeDashboardRole === 'manager' && user?.department_id ? `?department_id=${user.department_id}` : '';
 
-        if (authRole !== 'manager') {
+        if (activeDashboardRole !== 'manager') {
           const { data: analyticRes } = await fetchApi('/analytics/dashboard', { method: 'GET' }, token);
           setAnalytics(analyticRes || null);
         } else {
@@ -1938,7 +1941,7 @@ function App() {
         setDeepWorkTeam(deepWorkRes || null);
 
         runNudgeAiFeature('standup', false);
-        if (authRole !== 'manager') runNudgeAiFeature('skillGap', false);
+        if (activeDashboardRole !== 'manager') runNudgeAiFeature('skillGap', false);
       }
 
       await loadNudgeSpacePosts();
@@ -2241,6 +2244,7 @@ function App() {
       {
         id: Date.now(),
         name: feedbackCommentName.trim() || 'Early visitor',
+        category: feedbackCategory,
         comment: cleanComment,
         time: 'Just now'
       },
@@ -2248,7 +2252,33 @@ function App() {
     ].slice(0, 8));
     setFeedbackCommentName('');
     setFeedbackCommentText('');
+    setFeedbackCategory('Product feedback');
     showToast('Feedback comment added.', 'success');
+  };
+
+  const handleIntegrationRequestSubmit = (event) => {
+    event.preventDefault();
+    const cleanTitle = integrationRequestTitle.trim();
+    const cleanDetails = integrationRequestDetails.trim();
+
+    if (!cleanTitle || !cleanDetails) {
+      showToast('Add the integration name and what your team needs.', 'error');
+      return;
+    }
+
+    setFeedbackComments((comments) => [
+      {
+        id: Date.now(),
+        name: feedbackCommentName.trim() || user?.name || 'Workspace user',
+        category: 'Integration request',
+        comment: `${cleanTitle}: ${cleanDetails}`,
+        time: 'Just now'
+      },
+      ...comments
+    ].slice(0, 8));
+    setIntegrationRequestTitle('');
+    setIntegrationRequestDetails('');
+    showToast('Integration request saved for review.', 'success');
   };
 
   const handleLogout = () => {
@@ -2604,6 +2634,21 @@ function App() {
       );
       return;
     }
+  };
+
+  const scrollDashboardPaneToTop = () => {
+    window.setTimeout(() => {
+      const panel = document.querySelector('.dashboard-main-premium');
+      if (panel && typeof panel.scrollTo === 'function') {
+        panel.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }, 30);
+  };
+
+  const handleDashboardSectionSelect = (label) => {
+    if (!demoDashboardCanNavigate) return;
+    setDemoEmployeeSection(label);
+    scrollDashboardPaneToTop();
   };
 
   const applyManagerTaskTemplate = (title) => {
@@ -3380,11 +3425,17 @@ function App() {
     ['Invite employees', 'Add people, departments, and roles'],
     ['Start tracking progress', 'Open the live HR command center']
   ];
-  const isLeaderDashboard = LEADER_ROLES.includes(authRole);
-  const isPeopleDashboard = PEOPLE_ROLES.includes(authRole);
-  const isOpsDashboard = OPS_ROLES.includes(authRole);
-  const isEmployeeDashboard = authRole === 'employee';
-  const dashboardRole = authRole || 'employee';
+const routeDashboardRole = currentView === 'dashboard' ? getRoleFromDashboardPath(window.location.pathname) : null;
+const dashboardRole = routeDashboardRole || authRole || user?.role || 'employee';
+const currentPlanName = user?.organizations?.plan || 'free_trial';
+const isTrialWorkspace = !isSandbox && currentView === 'dashboard' && currentPlanName === 'free_trial';
+const trialDaysRemaining = Math.max(0, Math.ceil((new Date(user?.organizations?.trial_ends_at || Date.now() + 14 * 86400000).getTime() - Date.now()) / 86400000)) || 14;
+const projectEditorRoleLabel = dashboardRole === 'admin' ? 'company' : dashboardRole === 'hr' ? 'people ops' : 'manager';
+const latestAiResult = nudgeAiData.standup || nudgeAiData.forecast || nudgeAiData.appreciation || nudgeAiData.skillGap || null;
+const isLeaderDashboard = LEADER_ROLES.includes(dashboardRole);
+const isPeopleDashboard = PEOPLE_ROLES.includes(dashboardRole);
+const isOpsDashboard = OPS_ROLES.includes(dashboardRole);
+  const isEmployeeDashboard = dashboardRole === 'employee';
   const roleThemes = {
     admin: {
       accent: '#7F77DD',
@@ -3461,7 +3512,7 @@ function App() {
       ['Growth', 'Private view']
     ]
   }[dashboardRole] || [];
-  const roleMetricCards = authRole === 'admin'
+  const roleMetricCards = dashboardRole === 'admin'
     ? [
         ['NudgeAI Desk', 'Forecasts, standups, risks, and skill gaps.', Sparkles, '#7F77DD'],
         ['Team Focus Feed', 'See what people are focused on right now.', Activity, '#1D9E75'],
@@ -3469,7 +3520,7 @@ function App() {
         ['Board Pack', 'Generate clean monthly leadership reports.', FileCheck2, '#F59E0B'],
         ['NudgeSpace', 'Company posts, wins, and async team culture.', MessageSquareText, '#1D9E75']
       ]
-    : authRole === 'hr'
+    : dashboardRole === 'hr'
       ? [
           ['People Health', 'Burnout, energy, attendance, and trend signals.', ShieldCheck, '#7F77DD'],
           ['Skill Gaps', 'NudgeAI groups recurring blocker themes.', Workflow, '#1D9E75'],
@@ -3477,7 +3528,7 @@ function App() {
           ['HR Reports', 'Export board packs and people summaries.', FileCheck2, '#F59E0B'],
           ['NudgeSpace', 'Recognitions, culture posts, and people pulse.', MessageSquareText, '#7F77DD']
         ]
-      : authRole === 'manager'
+      : dashboardRole === 'manager'
         ? [
             ['Team Tasks', 'Assign and track only your department work.', ListTodo, '#7F77DD'],
             ['Blocker Alerts', 'See risks for your team before they drag.', AlertCircle, '#F59E0B'],
@@ -3515,21 +3566,21 @@ function App() {
     if (!scores.length) return '—';
     return `${Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)}/10`;
   })();
-  const leaderSummaryCards = authRole === 'manager'
+  const leaderSummaryCards = dashboardRole === 'manager'
     ? [
         ['Team Tasks', isSandbox && !leaderTaskCount ? 15 : leaderTaskCount, ListTodo, 'Across your team'],
         ['Completion Rate', `${isSandbox && !leaderCompletionRate ? 67 : leaderCompletionRate}%`, CheckCircle2, 'Synced from live tasks'],
         ['Active Blockers', managerBlockerCountForCards, AlertCircle, managerBlockerCountForCards ? 'needs attention' : 'all clear'],
         ['Active Today', managerActiveTodayLabel, UsersRound, 'Live check-ins']
       ]
-    : authRole === 'hr'
+    : dashboardRole === 'hr'
       ? [
           ['People Tracked', analytics?.summary?.totalEmployees ?? adminUsers.length, UsersRound, 'Across the company'],
           ['Low Energy Today', lowEnergyCount, Activity, 'Check-in health signal'],
           ['Avg Update Quality', averageQuality, Sparkles, 'Clarity trend'],
           ['Today Updates', todayUpdatesCount || analytics?.summary?.checkinRate || 0, ClipboardCheck, 'Fresh people signals']
         ]
-      : authRole === 'admin'
+      : dashboardRole === 'admin'
         ? [
             ['Total Staff', analytics?.summary?.totalEmployees ?? adminUsers.length, UsersRound, 'All roles in workspace'],
             ['Completion Rate', `${analytics?.summary?.completionRate ?? leaderCompletionRate}%`, CheckCircle2, 'Company task rate'],
@@ -3537,6 +3588,14 @@ function App() {
             ['Today Updates', `${analytics?.summary?.checkinRate ?? todayUpdatesCount}${analytics?.summary?.checkinRate ? '%' : ''}`, Sparkles, 'Live workforce pulse']
           ]
         : [];
+  const liveLeaderStatCards = leaderSummaryCards.map(([title, value, Icon, helper]) => [
+    title,
+    value,
+    Icon,
+    roleAccent,
+    helper || 'Live workspace value',
+    'flat'
+  ]);
   const filteredFaqs = faqs.filter((faq) => {
     const matchesCategory = faqCategory === 'All Inquiries' || faq.category === faqCategory;
     const searchText = `${faq.question} ${faq.answer} ${faq.category}`.toLowerCase();
@@ -3582,14 +3641,19 @@ const demoDisplayName = dashboardRole === 'employee'
 const demoDisplayFirstName = demoDisplayName.split(' ').filter(Boolean)[0] || 'there';
 const demoEmployeeCanNavigate = dashboardRole === 'employee';
 const isLiveManagerWorkspace = !isSandbox && dashboardRole === 'manager';
-const demoDashboardCanNavigate = isSandbox || dashboardRole === 'employee' || isLiveManagerWorkspace;
+const isLiveAdminOrHrWorkspace = !isSandbox && ['admin', 'hr'].includes(dashboardRole);
+const demoDashboardCanNavigate = isSandbox || dashboardRole === 'employee' || isLiveManagerWorkspace || isLiveAdminOrHrWorkspace;
+const allowedDashboardSections = DASHBOARD_SECTIONS_BY_ROLE[dashboardRole] || DASHBOARD_SECTIONS_BY_ROLE.employee;
 const selectedDemoSection = demoDashboardCanNavigate
   ? (dashboardRole === 'employee' ? demoEmployeeSection : (demoEmployeeSection === 'My Dashboard' ? 'Dashboard' : demoEmployeeSection))
   : 'Dashboard';
+const activeDashboardSection = allowedDashboardSections.includes(selectedDemoSection)
+  ? selectedDemoSection
+  : (dashboardRole === 'employee' ? 'My Dashboard' : 'Dashboard');
 const employeeSectionsWithStatCards = ['My Dashboard', 'My Tasks', 'Check-in'];
 const shouldShowDemoStatCards = dashboardRole === 'employee'
-  ? employeeSectionsWithStatCards.includes(selectedDemoSection)
-  : selectedDemoSection !== 'Settings';
+  ? employeeSectionsWithStatCards.includes(activeDashboardSection)
+  : activeDashboardSection !== 'Settings';
 const openDemoAiHelper = () => {
   const introText = getNudgeAiHelperIntro(demoDisplayFirstName);
   setDemoAiHelperMessages((messages) => {
@@ -3602,6 +3666,14 @@ const openDemoAiHelper = () => {
     ? demoProfileEmail
     : user?.email || 'Registered email unavailable';
   const demoInitials = demoDisplayName.split(' ').filter(Boolean).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'K';
+
+  useEffect(() => {
+    if (currentView !== 'dashboard') return;
+    if (!allowedDashboardSections.includes(demoEmployeeSection)) {
+      setDemoEmployeeSection(dashboardRole === 'employee' ? 'My Dashboard' : 'Dashboard');
+    }
+  }, [allowedDashboardSections, currentView, dashboardRole, demoEmployeeSection]);
+
   const leaderDemoSidebarItems = [
     ['Dashboard', LayoutDashboard],
     ['Tasks', CheckCircle2],
@@ -3609,6 +3681,7 @@ const openDemoAiHelper = () => {
     ['People', UsersRound],
     ['NudgeSpace', MessageSquareText],
     ['Reports', LineChartIcon],
+    ['Billing', Building2],
     ['NudgeAI', Zap],
     ['Integrations', Workflow],
     ['Settings', Shield],
@@ -3624,12 +3697,18 @@ const demoSidebarItems = dashboardRole === 'employee'
         ['NudgeAI', Zap],
         ['Settings', Shield],
       ]
-    : leaderDemoSidebarItems.filter(([label]) => dashboardRole !== 'manager' || label !== 'Integrations');
+    : leaderDemoSidebarItems.filter(([label]) => {
+        if (dashboardRole === 'manager') return !['Billing', 'Integrations'].includes(label);
+        if (dashboardRole === 'hr') return label !== 'Billing';
+        return true;
+      });
   const dashboardShellSubtitle = isSandbox
     ? `${dashboardRoleLabel} command`
     : isLiveManagerWorkspace
       ? 'Manager command'
-      : 'Employee workspace';
+      : isLiveAdminOrHrWorkspace
+        ? `${dashboardRoleLabel} command`
+        : 'Employee workspace';
   const sandboxNudgeSpaceSocialPosts = [
     {
       name: demoDisplayName,
@@ -4127,6 +4206,52 @@ const demoSidebarItems = dashboardRole === 'employee'
       ) : null}
     </div>
   );
+  const renderLatestAiResult = (result) => {
+    if (!result) {
+      return (
+        <div className="rounded-2xl border border-dashed border-[#DAD7FB] bg-[#FCFCFF] p-5">
+          <p className="text-sm font-black text-[#2C2C2A]">No AI result yet</p>
+          <p className="mt-2 text-xs font-semibold leading-5 text-[#6E6B78]">Run one AI action and the latest brief, forecast, appreciation draft, or skill signal will appear here in a readable layout.</p>
+        </div>
+      );
+    }
+
+    const sections = result.sections && typeof result.sections === 'object' ? Object.entries(result.sections) : [];
+
+    return (
+      <div className="space-y-4">
+        {result.brief ? (
+          <div className="rounded-2xl border border-[#EEEDFE] bg-white p-4">
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-[#8A8894]">Brief</p>
+            <p className="mt-2 text-sm font-semibold leading-6 text-[#2C2C2A]">{result.brief}</p>
+          </div>
+        ) : null}
+        {sections.length ? (
+          <div className="grid gap-3 md:grid-cols-2">
+            {sections.map(([label, items]) => (
+              <div key={label} className="rounded-2xl border border-[#EEEDFE] bg-white p-4">
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-[#7F77DD]">{label.replace(/_/g, ' ')}</p>
+                <div className="mt-3 space-y-2">
+                  {Array.isArray(items) && items.length ? items.map((item, index) => (
+                    <p key={`${label}-${index}`} className="rounded-xl bg-[#FCFCFF] px-3 py-2 text-xs font-semibold leading-5 text-[#5F5E5A]">
+                      {typeof item === 'string' ? item : JSON.stringify(item)}
+                    </p>
+                  )) : (
+                    <p className="text-xs font-semibold text-[#8A8894]">No items yet</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+        {result.generated_at ? (
+          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8A8894]">
+            Generated {formatDisplayDate(result.generated_at)}
+          </p>
+        ) : null}
+      </div>
+    );
+  };
   const renderNudgeSpacePostList = ({ emptyTitle, emptySub, emptyIcon = MessageSquareText }) => {
     if (nudgeSpaceLoading) {
       return (
@@ -7819,7 +7944,7 @@ const demoSidebarItems = dashboardRole === 'employee'
       )}
 
       {/* VIEW 3: LIVE DASHBOARD AREA */}
-      {currentView === 'dashboard' && (isSandbox || (!isSandbox && (isEmployeeDashboard || isLiveManagerWorkspace))) && (
+      {currentView === 'dashboard' && (isSandbox || (!isSandbox && (isEmployeeDashboard || isLiveManagerWorkspace || isLiveAdminOrHrWorkspace))) && (
         <section className="dashboard-showcase-bg relative min-h-screen">
           <div className="dashboard-glass-shell grid min-h-screen overflow-hidden border-0 lg:grid-cols-[17rem_minmax(0,1fr)]">
             <aside className="dashboard-sidebar-premium flex border-b border-white/70 p-5 lg:min-h-screen lg:flex-col lg:border-b-0 lg:border-r lg:border-white/70">
@@ -7856,11 +7981,9 @@ const demoSidebarItems = dashboardRole === 'employee'
                   <button
                     key={label}
                     type="button"
-                    onClick={() => {
-                      if (demoDashboardCanNavigate) setDemoEmployeeSection(label);
-                    }}
+                    onClick={() => handleDashboardSectionSelect(label)}
                     className={`flex w-full items-center gap-3 rounded-xl border-l-[3px] px-4 py-3 text-sm font-extrabold transition ${
-                      (demoDashboardCanNavigate ? selectedDemoSection === label : index === 0)
+                      (demoDashboardCanNavigate ? activeDashboardSection === label : index === 0)
                         ? 'border-l-[#7F77DD] bg-[#1C1739] text-white shadow-lg shadow-[#3C3489]/18'
                         : 'border-l-transparent text-[#6E6B78] hover:bg-white/90 hover:text-[#3C3489] hover:shadow-sm'
                     }`}
@@ -7910,27 +8033,35 @@ const demoSidebarItems = dashboardRole === 'employee'
             <div className="dashboard-main-premium min-w-0 p-5 sm:p-7 lg:max-h-screen lg:overflow-y-auto">
               <header className="dashboard-hero-strip rounded-[28px] p-5 md:flex md:items-start md:justify-between md:gap-4">
                 <div>
-                  <div className="mb-4 flex flex-wrap gap-2">
-                    {['Daily Signals', 'Blockers', 'NudgeAI', 'WhatsApp'].map((chip) => (
-                      <button
-                        key={chip}
-                        type="button"
-                        onClick={() => activateManagerFocusTab(chip)}
-                        className={`rounded-full border px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.14em] shadow-sm transition ${
-                          dashboardRole === 'manager' && activeManagerFocusTab === chip
-                            ? 'border-[#3C3489] bg-[#1C1739] text-white'
-                            : 'border-white/80 bg-white/72 text-[#6D63D9] hover:border-[#B9B4FF] hover:bg-white'
-                        }`}
-                      >
-                        {chip}
-                      </button>
-                    ))}
-                  </div>
+                  {dashboardRole === 'manager' ? (
+                    <div className="mb-4 flex flex-wrap gap-2">
+                      {['Daily Signals', 'Blockers', 'NudgeAI', 'WhatsApp'].map((chip) => (
+                        <button
+                          key={chip}
+                          type="button"
+                          onClick={() => activateManagerFocusTab(chip)}
+                          className={`rounded-full border px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.14em] shadow-sm transition ${
+                            activeManagerFocusTab === chip
+                              ? 'border-[#3C3489] bg-[#1C1739] text-white'
+                              : 'border-white/80 bg-white/72 text-[#6D63D9] hover:border-[#B9B4FF] hover:bg-white'
+                          }`}
+                        >
+                          {chip}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                   <h1 className="relative z-10 text-3xl font-extrabold tracking-tight text-[#1C1739] sm:text-4xl">
-                    {dashboardGreeting}, {demoDisplayName.split(' ')[0] || 'Kunal'}!
+                    {dashboardGreeting}, {demoDisplayName.split(' ')[0] || 'there'}!
                   </h1>
                   <p className="relative z-10 mt-2 text-sm font-semibold text-[#6E6B78]">
-                    {dashboardRole === 'employee' ? "Here's your focus for today." : "Here's what's happening with your team today."}
+                    {dashboardRole === 'employee'
+                      ? "Here's your focus for today."
+                      : dashboardRole === 'admin'
+                        ? "Here's what is happening across your workspace today."
+                        : dashboardRole === 'hr'
+                          ? "Here's your people rhythm and team health snapshot."
+                          : "Here's what's happening with your team today."}
                   </p>
                 </div>
                 <div className="relative z-10 mt-4 inline-flex w-fit items-center gap-2 rounded-2xl border border-white/80 bg-white/80 px-4 py-3 text-sm font-bold text-[#5F5E5A] shadow-lg shadow-[#3C3489]/8 md:mt-0">
@@ -7938,6 +8069,21 @@ const demoSidebarItems = dashboardRole === 'employee'
                   {dashboardDateLabel} · Today
                 </div>
               </header>
+
+              {isTrialWorkspace ? (
+                <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-[#F2D8A7] bg-[#FAEEDA] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm font-black text-[#8A3A0A]">
+                    Your free trial ends in {trialDaysRemaining} days
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentView('choose_plan')}
+                    className="rounded-xl bg-[#1C1739] px-4 py-2 text-sm font-black text-white"
+                  >
+                    Upgrade Now
+                  </button>
+                </div>
+              ) : null}
 
               {dashboardRole === 'manager' && selectedDemoSection === 'Dashboard' && (
                 <section id="manager-demo-brief-section" className="mt-7 overflow-hidden rounded-[28px] border border-[#D7E2F0] bg-[#F8FAFC] shadow-[0_18px_50px_rgba(28,23,57,0.10)]">
@@ -8050,9 +8196,9 @@ const demoSidebarItems = dashboardRole === 'employee'
                 </section>
               )}
 
-{shouldShowDemoStatCards && (
+              {shouldShowDemoStatCards && (
                 <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                  {((!isSandbox && isEmployeeDashboard) ? realEmployeeStatCards : demoStatCards).map(([title, value, Icon, color, trend, trendType]) => (
+                  {((!isSandbox && isEmployeeDashboard) ? realEmployeeStatCards : isLiveAdminOrHrWorkspace ? liveLeaderStatCards : demoStatCards).map(([title, value, Icon, color, trend, trendType]) => (
                     <article key={title} className="dashboard-metric-card rounded-[22px] p-5">
                       <div className="flex items-start justify-between gap-4">
                         <div>
@@ -8069,6 +8215,686 @@ const demoSidebarItems = dashboardRole === 'employee'
                     </article>
                   ))}
                 </div>
+              )}
+
+              {isLiveAdminOrHrWorkspace && (
+                <section className="mt-6 space-y-6">
+                  {activeDashboardSection === 'Dashboard' && (
+                    <>
+                      {dashboardRole === 'admin' ? (
+                        <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+                          <div className="relative overflow-hidden rounded-[32px] bg-[linear-gradient(135deg,#151326_0%,#3C3489_54%,#7F77DD_100%)] p-6 text-white shadow-[0_24px_70px_rgba(28,23,57,0.24)]">
+                            <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-white/14 blur-3xl" />
+                            <div className="relative">
+                              <p className="inline-flex items-center gap-2 rounded-full bg-white/12 px-3 py-1 text-[11px] font-black uppercase tracking-[0.2em] text-white/85">
+                                <ShieldCheck className="h-4 w-4" />
+                                Admin command cockpit
+                              </p>
+                              <h2 className="mt-5 max-w-2xl text-3xl font-black tracking-[-0.04em] text-white sm:text-4xl">
+                                Set up the workspace without demo noise.
+                              </h2>
+                              <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-white/72">
+                                Everything below is powered by real workspace data: invited people, departments, tasks, updates, billing, and reports.
+                              </p>
+                              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                                {[
+                                  ['People invited', adminUsers.length, UsersRound],
+                                  ['Departments', departments.length, Building2],
+                                  ['Tasks created', empTasks.length, ListTodo],
+                                  ['Updates today', todayUpdatesCount, Activity],
+                                ].map(([label, value, Icon]) => (
+                                  <div key={label} className="rounded-2xl border border-white/12 bg-white/10 p-4 backdrop-blur">
+                                    <Icon className="h-5 w-5 text-[#8EF0CD]" />
+                                    <p className="mt-3 text-3xl font-black text-white">{value}</p>
+                                    <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-white/55">{label}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="dashboard-panel rounded-[32px] p-5">
+                            <div className="flex items-start justify-between gap-4">
+                              <div>
+                                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7F77DD]">Launch setup</p>
+                                <h2 className="mt-2 text-2xl font-black text-[#1C1739]">Admin checklist</h2>
+                              </div>
+                              <span className="rounded-full bg-[#EEEDFE] px-3 py-1 text-xs font-black text-[#3C3489]">
+                                {adminSetupChecklist.filter(([, done]) => done).length}/{adminSetupChecklist.length} done
+                              </span>
+                            </div>
+                            <div className="mt-5 space-y-3">
+                              {adminSetupChecklist.map(([label, done, helper]) => (
+                                <div key={label} className="flex items-start gap-3 rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                                  <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${done ? 'bg-[#E8F7F1] text-[#1D9E75]' : 'bg-[#FFF7ED] text-[#F59E0B]'}`}>
+                                    {done ? <Check className="h-4 w-4" /> : <Clock3 className="h-4 w-4" />}
+                                  </span>
+                                  <div>
+                                    <p className="text-sm font-black text-[#2C2C2A]">{label}</p>
+                                    <p className="mt-1 text-xs font-semibold leading-5 text-[#6E6B78]">{helper}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </section>
+                      ) : (
+                        <section className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
+                          <div className="relative overflow-hidden rounded-[32px] bg-[linear-gradient(135deg,#24130A_0%,#8A3A0A_58%,#F59E0B_120%)] p-6 text-white shadow-[0_24px_70px_rgba(138,58,10,0.18)]">
+                            <p className="inline-flex items-center gap-2 rounded-full bg-white/12 px-3 py-1 text-[11px] font-black uppercase tracking-[0.2em] text-white/85">
+                              <ShieldCheck className="h-4 w-4" />
+                              HR people cockpit
+                            </p>
+                            <h2 className="mt-5 max-w-xl text-3xl font-black tracking-[-0.04em] text-white sm:text-4xl">
+                              Understand people health without fake activity.
+                            </h2>
+                            <p className="mt-3 text-sm font-semibold leading-6 text-white/72">
+                              HR sees real check-ins, energy signals, update quality, and team rhythm. New workspaces stay intentionally empty.
+                            </p>
+                          </div>
+
+                          <div className="dashboard-panel rounded-[32px] p-5">
+                            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#F59E0B]">People signals</p>
+                            <h2 className="mt-2 text-2xl font-black text-[#1C1739]">Today’s HR snapshot</h2>
+                            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                              {hrPeopleSignals.map(([label, value, helper]) => (
+                                <div key={label} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                                  <p className="text-xs font-black uppercase tracking-[0.12em] text-[#8A8894]">{label}</p>
+                                  <p className="mt-2 text-3xl font-black text-[#1C1739]">{value}</p>
+                                  <p className="mt-2 text-xs font-semibold leading-5 text-[#6E6B78]">{helper}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </section>
+                      )}
+
+                      <section className="rounded-[28px] border border-[#DAD7FB] bg-[linear-gradient(135deg,#F4F3FF_0%,#FFFFFF_58%,#EEF4FF_100%)] p-5 shadow-[0_18px_50px_rgba(60,52,137,0.10)]">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <p className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-[#7F77DD]">
+                              <Zap className="h-4 w-4" />
+                              NudgeAI Morning Brief
+                            </p>
+                            <h2 className="mt-3 text-2xl font-black text-[#1C1739]">Start with what needs attention.</h2>
+                            <p className="mt-2 text-sm font-semibold text-[#6E6B78]">Generated at 9:00 AM when team data is available.</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => runNudgeAiFeature('standup', true)}
+                            disabled={nudgeAiLoading.standup}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1C1739] px-4 py-3 text-sm font-black text-white disabled:opacity-60"
+                          >
+                            <RefreshCw className={`h-4 w-4 ${nudgeAiLoading.standup ? 'animate-spin' : ''}`} />
+                            {nudgeAiData.standup ? 'Regenerate' : "Generate Today's Brief"}
+                          </button>
+                        </div>
+                        <div className="mt-5 rounded-2xl border border-white/80 bg-white/80 p-4">
+                          {nudgeAiData.standup?.brief ? (
+                            <p className="text-sm font-semibold leading-6 text-[#2C2C2A]">{nudgeAiData.standup.brief}</p>
+                          ) : (
+                            <p className="text-sm font-semibold leading-6 text-[#6E6B78]">No brief generated yet. Generate it after employees start adding real updates, tasks, and blockers.</p>
+                          )}
+                        </div>
+                      </section>
+
+                      {empTasks.some((task) => normalizeTaskStatus(task.status) === 'blocked') ? (
+                        <section className="rounded-2xl border border-rose-100 border-l-[3px] border-l-[#EF4444] bg-[#FFF5F5] p-5">
+                          <h2 className="text-lg font-black text-[#B91C1C]">Active Blockers</h2>
+                          <div className="mt-4 space-y-3">
+                            {empTasks.filter((task) => normalizeTaskStatus(task.status) === 'blocked').map((task) => (
+                              <div key={task.id || task.title} className="grid gap-3 rounded-xl bg-white p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-center">
+                                <div className="flex items-center gap-3">
+                                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100 text-sm font-black text-rose-600">
+                                    {(task.assignee?.name || 'TM').split(' ').map((part) => part[0]).join('').slice(0, 2)}
+                                  </span>
+                                  <p className="text-sm font-black text-[#2C2C2A]">{task.assignee?.name || 'Team member'}</p>
+                                </div>
+                                <p className="text-sm font-bold text-[#2C2C2A]">{task.title || 'Blocked task'}</p>
+                                <button type="button" onClick={() => updateTaskStatusApi(task.id, 'in_progress', null)} className="rounded-xl bg-[#1D9E75] px-4 py-2 text-xs font-black text-white">
+                                  Resolve
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </section>
+                      ) : null}
+
+                      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+                        <section className="dashboard-panel rounded-[28px] p-5">
+                          <div className="flex items-center justify-between gap-3">
+                            <h2 className="text-xl font-black text-[#2C2C2A]">Team Progress</h2>
+                            <span className="rounded-full bg-[#EEEDFE] px-3 py-1 text-xs font-black text-[#3C3489]">{dashboardRoleLabel}</span>
+                          </div>
+                          <div className="mt-5 space-y-3">
+                            {empTasks.length ? empTasks.slice(0, 6).map((task) => {
+                              const progress = realEmployeeProgressForStatus(task.status);
+                              const color = realEmployeeColorForStatus(task.status);
+                              return (
+                                <div key={task.id || task.title} className="grid gap-3 rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4 sm:grid-cols-[1fr_0.8fr_auto] sm:items-center">
+                                  <div>
+                                    <p className="text-sm font-black text-[#2C2C2A]">{task.assignee?.name || 'Unassigned'}</p>
+                                    <p className="mt-1 text-xs font-semibold text-[#8A8894]">{task.title || 'Untitled task'}</p>
+                                  </div>
+                                  <div className="h-2.5 overflow-hidden rounded-full bg-[#EEEFF5]">
+                                    <div className="h-full rounded-full" style={{ width: `${progress}%`, backgroundColor: color }} />
+                                  </div>
+                                  <span className={`rounded-full px-3 py-1 text-xs font-black ${realEmployeeStatusClass(task.status)}`}>{realEmployeeStatusLabel(task.status)}</span>
+                                </div>
+                              );
+                            }) : renderEmptyState({
+                              title: 'No live tasks yet',
+                              sub: 'Create the first real task from the Tasks page. This dashboard will stay empty until real work exists.',
+                              Icon: ListTodo,
+                              actionLabel: 'Create task',
+                              onAction: () => setDemoEmployeeSection('Tasks')
+                            })}
+                          </div>
+                        </section>
+
+                        <section className="dashboard-panel rounded-[28px] p-5">
+                          <h2 className="text-xl font-black text-[#2C2C2A]">Recent Activity</h2>
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {['All', 'Updates', 'Blockers', 'Overdue'].map((tab) => (
+                              <span key={tab} className="rounded-full border border-[#DAD7FB] bg-white px-3 py-1 text-[11px] font-black text-[#3C3489]">{tab}</span>
+                            ))}
+                          </div>
+                          <div className="mt-5 space-y-3">
+                            {allUpdates.length ? allUpdates.slice(0, 5).map((update) => (
+                              <div key={update.id || update.created_at} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                                <p className="text-sm font-black text-[#2C2C2A]">{update.user?.name || 'Team member'} submitted an update</p>
+                                <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-[#6E6B78]">{update.progress_text || 'Progress update received.'}</p>
+                              </div>
+                            )) : renderEmptyState({
+                              title: 'No activity yet',
+                              sub: 'Real updates, blockers, and task changes will appear here after your team starts using NudgeHQ.',
+                              Icon: Activity
+                            })}
+                          </div>
+                        </section>
+                      </div>
+
+                      <section className="dashboard-panel rounded-[28px] p-5">
+                        <h2 className="text-xl font-black text-[#2C2C2A]">Department Stats</h2>
+                        <div className="mt-5 grid gap-4 md:grid-cols-3">
+                          {departments.length ? departments.map((dept) => {
+                            const employeeCount = adminUsers.filter((item) => item.department_id === dept.id || item.departments?.id === dept.id || item.departments?.name === dept.name).length;
+                            const completion = employeeCount ? leaderCompletionRate : 0;
+                            const barColor = completion > 70 ? '#1D9E75' : completion >= 50 ? '#F59E0B' : '#EF4444';
+                            return (
+                              <div key={dept.id || dept.name} className="rounded-2xl border border-[#EEEDFE] bg-white p-4">
+                                <p className="text-sm font-black text-[#2C2C2A]">{dept.name}</p>
+                                <p className="mt-1 text-xs font-semibold text-[#8A8894]">{employeeCount} employees</p>
+                                <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#EEEFF5]">
+                                  <div className="h-full rounded-full" style={{ width: `${completion}%`, backgroundColor: barColor }} />
+                                </div>
+                                <p className="mt-2 text-xs font-black" style={{ color: barColor }}>{completion}% completion</p>
+                              </div>
+                            );
+                          }) : renderEmptyState({
+                            title: 'No departments yet',
+                            sub: 'Create departments from People so Admin and HR can read clean team-level signals.',
+                            Icon: Building2,
+                            actionLabel: 'Open People',
+                            onAction: () => setDemoEmployeeSection('People')
+                          })}
+                        </div>
+                      </section>
+                    </>
+                  )}
+
+                  {activeDashboardSection === 'People' && (
+                    <section className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
+                      <div className="dashboard-panel rounded-[28px] p-5">
+                        <h2 className="text-2xl font-black text-[#2C2C2A]">People Directory</h2>
+                        <p className="mt-2 text-sm font-semibold text-[#6E6B78]">Real employees invited to this workspace appear here.</p>
+                        <div className="mt-5 space-y-3">
+                          {adminUsers.length ? adminUsers.map((member) => (
+                            <div key={member.id || member.email} className="flex items-center justify-between gap-3 rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                              <div className="flex min-w-0 items-center gap-3">
+                                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#3C3489] text-sm font-black text-white">
+                                  {(member.name || member.email || 'U').split(' ').map((part) => part[0]).join('').slice(0, 2)}
+                                </span>
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-black text-[#2C2C2A]">{member.name || 'Unnamed employee'}</p>
+                                  <p className="truncate text-xs font-semibold text-[#8A8894]">{member.email}</p>
+                                </div>
+                              </div>
+                              <span className="rounded-full bg-[#EEEDFE] px-3 py-1 text-xs font-black capitalize text-[#3C3489]">{member.role || 'employee'}</span>
+                            </div>
+                          )) : renderEmptyState({
+                            title: 'No employees invited yet',
+                            sub: 'Invite real employees here. Demo names will not be shown in the original workspace.',
+                            Icon: UsersRound
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="space-y-6">
+                        <form onSubmit={handleInviteEmployee} className="dashboard-panel rounded-[28px] p-5">
+                          <h2 className="text-xl font-black text-[#2C2C2A]">Invite employee</h2>
+                          <div className="mt-4 grid gap-3">
+                            <input value={inviteName} onChange={(e) => setInviteName(e.target.value)} placeholder="Employee name" className="rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" required />
+                            <input value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="Work email" type="email" className="rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" required />
+                            <input value={invitePhone} onChange={(e) => setInvitePhone(e.target.value)} placeholder="Phone number optional" className="rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" />
+                            <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)} className="rounded-2xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm outline-none focus:border-[#7F77DD]">
+                              {['employee', 'manager', 'hr', 'admin'].map((role) => <option key={role} value={role}>{role}</option>)}
+                            </select>
+                            <button disabled={inviteLoading} className="rounded-2xl bg-[#1C1739] px-4 py-3 text-sm font-black text-white disabled:opacity-60">{inviteLoading ? 'Sending invite...' : 'Send invite'}</button>
+                          </div>
+                          {inviteResult ? <p className="mt-3 rounded-xl bg-[#E8F7F1] p-3 text-xs font-bold text-[#1D9E75]">Invite ready for {inviteResult.email}</p> : null}
+                        </form>
+
+                        <form onSubmit={handleCreateDepartment} className="dashboard-panel rounded-[28px] p-5">
+                          <h2 className="text-xl font-black text-[#2C2C2A]">Create department</h2>
+                          <div className="mt-4 grid gap-3">
+                            <input value={newDeptName} onChange={(e) => setNewDeptName(e.target.value)} placeholder="Department name" className="rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" required />
+                            <textarea value={newDeptDesc} onChange={(e) => setNewDeptDesc(e.target.value)} placeholder="Department description" className="min-h-24 rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" />
+                            <button className="rounded-2xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm font-black text-[#3C3489]">Create department</button>
+                          </div>
+                        </form>
+                      </div>
+                    </section>
+                  )}
+
+                  {activeDashboardSection === 'Tasks' && (
+                    <section className="grid gap-6 xl:grid-cols-[1fr_0.85fr]">
+                      <div className="dashboard-panel rounded-[28px] p-5">
+                        <h2 className="text-2xl font-black text-[#2C2C2A]">Tasks</h2>
+                        <div className="mt-5 space-y-3">
+                          {empTasks.length ? empTasks.map((task) => (
+                            <div key={task.id || task.title} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-black text-[#2C2C2A]">{task.title || 'Untitled task'}</p>
+                                  <p className="mt-1 text-xs font-semibold text-[#8A8894]">{task.assignee?.name || 'Unassigned'}</p>
+                                </div>
+                                <span className={`rounded-full px-3 py-1 text-xs font-black ${realEmployeeStatusClass(task.status)}`}>{realEmployeeStatusLabel(task.status)}</span>
+                              </div>
+                            </div>
+                          )) : renderEmptyState({
+                            title: 'No tasks created yet',
+                            sub: 'Create a real task from the form. We are not showing demo task data in original dashboards.',
+                            Icon: ListTodo
+                          })}
+                        </div>
+                      </div>
+                      <form onSubmit={handleCreateTask} className="dashboard-panel rounded-[28px] p-5">
+                        <h2 className="text-xl font-black text-[#2C2C2A]">Create task</h2>
+                        <div className="mt-4 grid gap-3">
+                          <input value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} placeholder="Task title" className="rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" required />
+                          <textarea value={newTaskDesc} onChange={(e) => setNewTaskDesc(e.target.value)} placeholder="Task description" className="min-h-24 rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" />
+                          <select value={newTaskAssignee} onChange={(e) => setNewTaskAssignee(e.target.value)} className="rounded-2xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm outline-none focus:border-[#7F77DD]">
+                            <option value="">Unassigned</option>
+                            {adminUsers.map((member) => <option key={member.id} value={member.id}>{member.name || member.email}</option>)}
+                          </select>
+                          <button className="rounded-2xl bg-[#1C1739] px-4 py-3 text-sm font-black text-white">Create task</button>
+                        </div>
+                      </form>
+                    </section>
+                  )}
+
+                  {activeDashboardSection === 'NudgeSpace' && (
+                    <section className="grid gap-6 xl:grid-cols-[1fr_0.8fr]">
+                      <div className="dashboard-panel rounded-[28px] p-5">
+                        <h2 className="text-2xl font-black text-[#2C2C2A]">Team NudgeSpace</h2>
+                        <p className="mt-2 text-sm font-semibold text-[#6E6B78]">Only real workspace posts show here.</p>
+                        <div className="mt-5 rounded-2xl border border-[#DAD7FB] bg-[#FCFCFF] p-4">
+                          <textarea value={nudgeSpaceDraft} onChange={(e) => setNudgeSpaceDraft(e.target.value)} placeholder="Write a real announcement, win, question, or idea..." className="min-h-28 w-full resize-none rounded-2xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" />
+                          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                            <select value={nudgeSpacePostType} onChange={(e) => setNudgeSpacePostType(e.target.value)} className="rounded-xl border border-[#DAD7FB] bg-white px-3 py-2 text-xs font-bold text-[#3C3489]">
+                              {['status', 'win', 'question', 'idea'].map((type) => <option key={type} value={type}>{type}</option>)}
+                            </select>
+                            <button type="button" onClick={submitNudgeSpacePost} disabled={nudgeSpaceSaving} className="rounded-xl bg-[#1D9E75] px-4 py-2 text-sm font-black text-white disabled:opacity-60">
+                              {nudgeSpaceSaving ? 'Posting...' : 'Post to NudgeSpace'}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="mt-5">
+                          {renderNudgeSpacePostList({
+                            emptyTitle: 'No real NudgeSpace posts yet',
+                            emptySub: 'Posts will appear only after someone in this workspace publishes them.',
+                            emptyIcon: MessageSquareText
+                          })}
+                        </div>
+                      </div>
+                      <div className="dashboard-panel rounded-[28px] p-5">
+                        <h2 className="text-xl font-black text-[#2C2C2A]">U Space / Todo</h2>
+                        {renderEmptyState({
+                          title: 'Personal todo space is ready for real data',
+                          sub: 'This area will connect to personal goals and private todos without demo filler.',
+                          Icon: ListTodo
+                        })}
+                      </div>
+                    </section>
+                  )}
+
+                  {activeDashboardSection === 'Reports' && (
+                    <section className="dashboard-panel rounded-[28px] p-5">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <h2 className="text-2xl font-black text-[#2C2C2A]">Reports</h2>
+                          <p className="mt-2 text-sm font-semibold text-[#6E6B78]">Generate reports from real workspace activity only.</p>
+                        </div>
+                        <button type="button" onClick={generateBoardPack} disabled={boardPackLoading} className="rounded-xl bg-[#1C1739] px-4 py-3 text-sm font-black text-white disabled:opacity-60">
+                          {boardPackLoading ? 'Generating...' : 'Generate Board Pack PDF'}
+                        </button>
+                      </div>
+                      <div className="mt-5 grid gap-4 md:grid-cols-3">
+                        {[
+                          ['Updates today', todayUpdatesCount],
+                          ['Tasks tracked', empTasks.length],
+                          ['People invited', adminUsers.length],
+                        ].map(([label, value]) => (
+                          <div key={label} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                            <p className="text-xs font-black uppercase tracking-[0.14em] text-[#8A8894]">{label}</p>
+                            <p className="mt-2 text-3xl font-black text-[#1C1739]">{value}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {activeDashboardSection === 'Billing' && dashboardRole === 'admin' && (
+                    <section className="dashboard-panel rounded-[28px] p-5">
+                      <h2 className="text-2xl font-black text-[#2C2C2A]">Billing</h2>
+                      <div className="mt-5 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+                        <div className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-5">
+                          <p className="text-xs font-black uppercase tracking-[0.14em] text-[#8A8894]">Current plan</p>
+                          <p className="mt-2 text-3xl font-black capitalize text-[#1C1739]">{user?.organizations?.plan || 'free_trial'}</p>
+                          {user?.organizations?.plan === 'free_trial' ? <p className="mt-2 text-sm font-bold text-[#8A3A0A]">Trial active. Upgrade when ready.</p> : null}
+                          <button type="button" onClick={() => setCurrentView('choose_plan')} className="mt-5 rounded-xl bg-[#1C1739] px-4 py-3 text-sm font-black text-white">Upgrade Plan</button>
+                        </div>
+                        <div className="rounded-2xl border border-dashed border-[#DAD7FB] bg-white p-5">
+                          <p className="text-sm font-black text-[#2C2C2A]">Payment history</p>
+                          <p className="mt-2 text-sm font-semibold text-[#8A8894]">No payments yet. Razorpay history will appear after real transactions.</p>
+                        </div>
+                      </div>
+                    </section>
+                  )}
+
+                  {activeDashboardSection === 'Projects' && (
+                    <section className="grid gap-6 xl:grid-cols-[1.06fr_0.94fr]">
+                      <section className="dashboard-panel rounded-[28px] p-5">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#7F77DD]">Workspace projects</p>
+                            <h2 className="mt-2 text-2xl font-black text-[#2C2C2A]">Track projects from one clean board.</h2>
+                            <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-[#5F5E5A]">
+                              {dashboardRole === 'admin'
+                                ? 'Admins can create and edit company-wide projects from here.'
+                                : 'HR can track people-ops projects and internal rollout work from here.'}
+                            </p>
+                          </div>
+                          <span className="rounded-full bg-[#EEEDFE] px-3 py-1 text-xs font-extrabold text-[#3C3489]">
+                            {managerProjects.length} live projects
+                          </span>
+                        </div>
+
+                        <div className="mt-5 space-y-4">
+                          {managerProjects.length ? managerProjects.map((project) => (
+                            <article key={project.id} className="rounded-[24px] border border-[#EEEDFE] bg-[#FCFCFF] p-4 shadow-sm">
+                              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="rounded-full bg-[#1C1739] px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.12em] text-white">
+                                      {project.priority} priority
+                                    </span>
+                                    <span className={`rounded-full px-3 py-1 text-[11px] font-extrabold ${
+                                      project.status === 'Done' ? 'bg-[#E8F7F1] text-[#1D9E75]' :
+                                      project.status === 'Blocked' ? 'bg-rose-50 text-rose-600' :
+                                      project.status === 'Review' ? 'bg-amber-50 text-amber-700' :
+                                      'bg-[#EEEDFE] text-[#3C3489]'
+                                    }`}>
+                                      {project.status}
+                                    </span>
+                                  </div>
+                                  <h3 className="mt-3 text-xl font-black text-[#2C2C2A]">{project.name}</h3>
+                                  <p className="mt-2 text-sm font-semibold leading-6 text-[#5F5E5A]">{project.summary}</p>
+                                </div>
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditManagerProject(project)}
+                                    className="rounded-xl border border-[#DAD7FB] bg-white px-4 py-2 text-xs font-extrabold text-[#3C3489] transition hover:bg-[#EEEDFE]"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteManagerProject(project.id)}
+                                    className="rounded-xl border border-rose-200 bg-white px-4 py-2 text-xs font-extrabold text-rose-600 transition hover:bg-rose-50"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="mt-5 grid gap-4 sm:grid-cols-[0.95fr_1.05fr]">
+                                <div className="rounded-2xl bg-white p-4 ring-1 ring-[#EEEDFE]">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                      <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#8A8894]">Owner</p>
+                                      <p className="mt-1 text-sm font-black text-[#2C2C2A]">{project.owner}</p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#8A8894]">Due</p>
+                                      <p className="mt-1 text-sm font-black text-[#2C2C2A]">{project.due}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="rounded-2xl bg-white p-4 ring-1 ring-[#EEEDFE]">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#8A8894]">Progress</p>
+                                    <p className="text-sm font-black text-[#3C3489]">{project.progress}%</p>
+                                  </div>
+                                  <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-[#EEEFF5]">
+                                    <div className={`h-full rounded-full ${
+                                      project.status === 'Blocked' ? 'bg-[#EF4444]' :
+                                      project.status === 'Done' ? 'bg-[#1D9E75]' :
+                                      'bg-[#7F77DD]'
+                                    }`} style={{ width: `${project.progress}%` }} />
+                                  </div>
+                                </div>
+                              </div>
+                            </article>
+                          )) : renderEmptyState({
+                            title: 'No projects yet',
+                            sub: `${dashboardRoleLabel} workspace is ready for real projects only. Create the first one from the editor panel.`,
+                            Icon: Building2
+                          })}
+                        </div>
+                      </section>
+
+                      <section className="dashboard-panel rounded-[28px] p-5">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#1D9E75]">
+                              {editingManagerProjectId ? 'Edit project' : 'New project'}
+                            </p>
+                            <h2 className="mt-2 text-2xl font-black text-[#2C2C2A]">
+                              {editingManagerProjectId ? `Update ${projectEditorRoleLabel} project` : `Create a ${projectEditorRoleLabel} project`}
+                            </h2>
+                          </div>
+                          <Building2 className="h-6 w-6 text-[#1D9E75]" />
+                        </div>
+
+                        <form onSubmit={handleSaveManagerProject} className="mt-5 space-y-3">
+                          <input
+                            type="text"
+                            placeholder="Project name *"
+                            value={managerProjectDraft.name}
+                            onChange={(e) => handleManagerProjectDraftChange('name', e.target.value)}
+                            className="block w-full rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]"
+                            required
+                          />
+                          <textarea
+                            placeholder="Short project summary"
+                            value={managerProjectDraft.summary}
+                            onChange={(e) => handleManagerProjectDraftChange('summary', e.target.value)}
+                            className="block min-h-24 w-full rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]"
+                          />
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <input
+                              type="text"
+                              placeholder="Owner"
+                              value={managerProjectDraft.owner}
+                              onChange={(e) => handleManagerProjectDraftChange('owner', e.target.value)}
+                              className="block w-full rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Due date"
+                              value={managerProjectDraft.due}
+                              onChange={(e) => handleManagerProjectDraftChange('due', e.target.value)}
+                              className="block w-full rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]"
+                            />
+                          </div>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <select
+                              value={managerProjectDraft.status}
+                              onChange={(e) => handleManagerProjectDraftChange('status', e.target.value)}
+                              className="block w-full rounded-2xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm outline-none focus:border-[#7F77DD]"
+                            >
+                              {['Planned', 'In Progress', 'Review', 'Done', 'Blocked'].map((option) => (
+                                <option key={option} value={option}>{option}</option>
+                              ))}
+                            </select>
+                            <select
+                              value={managerProjectDraft.priority}
+                              onChange={(e) => handleManagerProjectDraftChange('priority', e.target.value)}
+                              className="block w-full rounded-2xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm outline-none focus:border-[#7F77DD]"
+                            >
+                              {['Low', 'Medium', 'High'].map((option) => (
+                                <option key={option} value={option}>{option}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="rounded-2xl border border-[#DAD7FB] bg-[#FCFCFF] p-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#8A8894]">Progress</p>
+                              <span className="text-sm font-black text-[#3C3489]">{managerProjectDraft.progress}%</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="0"
+                              max="100"
+                              step="1"
+                              value={managerProjectDraft.progress}
+                              onChange={(e) => handleManagerProjectDraftChange('progress', e.target.value)}
+                              className="mt-3 w-full accent-[#7F77DD]"
+                            />
+                          </div>
+                          <div className="flex gap-3">
+                            <button type="submit" className="flex-1 rounded-2xl bg-[#1C1739] px-4 py-3 text-sm font-black text-white">
+                              {editingManagerProjectId ? 'Save changes' : 'Create project'}
+                            </button>
+                            <button type="button" onClick={resetManagerProjectDraft} className="rounded-2xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm font-black text-[#3C3489]">
+                              Clear
+                            </button>
+                          </div>
+                        </form>
+                      </section>
+                    </section>
+                  )}
+
+                  {activeDashboardSection === 'NudgeAI' && (
+                    <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+                      <div className="rounded-[28px] bg-[#151326] p-6 text-white">
+                        <p className="text-xs font-black uppercase tracking-[0.18em] text-[#8EF0CD]">NudgeAI desk</p>
+                        <h2 className="mt-3 text-3xl font-black">AI copilots for real team signals.</h2>
+                        <p className="mt-3 text-sm font-semibold leading-6 text-white/70">Generate summaries only from the live workspace. No demo snippets here.</p>
+                        <div className="mt-6 rounded-2xl border border-white/10 bg-white/8 p-4">
+                          <p className="text-xs font-black uppercase tracking-[0.14em] text-white/55">What this should feel like</p>
+                          <p className="mt-2 text-sm font-semibold leading-6 text-white/80">
+                            Clean outputs, readable briefs, and next actions your team can use immediately without reading raw JSON.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="dashboard-panel rounded-[28px] p-5">
+                        <h2 className="text-xl font-black text-[#2C2C2A]">Run AI actions</h2>
+                        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                          {[
+                            ['standup', 'Morning brief'],
+                            ['forecast', 'Sprint forecast'],
+                            ['appreciation', 'Appreciation draft'],
+                            ['skillGap', 'Skill gaps'],
+                          ].map(([type, label]) => (
+                            <button key={type} type="button" onClick={() => runNudgeAiFeature(type, true)} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4 text-left text-sm font-black text-[#1C1739] hover:border-[#7F77DD]">
+                              {nudgeAiLoading[type] ? 'Generating...' : label}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="mt-5 rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                          <p className="text-sm font-black text-[#2C2C2A]">Latest result</p>
+                          <div className="mt-3">
+                            {renderLatestAiResult(latestAiResult)}
+                          </div>
+                        </div>
+                      </div>
+                    </section>
+                  )}
+
+                  {activeDashboardSection === 'Integrations' && (
+                    <section className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
+                      <div className="dashboard-panel rounded-[28px] p-5">
+                        <h2 className="text-2xl font-black text-[#2C2C2A]">Integrations</h2>
+                        <div className="mt-5 grid gap-4 md:grid-cols-3">
+                          {[
+                            ['WhatsApp nudges', 'Coming in V2. Currently in building phase.'],
+                            ['HRMS tools', 'Attendance, timetable, leave, payroll, and HR workflows can be added in custom plans.'],
+                            ['Razorpay', 'Payment setup is connected from billing and checkout.'],
+                          ].map(([title, copy]) => (
+                            <div key={title} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                              <p className="text-sm font-black text-[#2C2C2A]">{title}</p>
+                              <p className="mt-2 text-xs font-semibold leading-5 text-[#6E6B78]">{copy}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <form onSubmit={handleIntegrationRequestSubmit} className="dashboard-panel rounded-[28px] p-5">
+                        <h2 className="text-xl font-black text-[#2C2C2A]">Request an integration</h2>
+                        <p className="mt-2 text-sm font-semibold text-[#6E6B78]">Tell us what your team wants next and we will review it for the roadmap.</p>
+                        <div className="mt-5 grid gap-3">
+                          <input
+                            value={integrationRequestTitle}
+                            onChange={(e) => setIntegrationRequestTitle(e.target.value)}
+                            placeholder="Integration name e.g. Slack, Zoho HRMS, Attendance tool"
+                            className="rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]"
+                          />
+                          <textarea
+                            value={integrationRequestDetails}
+                            onChange={(e) => setIntegrationRequestDetails(e.target.value)}
+                            placeholder="What should it do for your team?"
+                            className="min-h-28 rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]"
+                          />
+                          <button className="rounded-2xl bg-[#1C1739] px-4 py-3 text-sm font-black text-white">
+                            Save request
+                          </button>
+                        </div>
+                      </form>
+                    </section>
+                  )}
+
+                  {activeDashboardSection === 'Settings' && (
+                    <section className="dashboard-panel rounded-[28px] p-5">
+                      <h2 className="text-2xl font-black text-[#2C2C2A]">Settings</h2>
+                      <p className="mt-2 text-sm font-semibold text-[#6E6B78]">Basic profile settings for the original workspace.</p>
+                      <div className="mt-5 grid gap-4 md:grid-cols-2">
+                        <label className="block">
+                          <span className="text-xs font-black uppercase tracking-[0.14em] text-[#8A8894]">Name</span>
+                          <input value={user?.name || ''} onChange={(e) => setUser((current) => ({ ...(current || {}), name: e.target.value }))} className="mt-2 w-full rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" />
+                        </label>
+                        <label className="block">
+                          <span className="text-xs font-black uppercase tracking-[0.14em] text-[#8A8894]">Email</span>
+                          <input value={user?.email || ''} onChange={(e) => setUser((current) => ({ ...(current || {}), email: e.target.value }))} className="mt-2 w-full rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" />
+                        </label>
+                      </div>
+                      <button type="button" onClick={handleLogout} className="mt-5 rounded-2xl border border-rose-200 bg-white px-4 py-3 text-sm font-black text-rose-600">Logout</button>
+                    </section>
+                  )}
+                </section>
               )}
 
               {dashboardRole === 'manager' && selectedDemoSection === 'Dashboard' && managerActiveBlockers.length > 0 && (
@@ -8102,7 +8928,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                 </section>
               )}
 
-              {((dashboardRole === 'employee' && selectedDemoSection === 'My Dashboard') || (dashboardRole !== 'employee' && selectedDemoSection === 'Dashboard')) && (
+              {((dashboardRole === 'employee' && selectedDemoSection === 'My Dashboard') || (dashboardRole === 'manager' && selectedDemoSection === 'Dashboard')) && (
                 <div className="mt-6 grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
                   <section className="dashboard-panel rounded-[28px] p-5">
                     <div className="flex items-center justify-between gap-4">
@@ -9888,6 +10714,66 @@ const demoSidebarItems = dashboardRole === 'employee'
                 </div>
               )}
 
+              {!isSandbox && (
+                <section className="mt-8 grid gap-6 xl:grid-cols-[1fr_0.95fr]">
+                  <div className="dashboard-panel rounded-[28px] p-5">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7F77DD]">Help us improve</p>
+                    <h2 className="mt-2 text-2xl font-black text-[#2C2C2A]">Leave a review or tell us what to improve.</h2>
+                    <p className="mt-2 text-sm font-semibold leading-6 text-[#6E6B78]">
+                      Your feedback directly shapes the OG dashboards. Tell us what feels slow, confusing, missing, or extra useful.
+                    </p>
+                    <form onSubmit={handleFeedbackCommentSubmit} className="mt-5 grid gap-3">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <input
+                          value={feedbackCommentName}
+                          onChange={(e) => setFeedbackCommentName(e.target.value)}
+                          placeholder="Your name"
+                          className="rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]"
+                        />
+                        <select
+                          value={feedbackCategory}
+                          onChange={(e) => setFeedbackCategory(e.target.value)}
+                          className="rounded-2xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm outline-none focus:border-[#7F77DD]"
+                        >
+                          {['Product feedback', 'Bug report', 'Improvement idea', 'Review'].map((option) => (
+                            <option key={option} value={option}>{option}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <textarea
+                        value={feedbackCommentText}
+                        onChange={(e) => setFeedbackCommentText(e.target.value)}
+                        placeholder="What should we improve in this dashboard?"
+                        className="min-h-28 rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]"
+                      />
+                      <button className="rounded-2xl bg-[#1C1739] px-4 py-3 text-sm font-black text-white">
+                        Save feedback
+                      </button>
+                    </form>
+                  </div>
+
+                  <div className="dashboard-panel rounded-[28px] p-5">
+                    <h2 className="text-xl font-black text-[#2C2C2A]">Recent workspace feedback</h2>
+                    <div className="mt-5 space-y-3">
+                      {feedbackComments.length ? feedbackComments.slice(0, 4).map((item) => (
+                        <div key={item.id} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-black text-[#2C2C2A]">{item.name}</p>
+                            <span className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8A8894]">{item.time}</span>
+                          </div>
+                          <p className="mt-1 text-[11px] font-black uppercase tracking-[0.14em] text-[#7F77DD]">{item.category || 'Feedback'}</p>
+                          <p className="mt-2 text-sm font-semibold leading-6 text-[#5F5E5A]">{item.comment}</p>
+                        </div>
+                      )) : (
+                        <div className="rounded-2xl border border-dashed border-[#DAD7FB] bg-[#FCFCFF] p-5 text-sm font-semibold text-[#8A8894]">
+                          No feedback yet. First review from this workspace will appear here.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </section>
+              )}
+
               <AnimatePresence>
                 {selectedDemoTask && (
                   <motion.div
@@ -10108,10 +10994,8 @@ const demoSidebarItems = dashboardRole === 'employee'
                   <button
                     key={label}
                     type="button"
-                    onClick={() => {
-                      if (demoDashboardCanNavigate) setDemoEmployeeSection(label);
-                    }}
-                    className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-extrabold ${(demoDashboardCanNavigate ? selectedDemoSection === label : index === 0) ? 'bg-[#7F77DD] text-white' : 'text-[#6E6B78]'}`}
+                    onClick={() => handleDashboardSectionSelect(label)}
+                    className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-extrabold ${(demoDashboardCanNavigate ? activeDashboardSection === label : index === 0) ? 'bg-[#7F77DD] text-white' : 'text-[#6E6B78]'}`}
                   >
                     <Icon className="h-4 w-4" />
                     {label.replace('My ', '')}
@@ -10123,7 +11007,7 @@ const demoSidebarItems = dashboardRole === 'employee'
         </section>
       )}
 
-      {currentView === 'dashboard' && !isSandbox && !isEmployeeDashboard && authRole !== 'manager' && (
+      {false && currentView === 'dashboard' && !isSandbox && !isEmployeeDashboard && !isLiveManagerWorkspace && !isLiveAdminOrHrWorkspace && (
         <section
           className={`workspace-surface workspace-surface-${dashboardRole} relative min-h-screen overflow-hidden px-5 py-8 sm:px-6 lg:px-8`}
           style={{

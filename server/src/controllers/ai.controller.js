@@ -1,5 +1,6 @@
 import { groq, GROQ_MODEL } from '../config/groq.js';
 import { supabase } from '../config/supabase.js';
+import { sendWhatsAppMessage } from '../services/whatsapp.js';
 
 const isNudgeAIConfigured = () => process.env.GROQ_API_KEY && process.env.GROQ_API_KEY !== 'gsk_your_groq_api_key_goes_here';
 
@@ -14,6 +15,39 @@ const wordCount = (text = '') => text.trim().split(/\s+/).filter(Boolean).length
 const average = (values) => {
   const clean = values.filter((value) => Number.isFinite(value));
   return clean.length ? clean.reduce((sum, value) => sum + value, 0) / clean.length : 0;
+};
+
+const startOfToday = () => {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const hoursBetween = (from, to = new Date()) => {
+  const start = new Date(from);
+  const end = new Date(to);
+  return (end.getTime() - start.getTime()) / 36e5;
+};
+
+const formatIndiaDate = (value) => new Intl.DateTimeFormat('en-IN', {
+  day: 'numeric',
+  month: 'short',
+  timeZone: 'Asia/Kolkata'
+}).format(new Date(value));
+
+const formatIndiaDateTime = (value) => new Intl.DateTimeFormat('en-IN', {
+  day: 'numeric',
+  month: 'short',
+  hour: 'numeric',
+  minute: '2-digit',
+  timeZone: 'Asia/Kolkata'
+}).format(new Date(value));
+
+const actionLabelForRecommendation = (actionType = '') => {
+  if (actionType === 'send_reminder') return 'Send WhatsApp Reminder';
+  if (actionType === 'escalate') return 'Escalate to Admin';
+  if (actionType === 'checkin') return 'Schedule Check-in';
+  return 'Open action';
 };
 
 const riskColor = (risk = 'LOW') => {
@@ -114,10 +148,108 @@ const aiEntityKey = (req, fallback = 'company') => {
   return departmentId ? `department:${departmentId}` : fallback;
 };
 
+const getManagerRecommendationContext = async (req) => {
+  const employees = await getEmployees(req);
+  const employeeIds = new Set(employees.map((employee) => employee.id));
+  const departmentId = getScopedDepartmentId(req);
+  const orgId = req?.user?.organization_id || null;
+  const cutoffIso = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+  const todayIso = startOfToday().toISOString();
+
+  const tasksQuery = supabase
+    .from('tasks')
+    .select('id, title, status, assignee_id, created_at, due_date, organization_id, assignee:users(id, name, email, phone_number, department_id)')
+    .neq('status', 'completed');
+  if (orgId) tasksQuery.eq('organization_id', orgId);
+
+  const adminsQuery = supabase
+    .from('users')
+    .select('id, name, email, phone_number, role, department_id, organization_id')
+    .eq('role', 'admin');
+  if (orgId) adminsQuery.eq('organization_id', orgId);
+
+  const [tasksResult, updatesResult, checkinsResult, blockersResult, adminsResult] = await Promise.all([
+    tasksQuery,
+    supabase
+      .from('progress_updates')
+      .select('id, user_id, task_id, progress_text, created_at, user:users(id, name, email, phone_number, department_id), tasks(id, title, status, assignee_id, organization_id)')
+      .gte('created_at', cutoffIso),
+    supabase
+      .from('daily_checkins')
+      .select('id, user_id, date, created_at, user:users(id, name, email, phone_number, department_id)')
+      .gte('date', cutoffIso.slice(0, 10)),
+    supabase
+      .from('blocker_logs')
+      .select('id, task_id, reporter_id, blocker_text, resolved, resolved_at, created_at, task:tasks(id, title, assignee_id, organization_id, assignee:users(id, name, email, phone_number, department_id)), reporter:users(id, name, email, department_id)')
+      .eq('resolved', false),
+    adminsQuery
+  ]);
+
+  if (tasksResult.error) throw tasksResult.error;
+  if (updatesResult.error) throw updatesResult.error;
+  if (checkinsResult.error) throw checkinsResult.error;
+  if (blockersResult.error) throw blockersResult.error;
+  if (adminsResult.error) throw adminsResult.error;
+
+  if (!employeeIds.size) {
+    return {
+      employees: [],
+      tasks: [],
+      updates: [],
+      checkins: [],
+      blockers: [],
+      admins: adminsResult.data || [],
+      todayIso
+    };
+  }
+
+  const scopedTasks = (tasksResult.data || []).filter((task) => {
+    if (orgId && task.organization_id && task.organization_id !== orgId) return false;
+    if (!departmentId) return true;
+    return task.assignee?.department_id === departmentId;
+  }).filter((task) => employeeIds.has(task.assignee_id));
+
+  const scopedUpdates = (updatesResult.data || []).filter((update) => {
+    if (employeeIds.has(update.user_id)) {
+      if (!departmentId) return true;
+      return update.user?.department_id === departmentId;
+    }
+    return false;
+  });
+
+  const scopedCheckins = (checkinsResult.data || []).filter((checkin) => {
+    if (employeeIds.has(checkin.user_id)) {
+      if (!departmentId) return true;
+      return checkin.user?.department_id === departmentId;
+    }
+    return false;
+  });
+
+  const scopedBlockers = (blockersResult.data || []).filter((blocker) => {
+    const blockerTask = blocker.task || {};
+    const blockerAssignee = blockerTask.assignee || {};
+    if (orgId && blockerTask.organization_id && blockerTask.organization_id !== orgId) return false;
+    if (departmentId && blockerAssignee.department_id && blockerAssignee.department_id !== departmentId) return false;
+    return employeeIds.has(blockerTask.assignee_id) || employeeIds.has(blocker.reporter_id);
+  });
+
+  const scopedAdmins = (adminsResult.data || []).filter((admin) => !orgId || admin.organization_id === orgId);
+
+  return {
+    employees,
+    tasks: scopedTasks,
+    updates: scopedUpdates,
+    checkins: scopedCheckins,
+    blockers: scopedBlockers,
+    admins: scopedAdmins,
+    todayIso
+  };
+};
+
 const assistantFallback = (message = '', context = 'public') => {
   const text = message.toLowerCase();
   if (/\b(price|pricing|cost|plan|plans)\b/.test(text)) {
-    return 'NudgeHQ pricing is early-stage launch pricing. New companies get the real Starter plan free for 14 days with no payment needed. After that, Starter is Rs. 2,000/month or $9/month for up to 20 employees, Growth is Rs. 4,500/month or $25/month for up to 50 employees, Business is Rs. 8,500/month or $49/month for up to 100 employees, and Enterprise is custom. Demo access is separate and only previews dashboards/features.';
+    return 'NudgeHQ pricing is early-stage launch pricing. New companies get a real 14-day free trial with a small ₹2 verification fee. After that, Starter is Rs. 2,000/month or $9/month for up to 20 employees, Growth is Rs. 4,500/month or $25/month for up to 50 employees, Business is Rs. 8,500/month or $49/month for up to 100 employees, and Enterprise is custom. Demo access is separate and only previews dashboards/features.';
   }
   if (/feature|what.*do|nudgeai|ai/.test(text)) {
     return 'NudgeHQ tracks workforce progress through employee updates, task status, blockers, focus, daily check-ins, deep work, admin dashboards, reports, and NudgeAI summaries, forecasts, care alerts, skill gap analysis, and appreciation suggestions.';
@@ -169,7 +301,7 @@ export const assistantChat = async (req, res) => {
       : '';
 
     const { data, unavailable } = await callNudgeAIJson({
-      system: `You are NudgeAI, a helpful general-purpose AI assistant inside NudgeHQ. Never mention Groq. You can answer general questions about writing, planning, coding, learning, ideas, explanations, and NudgeHQ product usage. Be concise, useful, and friendly. Known NudgeHQ facts: NudgeHQ is a workforce progress tracking SaaS. It has employee updates, tasks, blockers, Focus Pulse, Smart Presence, Deep Work, Employee Growth, admin dashboards, reports, privacy/terms pages, and NudgeAI insights. Current pricing: new companies get the real Starter plan free for 14 days with no payment needed. After trial, Starter is Rs.2,000/month or $9/month for up to 20 employees, Growth is Rs.4,500/month or $25/month for up to 50 employees, Business is Rs.8,500/month or $49/month for up to 100 employees, and Enterprise is custom. Demo access is separate and only previews dashboards/features; it is not the real trial account. Never invent NudgeHQ prices, customers, integrations, or policies. If dashboard context is provided, use it. For unrelated general questions, answer normally. Return only JSON with schema {"answer":"answer","suggestions":["short follow-up 1","short follow-up 2","short follow-up 3"]}.`,
+      system: `You are NudgeAI, a helpful general-purpose AI assistant inside NudgeHQ. Never mention Groq. You can answer general questions about writing, planning, coding, learning, ideas, explanations, and NudgeHQ product usage. Be concise, useful, and friendly. Known NudgeHQ facts: NudgeHQ is a workforce progress tracking SaaS. It has employee updates, tasks, blockers, Focus Pulse, Smart Presence, Deep Work, Employee Growth, admin dashboards, reports, privacy/terms pages, and NudgeAI insights. Current pricing: new companies get a real 14-day free trial with a small ₹2 verification fee. After trial, Starter is Rs.2,000/month or $9/month for up to 20 employees, Growth is Rs.4,500/month or $25/month for up to 50 employees, Business is Rs.8,500/month or $49/month for up to 100 employees, and Enterprise is custom. Demo access is separate and only previews dashboards/features; it is not the real trial account. Never invent NudgeHQ prices, customers, integrations, or policies. If dashboard context is provided, use it. For unrelated general questions, answer normally. Return only JSON with schema {"answer":"answer","suggestions":["short follow-up 1","short follow-up 2","short follow-up 3"]}.`,
       prompt: `User role: ${role}\nPage/context: ${page} / ${context}\nQuestion: ${message}${snapshotText}`,
       fallback,
       temperature: 0.2
@@ -241,6 +373,346 @@ export const scoreUpdateWithNudgeAI = async (progressText) => {
     tip: data.tip || '',
     unavailable
   };
+};
+
+const buildManagerRecommendation = ({
+  type,
+  severity,
+  title,
+  description,
+  actionType,
+  actionPayload,
+}) => ({
+  id: `${type}-${actionPayload?.employeeId || actionPayload?.blockerId || Date.now()}`,
+  type,
+  severity,
+  title,
+  description,
+  actionType,
+  actionPayload,
+  createdAt: new Date().toISOString()
+});
+
+const latestSignalForEmployee = (employeeId, updates = [], checkins = []) => {
+  const progressSignals = updates
+    .filter((update) => update.user_id === employeeId)
+    .map((update) => ({ type: 'update', at: update.created_at, label: update.created_at }));
+  const checkinSignals = checkins
+    .filter((checkin) => checkin.user_id === employeeId)
+    .map((checkin) => ({ type: 'checkin', at: checkin.created_at || `${checkin.date}T00:00:00Z`, label: checkin.created_at || checkin.date }));
+  return [...progressSignals, ...checkinSignals].sort((a, b) => new Date(b.at) - new Date(a.at))[0] || null;
+};
+
+export const generateManagerRecommendations = async (req, res) => {
+  try {
+    const context = await getManagerRecommendationContext(req);
+    const { employees, tasks, updates, checkins, blockers, todayIso } = context;
+
+    const recommendations = [];
+    const todayDate = new Date(todayIso);
+    const currentDayUpdates = updates.filter((update) => update.created_at && new Date(update.created_at).toDateString() === todayDate.toDateString());
+
+    employees.forEach((employee) => {
+      const latestSignal = latestSignalForEmployee(employee.id, updates, checkins);
+      const lastSignalAt = latestSignal?.at || null;
+      const hoursSinceLastSignal = lastSignalAt ? hoursBetween(lastSignalAt) : Number.POSITIVE_INFINITY;
+      const activeTasks = tasks.filter((task) => task.assignee_id === employee.id).length;
+      const updatesToday = currentDayUpdates.filter((update) => update.user_id === employee.id).length;
+
+      if (hoursSinceLastSignal > 48) {
+        const lastSeenLabel = lastSignalAt ? formatIndiaDate(lastSignalAt) : 'no recent check-in';
+        const inactiveDays = lastSignalAt ? Math.max(3, Math.ceil(hoursSinceLastSignal / 24)) : 3;
+        recommendations.push(buildManagerRecommendation({
+          type: 'inactive',
+          severity: 'medium',
+          title: `${employee.name || 'Team member'} has not submitted updates for ${inactiveDays} days.`,
+          description: `Last check-in was ${lastSeenLabel}.`,
+          actionType: 'send_reminder',
+          actionPayload: {
+            employeeId: employee.id,
+            employeeName: employee.name || 'there',
+            phoneNumber: employee.phone_number || null,
+            lastSignalAt
+          }
+        }));
+      }
+
+      if (activeTasks > 5 && updatesToday > 4) {
+        recommendations.push(buildManagerRecommendation({
+          type: 'overload',
+          severity: 'medium',
+          title: `${employee.name || 'Team member'} has ${activeTasks} active tasks and submitted ${updatesToday} updates today.`,
+          description: 'Possible overload.',
+          actionType: 'checkin',
+          actionPayload: {
+            employeeId: employee.id,
+            employeeName: employee.name || 'there',
+            phoneNumber: employee.phone_number || null,
+            activeTasks,
+            updatesToday
+          }
+        }));
+      }
+    });
+
+    blockers.forEach((blocker) => {
+      const blockerHours = blocker.created_at ? hoursBetween(blocker.created_at) : 0;
+      if (blockerHours > 48) {
+        const taskTitle = blocker.task?.title || 'Blocker';
+        recommendations.push(buildManagerRecommendation({
+          type: 'blocker',
+          severity: 'high',
+          title: `${taskTitle} blocker unresolved for ${Math.max(2, Math.ceil(blockerHours / 24))} days.`,
+          description: `Opened on ${formatIndiaDate(blocker.created_at)}.`,
+          actionType: 'escalate',
+          actionPayload: {
+            blockerId: blocker.id,
+            blockerText: blocker.blocker_text,
+            taskId: blocker.task_id,
+            taskTitle,
+            reporterId: blocker.reporter_id,
+            reporterName: blocker.reporter?.name || 'Team member'
+          }
+        }));
+      }
+    });
+
+    recommendations.sort((a, b) => {
+      const severityRank = { high: 0, medium: 1, low: 2 };
+      return (severityRank[a.severity] ?? 3) - (severityRank[b.severity] ?? 3);
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        manager_id: req.user.id,
+        generated_at: new Date().toISOString(),
+        powered_by: 'NudgeAI',
+        recommendations: recommendations.slice(0, 6)
+      }
+    });
+  } catch (error) {
+    console.error('Manager recommendation generation error:', error);
+    return res.status(200).json({
+      success: false,
+      message: 'Could not generate manager recommendations.',
+      data: {
+        manager_id: req.user?.id || null,
+        generated_at: new Date().toISOString(),
+        powered_by: 'NudgeAI',
+        recommendations: []
+      }
+    });
+  }
+};
+
+const logRecommendationWhatsApp = async ({ employee, type, status, message, twilioSid = null, errorMessage = null, triggeredBy = null }) => {
+  await Promise.allSettled([
+    supabase.from('whatsapp_notification_logs').insert([{
+      organization_id: employee.organization_id || null,
+      user_id: employee.id,
+      phone_number: employee.phone_number || null,
+      status,
+      notification_type: type,
+      triggered_by: triggeredBy,
+      twilio_sid: twilioSid,
+      error_message: errorMessage,
+    }]),
+    supabase.from('employee_notifications').insert([{
+      user_id: employee.id,
+      type: `whatsapp_${type}`,
+      message,
+    }]),
+  ]);
+};
+
+const notifyAdminsAboutEscalation = async ({ organizationId, message }) => {
+  if (!organizationId) return;
+  const { data: admins, error } = await supabase
+    .from('users')
+    .select('id, name, email, phone_number, organization_id')
+    .eq('role', 'admin')
+    .eq('organization_id', organizationId);
+
+  if (error) throw error;
+
+  await Promise.allSettled((admins || []).map((admin) => supabase.from('employee_notifications').insert([{
+    user_id: admin.id,
+    type: 'manager_escalation',
+    message,
+  }])));
+};
+
+export const executeManagerRecommendationAction = async (req, res) => {
+  try {
+    const { actionType, actionPayload = {} } = req.body || {};
+    if (!actionType) {
+      return res.status(400).json({ success: false, message: 'actionType is required.' });
+    }
+
+    if (actionType === 'send_reminder') {
+      const employeeId = actionPayload.employeeId || actionPayload.employee_id;
+      const employeeName = actionPayload.employeeName || actionPayload.employee_name || 'there';
+      if (!employeeId) {
+        return res.status(400).json({ success: false, message: 'employeeId is required for reminder actions.' });
+      }
+
+      const { data: employee, error } = await supabase
+        .from('users')
+        .select('id, name, email, phone_number, organization_id')
+        .eq('id', employeeId)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!employee) {
+        return res.status(404).json({ success: false, message: 'Employee not found.' });
+      }
+      if (!employee.phone_number) {
+        return res.status(400).json({ success: false, message: `${employee.name || employeeName} does not have a phone number saved.` });
+      }
+
+      const body = `Hi ${employee.name || employeeName} 👋\n\nYou haven't submitted updates in a while.\n\nNeed help or facing blockers?\nReply UPDATE or BLOCKED.`;
+
+      try {
+        const message = await sendWhatsAppMessage(employee.phone_number, body);
+        await logRecommendationWhatsApp({
+          employee,
+          type: 'manager_reminder',
+          status: 'sent',
+          message: body,
+          twilioSid: message.sid,
+          triggeredBy: req.user.id
+        });
+        await supabase
+          .from('users')
+          .update({ last_whatsapp_nudge: new Date().toISOString(), whatsapp_nudge_sent_at: new Date().toISOString() })
+          .eq('id', employee.id);
+      } catch (sendError) {
+        await logRecommendationWhatsApp({
+          employee,
+          type: 'manager_reminder',
+          status: 'failed',
+          message: body,
+          errorMessage: sendError.message,
+          triggeredBy: req.user.id
+        });
+        throw sendError;
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: `Reminder sent to ${employee.name || employeeName}.`
+      });
+    }
+
+    if (actionType === 'escalate') {
+      const blockerId = actionPayload.blockerId || actionPayload.blocker_id;
+      if (!blockerId) {
+        return res.status(400).json({ success: false, message: 'blockerId is required for escalation actions.' });
+      }
+
+      const { data: blocker, error } = await supabase
+        .from('blocker_logs')
+        .select('id, task_id, blocker_text, task:tasks(id, title, assignee_id, organization_id, assignee:users(id, name, email, phone_number, department_id, organization_id))')
+        .eq('id', blockerId)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!blocker) {
+        return res.status(404).json({ success: false, message: 'Blocker not found.' });
+      }
+
+      const updatePayload = {
+        resolved: false,
+        resolved_at: null
+      };
+      try {
+        updatePayload.status = 'escalated';
+        updatePayload.visible_to_admin = true;
+      } catch {
+        // no-op for older schemas
+      }
+
+      const { error: updateError } = await supabase
+        .from('blocker_logs')
+        .update(updatePayload)
+        .eq('id', blocker.id);
+
+      if (updateError) {
+        const fallbackUpdate = await supabase
+          .from('blocker_logs')
+          .update({ resolved: false, resolved_at: null })
+          .eq('id', blocker.id);
+        if (fallbackUpdate.error) throw fallbackUpdate.error;
+      }
+
+      await notifyAdminsAboutEscalation({
+        organizationId: blocker.task?.organization_id || req.user.organization_id,
+        message: 'CRM blocker escalated by Manager.'
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Blocker escalated to admin.'
+      });
+    }
+
+    if (actionType === 'checkin') {
+      const employeeId = actionPayload.employeeId || actionPayload.employee_id;
+      const employeeName = actionPayload.employeeName || actionPayload.employee_name || 'there';
+      if (!employeeId) {
+        return res.status(400).json({ success: false, message: 'employeeId is required for check-in actions.' });
+      }
+
+      const { data: employee, error } = await supabase
+        .from('users')
+        .select('id, name, email, phone_number, organization_id')
+        .eq('id', employeeId)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!employee) {
+        return res.status(404).json({ success: false, message: 'Employee not found.' });
+      }
+      if (!employee.phone_number) {
+        return res.status(400).json({ success: false, message: `${employee.name || employeeName} does not have a phone number saved.` });
+      }
+
+      const body = `Hi ${employee.name || employeeName},\n\nLooks like you've been handling a lot lately.\n\nWould you like to schedule a quick sync with your manager?`;
+
+      try {
+        const message = await sendWhatsAppMessage(employee.phone_number, body);
+        await logRecommendationWhatsApp({
+          employee,
+          type: 'manager_checkin',
+          status: 'sent',
+          message: body,
+          twilioSid: message.sid,
+          triggeredBy: req.user.id
+        });
+      } catch (sendError) {
+        await logRecommendationWhatsApp({
+          employee,
+          type: 'manager_checkin',
+          status: 'failed',
+          message: body,
+          errorMessage: sendError.message,
+          triggeredBy: req.user.id
+        });
+        throw sendError;
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: `Check-in reminder sent to ${employee.name || employeeName}.`
+      });
+    }
+
+    return res.status(400).json({ success: false, message: 'Unsupported actionType.' });
+  } catch (error) {
+    console.error('Manager recommendation action error:', error);
+    return res.status(500).json({ success: false, message: error.message || 'Could not execute action.' });
+  }
 };
 
 /**

@@ -17,7 +17,7 @@ export const createOrder = async (req, res) => {
   try {
     const { plan } = req.body;
     const isTrial = plan === 'free_trial';
-    const amount = isTrial ? 1 * 100 : 2000 * 100;
+    const amount = isTrial ? 2 * 100 : 2000 * 100;
     let order = null;
 
     if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
@@ -80,7 +80,7 @@ export const verifyPayment = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: isTrial ? '14-Day Free Trial activated.' : 'Starter plan activated.',
+      message: isTrial ? 'Real 14-Day Free Trial activated.' : 'Starter plan activated.',
       redirect_to: '/onboarding'
     });
   } catch (error) {
@@ -100,7 +100,7 @@ export const activateTrial = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: '14-Day Free Trial activated successfully.',
+      message: 'Real 14-Day Free Trial activated successfully.',
       redirect_to: '/onboarding'
     });
   } catch (error) {

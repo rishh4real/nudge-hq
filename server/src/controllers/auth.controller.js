@@ -12,6 +12,12 @@ const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_nudgehq_jwt_key_chang
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 const VALID_ROLES = ['employee', 'manager', 'hr', 'admin'];
+const FREE_TRIAL_EMPLOYEE_LIMIT = 15;
+const STARTER_EMPLOYEE_LIMIT = 20;
+
+const getEmployeeLimitForPlan = (plan = '') => (
+  plan === 'free_trial' ? FREE_TRIAL_EMPLOYEE_LIMIT : STARTER_EMPLOYEE_LIMIT
+);
 
 const dashboardPathForRole = (role) => ({
   admin: '/dashboard/admin',
@@ -1029,6 +1035,13 @@ export const completeOnboarding = async (req, res) => {
     const orgId = req.user.organization_id;
     const adminId = req.user.id;
     const { company = {}, departments = [], employees = [], generate_invite_link = true } = req.body;
+    const { data: org, error: orgFetchError } = await supabase
+      .from('organizations')
+      .select('name, plan')
+      .eq('id', orgId)
+      .single();
+    if (orgFetchError) throw orgFetchError;
+    const onboardingEmployeeLimit = getEmployeeLimitForPlan(org?.plan);
 
     const { error: orgError } = await supabase
       .from('organizations')
@@ -1070,15 +1083,19 @@ export const completeOnboarding = async (req, res) => {
     }
 
     const { data: adminUser } = await supabase.from('users').select('name').eq('id', adminId).single();
-    const { data: org } = await supabase.from('organizations').select('name').eq('id', orgId).single();
     const deptByName = new Map(createdDepartments.map((dept) => [dept.name.toLowerCase(), dept.id]));
 
     const normalizedEmployeeEmails = [...new Set(
       employees
-        .slice(0, 15)
         .map((employee) => employee.email?.toLowerCase().trim())
         .filter(Boolean)
     )];
+    if (normalizedEmployeeEmails.length > onboardingEmployeeLimit) {
+      return res.status(400).json({
+        success: false,
+        message: `This workspace plan allows up to ${onboardingEmployeeLimit} employees. Please remove extra invites before finishing setup.`
+      });
+    }
     const { data: existingUsers, error: existingUsersError } = normalizedEmployeeEmails.length
       ? await supabase.from('users').select('email').in('email', normalizedEmployeeEmails)
       : { data: [], error: null };
@@ -1088,7 +1105,7 @@ export const completeOnboarding = async (req, res) => {
     const inviteRows = [];
     const inviteEmailsToNotify = [];
     const skippedInvites = [];
-    for (const employee of employees.slice(0, 15)) {
+    for (const employee of employees.slice(0, onboardingEmployeeLimit)) {
       if (!employee.email) continue;
       const normalizedEmployeeEmail = employee.email.toLowerCase().trim();
       if (registeredEmails.has(normalizedEmployeeEmail)) {
@@ -1137,7 +1154,7 @@ export const completeOnboarding = async (req, res) => {
       const code = crypto.randomBytes(6).toString('hex');
       const { data, error } = await supabase
         .from('invite_links')
-        .insert([{ company_id: orgId, organization_id: orgId, code, created_by: adminId, expires_at: addDays(7), max_uses: 15, uses_count: 0 }])
+        .insert([{ company_id: orgId, organization_id: orgId, code, created_by: adminId, expires_at: addDays(7), max_uses: onboardingEmployeeLimit, uses_count: 0 }])
         .select()
         .single();
       if (error) throw error;
