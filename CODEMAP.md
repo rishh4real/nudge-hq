@@ -106,6 +106,7 @@ Backend controllers:
 - `src/lib/storage.js`: safe localStorage JSON helper
 - `src/lib/format.js`: date and task-status formatting helpers
 - `src/lib/api.js`: frontend API helper, backend port probing, and connection-error detection
+- `src/lib/dashboard.js`: dashboard route paths, role groups, and sidebar section lists
 
 New shared helpers should go in `src/lib/`, not inside `App.jsx`.
 

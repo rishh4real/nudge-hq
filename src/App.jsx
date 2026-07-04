@@ -2,6 +2,15 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Ferrofluid from './Ferrofluid'
 import { fetchApi, getActiveServerPort, isBackendConnectionError, setActiveServerPort } from './lib/api'
+import {
+  DASHBOARD_PATHS,
+  DASHBOARD_SECTIONS_BY_ROLE,
+  getDashboardPath,
+  getRoleFromDashboardPath,
+  LEADER_ROLES,
+  OPS_ROLES,
+  PEOPLE_ROLES
+} from './lib/dashboard'
 import { formatDisplayDate, normalizeTaskStatus } from './lib/format'
 import { getStoredJson } from './lib/storage'
 import {
@@ -65,31 +74,6 @@ const DEMO_AI_QUESTIONS = [
   'How do I explain a missed deadline to my manager?',
   'What makes a high quality check-in?'
 ]
-
-const DASHBOARD_PATHS = {
-  admin: '/dashboard/admin',
-  hr: '/dashboard/hr',
-  manager: '/dashboard/manager',
-  employee: '/dashboard/employee',
-}
-
-const LEADER_ROLES = ['admin', 'hr', 'manager']
-const PEOPLE_ROLES = ['admin', 'hr']
-const OPS_ROLES = ['admin', 'manager']
-
-const getDashboardPath = (role = 'employee') => DASHBOARD_PATHS[role] || DASHBOARD_PATHS.employee
-
-const getRoleFromDashboardPath = (path = '') => {
-  const match = Object.entries(DASHBOARD_PATHS).find(([, dashboardPath]) => dashboardPath === path)
-  return match?.[0] || null
-}
-
-const DASHBOARD_SECTIONS_BY_ROLE = {
-  admin: ['Dashboard', 'Tasks', 'People', 'NudgeSpace', 'Reports', 'Billing', 'Projects', 'NudgeAI', 'Integrations', 'Settings'],
-  hr: ['Dashboard', 'Tasks', 'People', 'NudgeSpace', 'Reports', 'Projects', 'NudgeAI', 'Integrations', 'Settings'],
-  manager: ['Dashboard', 'Tasks', 'People', 'NudgeSpace', 'Reports', 'Projects', 'NudgeAI', 'Settings'],
-  employee: ['My Dashboard', 'My Tasks', 'Check-in', 'My Progress', 'Growth Portal', 'NudgeSpace', 'NudgeAI', 'Settings'],
-}
 
 const getDashboardLabel = (role) => ({
   admin: 'Admin Command Center',
@@ -4273,9 +4257,18 @@ const demoSidebarItems = dashboardRole === 'employee'
       if (!item || typeof item !== 'object') return String(item || '');
       return item.title || item.summary || item.recommendation || item.message || item.name || Object.values(item).filter(Boolean).join(' · ');
     };
+    const hasReadableContent = Boolean(result.brief) || sections.length > 0 || Boolean(result.generated_at);
 
     return (
       <div className="space-y-4">
+        {!hasReadableContent ? (
+          <div className="rounded-2xl border border-dashed border-[#DAD7FB] bg-white p-5">
+            <p className="text-sm font-black text-[#2C2C2A]">AI action completed</p>
+            <p className="mt-2 text-xs font-semibold leading-5 text-[#6E6B78]">
+              NudgeAI responded, but there was no readable brief content yet. Add real tasks, updates, or blockers, then regenerate.
+            </p>
+          </div>
+        ) : null}
         {result.brief ? (
           <div className="rounded-2xl border border-[#EEEDFE] bg-white p-4">
             <p className="text-xs font-black uppercase tracking-[0.14em] text-[#8A8894]">Brief</p>
@@ -8352,14 +8345,20 @@ const demoSidebarItems = dashboardRole === 'employee'
                           <div className="dashboard-panel rounded-[32px] p-5">
                             <p className="text-xs font-black uppercase tracking-[0.18em] text-[#F59E0B]">People signals</p>
                             <h2 className="mt-2 text-2xl font-black text-[#1C1739]">Today’s HR snapshot</h2>
-                            <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                              {hrPeopleSignals.map(([label, value, helper]) => (
-                                <div key={label} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                            {hrPeopleSignals.map(([label, value, helper]) => (
+                              <div key={label} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
                                   <p className="text-xs font-black uppercase tracking-[0.12em] text-[#8A8894]">{label}</p>
                                   <p className="mt-2 text-3xl font-black text-[#1C1739]">{value}</p>
                                   <p className="mt-2 text-xs font-semibold leading-5 text-[#6E6B78]">{helper}</p>
                                 </div>
                               ))}
+                            </div>
+                            <div className="mt-5 rounded-2xl border border-[#FDE7BD] bg-[#FFFBEB] p-4">
+                              <p className="text-xs font-black uppercase tracking-[0.14em] text-[#B45309]">HR note</p>
+                              <p className="mt-2 text-sm font-semibold leading-6 text-[#6E6B78]">
+                                People health stays clean until employees submit real check-ins or updates. No demo names or fake wellness data are injected here.
+                              </p>
                             </div>
                           </div>
                         </section>
@@ -8389,7 +8388,18 @@ const demoSidebarItems = dashboardRole === 'employee'
                           {nudgeAiData.standup?.brief ? (
                             <p className="text-sm font-semibold leading-6 text-[#2C2C2A]">{nudgeAiData.standup.brief}</p>
                           ) : (
-                            <p className="text-sm font-semibold leading-6 text-[#6E6B78]">No brief generated yet. Generate it after employees start adding real updates, tasks, and blockers.</p>
+                            <div className="grid gap-3 md:grid-cols-3">
+                              {[
+                                ['What happened yesterday', 'Waiting for real updates.'],
+                                ['What needs attention today', empTasks.length ? `${leaderOpenTasks} open task${leaderOpenTasks === 1 ? '' : 's'} to review.` : 'No live tasks yet.'],
+                                ['AI recommendation', 'Invite the team, create tasks, then regenerate the brief.']
+                              ].map(([label, copy]) => (
+                                <div key={label} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#7F77DD]">{label}</p>
+                                  <p className="mt-2 text-sm font-semibold leading-6 text-[#5F5E5A]">{copy}</p>
+                                </div>
+                              ))}
+                            </div>
                           )}
                         </div>
                       </section>
@@ -8676,17 +8686,23 @@ const demoSidebarItems = dashboardRole === 'employee'
                           {boardPackLoading ? 'Generating...' : 'Generate Board Pack PDF'}
                         </button>
                       </div>
-                      <div className="mt-5 grid gap-4 md:grid-cols-3">
-                        {[
-                          ['Updates today', todayUpdatesCount],
-                          ['Tasks tracked', empTasks.length],
-                          ['People invited', adminUsers.length],
+                        <div className="mt-5 grid gap-4 md:grid-cols-3">
+                          {[
+                            ['Updates today', todayUpdatesCount],
+                            ['Tasks tracked', empTasks.length],
+                            ['People invited', adminUsers.length],
                         ].map(([label, value]) => (
                           <div key={label} className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
                             <p className="text-xs font-black uppercase tracking-[0.14em] text-[#8A8894]">{label}</p>
                             <p className="mt-2 text-3xl font-black text-[#1C1739]">{value}</p>
                           </div>
                         ))}
+                      </div>
+                      <div className="mt-5 rounded-2xl border border-dashed border-[#DAD7FB] bg-[#FCFCFF] p-5">
+                        <p className="text-sm font-black text-[#2C2C2A]">Report readiness</p>
+                        <p className="mt-2 text-sm font-semibold leading-6 text-[#6E6B78]">
+                          Board packs are generated from real updates, tasks, people, and blockers. If the workspace is empty, the report will stay clean instead of inventing activity.
+                        </p>
                       </div>
                     </section>
                   )}
@@ -8698,8 +8714,24 @@ const demoSidebarItems = dashboardRole === 'employee'
                         <div className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-5">
                           <p className="text-xs font-black uppercase tracking-[0.14em] text-[#8A8894]">Current plan</p>
                           <p className="mt-2 text-3xl font-black capitalize text-[#1C1739]">{user?.organizations?.plan || 'free_trial'}</p>
-                          {user?.organizations?.plan === 'free_trial' ? <p className="mt-2 text-sm font-bold text-[#8A3A0A]">Trial active. Upgrade when ready.</p> : null}
+                          {user?.organizations?.plan === 'free_trial' ? <p className="mt-2 text-sm font-bold text-[#8A3A0A]">Trial active. {trialDaysRemaining} days remaining.</p> : null}
                           <button type="button" onClick={() => setCurrentView('choose_plan')} className="mt-5 rounded-xl bg-[#1C1739] px-4 py-3 text-sm font-black text-white">Upgrade Plan</button>
+                        </div>
+                        <div className="rounded-2xl border border-[#EEEDFE] bg-white p-5">
+                          <p className="text-sm font-black text-[#2C2C2A]">Plan limits</p>
+                          <div className="mt-4 space-y-3">
+                            {[
+                              ['Employee limit', user?.organizations?.plan === 'free_trial' ? '15 during trial' : 'Plan based'],
+                              ['Projects', 'Saved to workspace backend'],
+                              ['Integrations', 'Request queue enabled'],
+                              ['WhatsApp', 'Coming in V2 build phase']
+                            ].map(([label, value]) => (
+                              <div key={label} className="flex items-center justify-between gap-3 rounded-xl bg-[#FCFCFF] px-3 py-2">
+                                <span className="text-xs font-black uppercase tracking-[0.12em] text-[#8A8894]">{label}</span>
+                                <span className="text-sm font-black text-[#1C1739]">{value}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                         <div className="rounded-2xl border border-dashed border-[#DAD7FB] bg-white p-5">
                           <p className="text-sm font-black text-[#2C2C2A]">Payment history</p>
@@ -8967,7 +8999,7 @@ const demoSidebarItems = dashboardRole === 'employee'
                               </article>
                             )) : (
                               <p className="rounded-2xl border border-dashed border-[#DAD7FB] p-4 text-sm font-semibold text-[#8A8894]">
-                                No integration requests yet. Add one from the form and it will stay saved on this device.
+                                No integration requests yet. Add one from the form and it will save to this workspace.
                               </p>
                             )}
                           </div>
@@ -8999,20 +9031,38 @@ const demoSidebarItems = dashboardRole === 'employee'
                   )}
 
                   {activeDashboardSection === 'Settings' && (
-                    <section className="dashboard-panel rounded-[28px] p-5">
-                      <h2 className="text-2xl font-black text-[#2C2C2A]">Settings</h2>
-                      <p className="mt-2 text-sm font-semibold text-[#6E6B78]">Basic profile settings for the original workspace.</p>
-                      <div className="mt-5 grid gap-4 md:grid-cols-2">
-                        <label className="block">
-                          <span className="text-xs font-black uppercase tracking-[0.14em] text-[#8A8894]">Name</span>
-                          <input value={user?.name || ''} onChange={(e) => setUser((current) => ({ ...(current || {}), name: e.target.value }))} className="mt-2 w-full rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" />
-                        </label>
-                        <label className="block">
-                          <span className="text-xs font-black uppercase tracking-[0.14em] text-[#8A8894]">Email</span>
-                          <input value={user?.email || ''} onChange={(e) => setUser((current) => ({ ...(current || {}), email: e.target.value }))} className="mt-2 w-full rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" />
-                        </label>
+                    <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+                      <div className="dashboard-panel rounded-[28px] p-5">
+                        <h2 className="text-2xl font-black text-[#2C2C2A]">Settings</h2>
+                        <p className="mt-2 text-sm font-semibold text-[#6E6B78]">Basic profile settings for the original workspace.</p>
+                        <div className="mt-5 grid gap-4">
+                          <label className="block">
+                            <span className="text-xs font-black uppercase tracking-[0.14em] text-[#8A8894]">Name</span>
+                            <input value={user?.name || ''} onChange={(e) => setUser((current) => ({ ...(current || {}), name: e.target.value }))} className="mt-2 w-full rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" />
+                          </label>
+                          <label className="block">
+                            <span className="text-xs font-black uppercase tracking-[0.14em] text-[#8A8894]">Email</span>
+                            <input value={user?.email || ''} readOnly className="mt-2 w-full rounded-2xl border border-[#DAD7FB] bg-[#FCFCFF] px-4 py-3 text-sm text-[#8A8894] outline-none" />
+                          </label>
+                          <div className="rounded-2xl border border-[#EEEDFE] bg-[#FCFCFF] p-4">
+                            <p className="text-xs font-black uppercase tracking-[0.14em] text-[#8A8894]">Role</p>
+                            <p className="mt-2 text-sm font-black capitalize text-[#1C1739]">{dashboardRoleLabel}</p>
+                          </div>
+                        </div>
+                        <button type="button" onClick={handleLogout} className="mt-5 rounded-2xl border border-rose-200 bg-white px-4 py-3 text-sm font-black text-rose-600">Logout</button>
                       </div>
-                      <button type="button" onClick={handleLogout} className="mt-5 rounded-2xl border border-rose-200 bg-white px-4 py-3 text-sm font-black text-rose-600">Logout</button>
+
+                      <div className="dashboard-panel rounded-[28px] p-5">
+                        <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7F77DD]">Help us grow</p>
+                        <h2 className="mt-2 text-2xl font-black text-[#2C2C2A]">Leave a review or improvement idea.</h2>
+                        <form onSubmit={handleFeedbackCommentSubmit} className="mt-5 grid gap-3">
+                          <select value={feedbackCategory} onChange={(e) => setFeedbackCategory(e.target.value)} className="rounded-2xl border border-[#DAD7FB] bg-white px-4 py-3 text-sm outline-none focus:border-[#7F77DD]">
+                            {['Product feedback', 'Bug report', 'Improvement idea', 'Review'].map((option) => <option key={option} value={option}>{option}</option>)}
+                          </select>
+                          <textarea value={feedbackCommentText} onChange={(e) => setFeedbackCommentText(e.target.value)} placeholder="What should we improve in this dashboard?" className="min-h-28 rounded-2xl border border-[#DAD7FB] px-4 py-3 text-sm outline-none focus:border-[#7F77DD]" />
+                          <button className="rounded-2xl bg-[#1C1739] px-4 py-3 text-sm font-black text-white">Save feedback</button>
+                        </form>
+                      </div>
                     </section>
                   )}
                 </section>
